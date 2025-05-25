@@ -19,6 +19,7 @@ export interface FormValidationResult {
 
 /**
  * Validate shipping form fields
+ * Updated: Currency is now optional
  */
 export const validateShippingForm = (data: {
   selectedCollection: string;
@@ -57,8 +58,10 @@ export const validateShippingForm = (data: {
     errors.push('Origin postal code is required');
   }
 
-  if (!data.preferredCurrency?.trim()) {
-    errors.push('Preferred currency is required');
+  // Currency is now OPTIONAL - removed required validation
+  // Only validate format if currency is provided
+  if (data.preferredCurrency && !validateCurrencyCode(data.preferredCurrency)) {
+    errors.push('Invalid currency format');
   }
 
   // Origin address validation
@@ -86,14 +89,14 @@ export const validateShippingForm = (data: {
     errors.push('Invalid origin country code');
   }
 
-  // Currency validation
-  if (data.preferredCurrency && !validateCurrencyCode(data.preferredCurrency)) {
-    errors.push('Invalid currency format');
-  }
-
   // Additional business rule validations
   if (data.country && data.originCountry && data.country === data.originCountry) {
     warnings.push('Destination and origin countries are the same - this may result in domestic shipping rates');
+  }
+
+  // Add warning if no currency is selected
+  if (!data.preferredCurrency) {
+    warnings.push('No currency selected - rates will be displayed in default carrier currency');
   }
 
   return {
