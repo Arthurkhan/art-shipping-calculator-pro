@@ -36,13 +36,60 @@ interface CollectionSize {
   width_cm: number;
 }
 
-// Unit conversion functions
-function cmToInches(cm: number): number {
-  return cm / 2.54;
+// Function to determine currency based on destination country
+function getCurrencyForCountry(countryCode: string): string {
+  const currencyMap: { [key: string]: string } = {
+    // EUR countries
+    'AT': 'EUR', 'BE': 'EUR', 'CY': 'EUR', 'EE': 'EUR', 'FI': 'EUR',
+    'FR': 'EUR', 'DE': 'EUR', 'GR': 'EUR', 'IE': 'EUR', 'IT': 'EUR',
+    'LV': 'EUR', 'LT': 'EUR', 'LU': 'EUR', 'MT': 'EUR', 'NL': 'EUR',
+    'PT': 'EUR', 'SK': 'EUR', 'SI': 'EUR', 'ES': 'EUR',
+    
+    // GBP countries
+    'GB': 'GBP',
+    
+    // CAD countries
+    'CA': 'CAD',
+    
+    // AUD countries
+    'AU': 'AUD',
+    
+    // JPY countries
+    'JP': 'JPY',
+    
+    // CHF countries
+    'CH': 'CHF',
+    
+    // SEK countries
+    'SE': 'SEK',
+    
+    // NOK countries
+    'NO': 'NOK',
+    
+    // DKK countries
+    'DK': 'DKK',
+    
+    // PLN countries
+    'PL': 'PLN',
+    
+    // CZK countries
+    'CZ': 'CZK',
+    
+    // HUF countries
+    'HU': 'HUF',
+    
+    // THB countries (origin)
+    'TH': 'THB',
+  };
+  
+  // Default to USD for international shipments and unlisted countries
+  return currencyMap[countryCode.toUpperCase()] || 'USD';
 }
 
-function kgToPounds(kg: number): number {
-  return kg * 2.20462;
+// Function to generate current date in ISO format for shipDateStamp
+function getCurrentShipDate(): string {
+  const now = new Date();
+  return now.toISOString().split('T')[0]; // YYYY-MM-DD format
 }
 
 async function getFedexAuthToken(clientId: string, clientSecret: string) {
@@ -61,7 +108,8 @@ async function getFedexAuthToken(clientId: string, clientSecret: string) {
   });
 
   if (!response.ok) {
-    throw new Error(`FedEx auth failed: ${response.statusText}`);
+    const errorText = await response.text();
+    throw new Error(`FedEx auth failed: ${response.statusText} - ${errorText}`);
   }
 
   const data = await response.json();
@@ -79,16 +127,18 @@ async function getFedexRates(
 ) {
   const rateUrl = "https://apis.fedex.com/rate/v1/rates/quotes";
   
-  // Convert dimensions and weight to FedEx required units
-  const weightLbs = kgToPounds(dimensions.weight_kg);
-  const lengthIn = cmToInches(dimensions.length_cm);
-  const widthIn = cmToInches(dimensions.width_cm);
-  const heightIn = cmToInches(dimensions.height_cm);
+  // Determine currency based on destination country
+  const preferredCurrency = getCurrencyForCountry(toCountry);
   
+  // Generate current ship date
+  const shipDateStamp = getCurrentShipDate();
+  
+  // Updated payload structure to match n8n workflow format
   const requestPayload = {
     accountNumber: {
       value: accountNumber
     },
+    rateRequestType: ["LIST", "ACCOUNT", "INCENTIVE"],
     requestedShipment: {
       shipper: {
         address: {
@@ -102,20 +152,25 @@ async function getFedexRates(
           countryCode: toCountry
         }
       },
-      pickupType: "USE_SCHEDULED_PICKUP",
-      rateRequestType: "ACCOUNT",
+      shipDateStamp: shipDateStamp,
+      pickupType: "DROPOFF_AT_FEDEX_LOCATION",
+      preferredCurrency: preferredCurrency,
+      groupPackageCount: 1,
       requestedPackageLineItems: [
         {
+          sequenceNumber: 1,
+          groupPackageCount: 1,
           weight: {
-            units: "LB",
-            value: weightLbs
+            units: "KG",
+            value: dimensions.weight_kg
           },
           dimensions: {
-            length: lengthIn,
-            width: widthIn,
-            height: heightIn,
-            units: "IN"
-          }
+            length: dimensions.length_cm,
+            width: dimensions.width_cm,
+            height: dimensions.height_cm,
+            units: "CM"
+          },
+          packagingType: "YOUR_PACKAGING"
         }
       ]
     }
@@ -135,6 +190,7 @@ async function getFedexRates(
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('FedEx API Error Response:', errorText);
     throw new Error(`FedEx API failed: ${response.statusText} - ${errorText}`);
   }
 
@@ -210,7 +266,7 @@ serve(async (req) => {
       rates = fedexResponse.output.rateReplyDetails.map((rate: any) => {
         const ratedShipment = rate.ratedShipmentDetails?.[0];
         const totalNetCharge = ratedShipment?.totalNetChargeWithDutiesAndTaxes || ratedShipment?.totalNetCharge || 0;
-        const currency = ratedShipment?.currency || "USD";
+        const currency = ratedShipment?.currency || getCurrencyForCountry(country);
         
         return {
           service: getServiceDisplayName(rate.serviceType || rate.serviceName || "FedEx Service"),
@@ -225,6 +281,7 @@ serve(async (req) => {
     console.log('Processed rates:', rates);
 
     if (rates.length === 0) {
+      console.warn('No shipping rates found in FedEx response. Response structure:', fedexResponse);
       throw new Error('No shipping rates available for the specified destination');
     }
 
