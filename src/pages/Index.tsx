@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -25,9 +24,8 @@ interface ShippingRate {
 
 interface FedexConfig {
   accountNumber: string;
-  apiKey: string;
-  secretKey: string;
-  meterNumber: string;
+  clientId: string;
+  clientSecret: string;
 }
 
 const Index = () => {

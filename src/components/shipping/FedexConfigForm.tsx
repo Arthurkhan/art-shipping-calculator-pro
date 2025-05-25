@@ -12,23 +12,21 @@ interface FedexConfigFormProps {
 
 interface FedexConfig {
   accountNumber: string;
-  apiKey: string;
-  secretKey: string;
-  meterNumber: string;
+  clientId: string;
+  clientSecret: string;
 }
 
 export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
   const [config, setConfig] = useState<FedexConfig>({
     accountNumber: localStorage.getItem('fedex_account_number') || '',
-    apiKey: localStorage.getItem('fedex_api_key') || '',
-    secretKey: localStorage.getItem('fedex_secret_key') || '',
-    meterNumber: localStorage.getItem('fedex_meter_number') || '',
+    clientId: localStorage.getItem('fedex_client_id') || '',
+    clientSecret: localStorage.getItem('fedex_client_secret') || '',
   });
   const [showSecrets, setShowSecrets] = useState(false);
   const { toast } = useToast();
 
   const handleSave = () => {
-    if (!config.accountNumber || !config.apiKey || !config.secretKey || !config.meterNumber) {
+    if (!config.accountNumber || !config.clientId || !config.clientSecret) {
       toast({
         title: "Missing Information",
         description: "Please fill in all FedEx configuration fields.",
@@ -37,11 +35,20 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
       return;
     }
 
+    // Validate account number is 9 digits
+    if (!/^\d{9}$/.test(config.accountNumber)) {
+      toast({
+        title: "Invalid Account Number",
+        description: "Account number must be exactly 9 digits.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Save to localStorage
     localStorage.setItem('fedex_account_number', config.accountNumber);
-    localStorage.setItem('fedex_api_key', config.apiKey);
-    localStorage.setItem('fedex_secret_key', config.secretKey);
-    localStorage.setItem('fedex_meter_number', config.meterNumber);
+    localStorage.setItem('fedex_client_id', config.clientId);
+    localStorage.setItem('fedex_client_secret', config.clientSecret);
 
     onConfigSave(config);
     
@@ -61,43 +68,44 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="accountNumber" className="text-slate-700 font-medium">
-            Account Number
+            Account Number (9 digits)
           </Label>
           <Input
             id="accountNumber"
             type="text"
-            placeholder="Enter FedEx account number..."
+            placeholder="123456789"
             value={config.accountNumber}
             onChange={(e) => setConfig({ ...config, accountNumber: e.target.value })}
             className="h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+            maxLength={9}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="meterNumber" className="text-slate-700 font-medium">
-            Meter Number
+          <Label htmlFor="clientId" className="text-slate-700 font-medium">
+            Client ID
           </Label>
           <Input
-            id="meterNumber"
+            id="clientId"
             type="text"
-            placeholder="Enter FedEx meter number..."
-            value={config.meterNumber}
-            onChange={(e) => setConfig({ ...config, meterNumber: e.target.value })}
+            placeholder="Enter FedEx Client ID..."
+            value={config.clientId}
+            onChange={(e) => setConfig({ ...config, clientId: e.target.value })}
             className="h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="apiKey" className="text-slate-700 font-medium">
-            API Key
+          <Label htmlFor="clientSecret" className="text-slate-700 font-medium">
+            Client Secret
           </Label>
           <div className="relative">
             <Input
-              id="apiKey"
+              id="clientSecret"
               type={showSecrets ? "text" : "password"}
-              placeholder="Enter FedEx API key..."
-              value={config.apiKey}
-              onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
+              placeholder="Enter FedEx Client Secret..."
+              value={config.clientSecret}
+              onChange={(e) => setConfig({ ...config, clientSecret: e.target.value })}
               className="h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500 pr-12"
             />
             <Button
@@ -111,20 +119,6 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
             </Button>
           </div>
         </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="secretKey" className="text-slate-700 font-medium">
-            Secret Key
-          </Label>
-          <Input
-            id="secretKey"
-            type={showSecrets ? "text" : "password"}
-            placeholder="Enter FedEx secret key..."
-            value={config.secretKey}
-            onChange={(e) => setConfig({ ...config, secretKey: e.target.value })}
-            className="h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
       </div>
 
       <Button
@@ -137,8 +131,8 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-blue-700 text-sm">
-          <strong>Note:</strong> Your FedEx API credentials are stored locally in your browser. 
-          For production use, consider using environment variables or a secure backend service.
+          <strong>Note:</strong> Your FedEx API credentials are stored locally in your browser cache. 
+          You can find your Client ID and Client Secret in your FedEx Developer Portal account.
         </p>
       </div>
     </div>

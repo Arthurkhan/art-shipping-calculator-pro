@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -13,9 +12,8 @@ interface ShippingRequest {
   postalCode: string;
   fedexConfig?: {
     accountNumber: string;
-    apiKey: string;
-    secretKey: string;
-    meterNumber: string;
+    clientId: string;
+    clientSecret: string;
   };
 }
 
@@ -27,7 +25,7 @@ interface ShippingRate {
   deliveryDate?: string;
 }
 
-async function getFedexAuthToken(apiKey: string, secretKey: string) {
+async function getFedexAuthToken(clientId: string, clientSecret: string) {
   const authUrl = "https://apis.fedex.com/oauth/token";
   
   const response = await fetch(authUrl, {
@@ -37,8 +35,8 @@ async function getFedexAuthToken(apiKey: string, secretKey: string) {
     },
     body: new URLSearchParams({
       grant_type: "client_credentials",
-      client_id: apiKey,
-      client_secret: secretKey,
+      client_id: clientId,
+      client_secret: clientSecret,
     }),
   });
 
@@ -53,7 +51,6 @@ async function getFedexAuthToken(apiKey: string, secretKey: string) {
 async function getFedexRates(
   accessToken: string,
   accountNumber: string,
-  meterNumber: string,
   fromCountry: string,
   toCountry: string,
   postalCode: string,
@@ -132,11 +129,11 @@ serve(async (req) => {
     let rates: ShippingRate[] = [];
 
     // If FedEx config is provided, use real API
-    if (fedexConfig && fedexConfig.apiKey && fedexConfig.secretKey) {
+    if (fedexConfig && fedexConfig.clientId && fedexConfig.clientSecret) {
       try {
         console.log('Using real FedEx API');
         
-        const accessToken = await getFedexAuthToken(fedexConfig.apiKey, fedexConfig.secretKey);
+        const accessToken = await getFedexAuthToken(fedexConfig.clientId, fedexConfig.clientSecret);
         
         // Estimate weight based on size
         const sizeMultiplier = size.toLowerCase().includes('large') ? 15 : 
@@ -145,7 +142,6 @@ serve(async (req) => {
         const fedexResponse = await getFedexRates(
           accessToken,
           fedexConfig.accountNumber,
-          fedexConfig.meterNumber,
           "US",
           country,
           postalCode,
