@@ -65,7 +65,7 @@ export const ShippingDetailsForm = ({
             Preferred Currency
           </Label>
           <Select value={preferredCurrency} onValueChange={onPreferredCurrencyChange}>
-            <SelectTrigger className="h-10">
+            <SelectTrigger id="currency" className="h-10">
               <SelectValue placeholder="Select currency" />
             </SelectTrigger>
             <SelectContent>
