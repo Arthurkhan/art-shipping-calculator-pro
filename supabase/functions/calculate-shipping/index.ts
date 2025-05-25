@@ -387,7 +387,7 @@ function getPreferredCurrency(userCurrency: string | undefined, destinationCount
   return autoMappedCurrency;
 }
 
-// ROADMAP PHASE 1: Updated FedEx API payload to match n8n workflow structure exactly
+// CRITICAL FIX: Updated FedEx API payload to match n8n workflow structure EXACTLY
 async function getFedexRates(
   accessToken: string,
   accountNumber: string,
@@ -408,12 +408,12 @@ async function getFedexRates(
   return retryWithBackoff(async () => {
     Logger.info('Requesting FedEx shipping rates');
 
-    // Phase 1: Get current date for shipDateStamp - as required by roadmap
+    // Get current date for shipDateStamp - as required by roadmap
     const now = new Date();
     const shipDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Tomorrow
     const shipDateStamp = shipDate.toISOString().split('T')[0];
 
-    // UPDATED: Use user-provided currency or fall back to auto-mapping
+    // Use user-provided currency or fall back to auto-mapping
     const preferredCurrency = getPreferredCurrency(userPreferredCurrency, destinationCountry);
 
     // Enhanced debugging: Log dimensional weight calculation
@@ -428,12 +428,11 @@ async function getFedexRates(
       volume: sizeData.length_cm * sizeData.width_cm * sizeData.height_cm
     });
 
-    // PHASE 1 CRITICAL FIX: Construct payload exactly matching n8n workflow structure
-    // - Remove unit conversions (use CM/KG directly)
-    // - Add missing required fields: preferredCurrency, shipDateStamp, packagingType
-    // - Fix pickupType to "DROPOFF_AT_FEDEX_LOCATION"
-    // - Update rateRequestType to array format: ["LIST", "ACCOUNT", "INCENTIVE"]
-    // - Add groupPackageCount field
+    // CRITICAL FIX: Construct payload EXACTLY matching n8n workflow structure
+    // Key changes:
+    // 1. Removed extra groupPackageCount from top level of requestedShipment
+    // 2. Reordered fields to match n8n structure exactly
+    // 3. Only groupPackageCount should be inside requestedPackageLineItems
     const payload = {
       accountNumber: {
         value: accountNumber
@@ -451,32 +450,32 @@ async function getFedexRates(
             countryCode: destinationCountry
           }
         },
-        shipDateStamp: shipDateStamp, // Required field added
-        rateRequestType: ["LIST", "ACCOUNT", "INCENTIVE"], // Array format as required
+        preferredCurrency: preferredCurrency, // Moved to match n8n order
+        shipDateStamp: shipDateStamp,
+        pickupType: "DROPOFF_AT_FEDEX_LOCATION",
+        packagingType: "YOUR_PACKAGING",
+        rateRequestType: ["LIST", "ACCOUNT", "INCENTIVE"],
         requestedPackageLineItems: [
           {
-            groupPackageCount: 1, // Added groupPackageCount to line item
+            groupPackageCount: 1, // ONLY here - not at top level
             weight: {
-              units: "KG", // Use KG directly - no unit conversion
+              units: "KG",
               value: sizeData.weight_kg
             },
             dimensions: {
-              length: sizeData.length_cm, // Use CM directly - no unit conversion
+              length: sizeData.length_cm,
               width: sizeData.width_cm,
               height: sizeData.height_cm,
               units: "CM"
             }
           }
-        ],
-        pickupType: "DROPOFF_AT_FEDEX_LOCATION", // Fixed pickup type as per roadmap
-        packagingType: "YOUR_PACKAGING", // Required field added
-        groupPackageCount: 1, // Required field added
-        preferredCurrency: preferredCurrency // USER-CONTROLLED CURRENCY
+        ]
+        // REMOVED: groupPackageCount from this level (was causing validation error)
       }
     };
 
     // Enhanced debugging: Log full payload details (sanitized)
-    Logger.info('Sending FedEx rate request with USER-CONTROLLED currency', { 
+    Logger.info('Sending FedEx rate request - FIXED payload structure to match n8n exactly', { 
       payload: {
         ...payload,
         accountNumber: { value: '[REDACTED]' }
@@ -491,7 +490,8 @@ async function getFedexRates(
           actual: sizeData.weight_kg,
           dimensional: Math.round(dimensionalWeight * 100) / 100,
           billed: Math.round(billedWeight * 100) / 100
-        }
+        },
+        fixApplied: 'Removed extra groupPackageCount from requestedShipment top level'
       }
     });
 
