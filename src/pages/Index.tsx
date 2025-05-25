@@ -106,7 +106,7 @@ const Index = () => {
   };
 
   const calculateRates = async () => {
-    if (!selectedCollection || !selectedSize || !country || !postalCode) {
+    if (!selectedCollection || !selectedSize || !country || !postalCode || !originCountry || !originPostalCode) {
       setError("Please fill in all fields before calculating rates.");
       return;
     }
@@ -122,6 +122,8 @@ const Index = () => {
           size: selectedSize,
           country,
           postalCode,
+          originCountry,
+          originPostalCode,
           fedexConfig: fedexConfig || undefined,
         },
       });

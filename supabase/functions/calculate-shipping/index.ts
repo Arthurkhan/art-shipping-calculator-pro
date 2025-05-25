@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,6 +12,8 @@ interface ShippingRequest {
   size: string;
   country: string;
   postalCode: string;
+  originCountry: string;
+  originPostalCode: string;
   fedexConfig?: {
     accountNumber: string;
     clientId: string;
@@ -24,6 +27,22 @@ interface ShippingRate {
   currency: string;
   transitTime: string;
   deliveryDate?: string;
+}
+
+interface CollectionSize {
+  weight_kg: number;
+  height_cm: number;
+  length_cm: number;
+  width_cm: number;
+}
+
+// Unit conversion functions
+function cmToInches(cm: number): number {
+  return cm / 2.54;
+}
+
+function kgToPounds(kg: number): number {
+  return kg * 2.20462;
 }
 
 async function getFedexAuthToken(clientId: string, clientSecret: string) {
@@ -53,11 +72,18 @@ async function getFedexRates(
   accessToken: string,
   accountNumber: string,
   fromCountry: string,
+  fromPostalCode: string,
   toCountry: string,
-  postalCode: string,
-  weight: number
+  toPostalCode: string,
+  dimensions: CollectionSize
 ) {
   const rateUrl = "https://apis.fedex.com/rate/v1/rates/quotes";
+  
+  // Convert dimensions and weight to FedEx required units
+  const weightLbs = kgToPounds(dimensions.weight_kg);
+  const lengthIn = cmToInches(dimensions.length_cm);
+  const widthIn = cmToInches(dimensions.width_cm);
+  const heightIn = cmToInches(dimensions.height_cm);
   
   const requestPayload = {
     accountNumber: {
@@ -66,13 +92,13 @@ async function getFedexRates(
     requestedShipment: {
       shipper: {
         address: {
-          postalCode: "10001",
-          countryCode: fromCountry || "US"
+          postalCode: fromPostalCode,
+          countryCode: fromCountry
         }
       },
       recipient: {
         address: {
-          postalCode: postalCode,
+          postalCode: toPostalCode,
           countryCode: toCountry
         }
       },
@@ -82,18 +108,20 @@ async function getFedexRates(
         {
           weight: {
             units: "LB",
-            value: weight
+            value: weightLbs
           },
           dimensions: {
-            length: 20,
-            width: 20,
-            height: 10,
+            length: lengthIn,
+            width: widthIn,
+            height: heightIn,
             units: "IN"
           }
         }
       ]
     }
   };
+
+  console.log('FedEx request payload:', JSON.stringify(requestPayload, null, 2));
 
   const response = await fetch(rateUrl, {
     method: "POST",
@@ -119,31 +147,58 @@ serve(async (req) => {
   }
 
   try {
-    const { collection, size, country, postalCode, fedexConfig }: ShippingRequest = await req.json()
+    const { collection, size, country, postalCode, originCountry, originPostalCode, fedexConfig }: ShippingRequest = await req.json()
 
-    if (!collection || !size || !country || !postalCode) {
-      throw new Error('Missing required fields')
+    if (!collection || !size || !country || !postalCode || !originCountry || !originPostalCode) {
+      throw new Error('Missing required fields: collection, size, country, postalCode, originCountry, and originPostalCode are all required')
     }
 
     if (!fedexConfig || !fedexConfig.clientId || !fedexConfig.clientSecret || !fedexConfig.accountNumber) {
       throw new Error('FedEx API configuration is required to get real shipping rates')
     }
 
-    console.log('Calculating shipping rates for:', { collection, size, country, postalCode });
+    console.log('Calculating shipping rates for:', { collection, size, country, postalCode, originCountry, originPostalCode });
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Fetch collection size data from database
+    const { data: collectionSizeData, error: dbError } = await supabase
+      .from('collection_sizes')
+      .select('weight_kg, height_cm, length_cm, width_cm')
+      .eq('collection_id', collection)
+      .eq('size', size)
+      .single();
+
+    if (dbError) {
+      console.error('Database error:', dbError);
+      throw new Error(`Failed to fetch collection size data: ${dbError.message}`);
+    }
+
+    if (!collectionSizeData) {
+      throw new Error(`No size data found for collection ${collection} with size ${size}`);
+    }
+
+    // Validate that we have all required dimensional data
+    if (!collectionSizeData.weight_kg || !collectionSizeData.height_cm || 
+        !collectionSizeData.length_cm || !collectionSizeData.width_cm) {
+      throw new Error(`Incomplete dimensional data for collection ${collection} with size ${size}. Missing weight, height, length, or width.`);
+    }
+
+    console.log('Collection size data:', collectionSizeData);
 
     const accessToken = await getFedexAuthToken(fedexConfig.clientId, fedexConfig.clientSecret);
-    
-    // Estimate weight based on size
-    const sizeMultiplier = size.toLowerCase().includes('large') ? 15 : 
-                          size.toLowerCase().includes('medium') ? 10 : 5;
     
     const fedexResponse = await getFedexRates(
       accessToken,
       fedexConfig.accountNumber,
-      "US",
+      originCountry,
+      originPostalCode,
       country,
       postalCode,
-      sizeMultiplier
+      collectionSizeData
     );
 
     console.log('FedEx API response:', JSON.stringify(fedexResponse, null, 2));
