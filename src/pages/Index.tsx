@@ -389,19 +389,29 @@ const Index = () => {
 
                   <Separator className="my-4" />
 
-                  <CollectionSelector
-                    collections={collections}
-                    selectedCollection={selectedCollection}
-                    onCollectionChange={setSelectedCollection}
-                    isLoading={isLoading}
-                  />
+                  {/* Art Collection and Artwork Size - Side by Side Layout */}
+                  <div className="space-y-3">
+                    <div className="border-b border-slate-200 pb-2">
+                      <h3 className="text-base font-semibold text-slate-800">Art Collection Selection</h3>
+                      <p className="text-xs text-slate-600">Choose the artwork you want to ship</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <CollectionSelector
+                        collections={collections}
+                        selectedCollection={selectedCollection}
+                        onCollectionChange={setSelectedCollection}
+                        isLoading={isLoading}
+                      />
 
-                  <SizeSelector
-                    sizes={sizes}
-                    selectedSize={selectedSize}
-                    onSizeChange={setSelectedSize}
-                    disabled={!selectedCollection}
-                  />
+                      <SizeSelector
+                        sizes={sizes}
+                        selectedSize={selectedSize}
+                        onSizeChange={setSelectedSize}
+                        disabled={!selectedCollection}
+                      />
+                    </div>
+                  </div>
 
                   <Separator className="my-4" />
 
