@@ -8,6 +8,7 @@ import { OriginAddressForm } from "@/components/shipping/OriginAddressForm";
 import { CalculateButton } from "@/components/shipping/CalculateButton";
 import { ResultsDisplay } from "@/components/shipping/ResultsDisplay";
 import { FedexConfigForm } from "@/components/shipping/FedexConfigForm";
+import { ParameterPreview } from "@/components/shipping/ParameterPreview";
 import { Truck, Package, Settings, Calculator, AlertTriangle, CheckCircle, Info } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -274,6 +275,11 @@ const Index = () => {
     return originValidation.isValid;
   };
 
+  // Check if we should show the parameter preview
+  const shouldShowParameterPreview = () => {
+    return selectedCollection && selectedSize && country && postalCode && originCountry && originPostalCode;
+  };
+
   // Get configuration status badge
   const getConfigStatusBadge = () => {
     switch (fedexConfigStatus) {
@@ -425,6 +431,22 @@ const Index = () => {
                     onCountryChange={setCountry}
                     onPostalCodeChange={setPostalCode}
                   />
+
+                  {/* Parameter Preview - Show when all fields are filled */}
+                  {shouldShowParameterPreview() && (
+                    <div className="space-y-4">
+                      <Separator className="my-4" />
+                      <ParameterPreview
+                        collection={selectedCollection}
+                        size={selectedSize}
+                        country={country}
+                        postalCode={postalCode}
+                        originCountry={originCountry}
+                        originPostalCode={originPostalCode}
+                        isVisible={true}
+                      />
+                    </div>
+                  )}
 
                   <div className="pt-3">
                     <CalculateButton
