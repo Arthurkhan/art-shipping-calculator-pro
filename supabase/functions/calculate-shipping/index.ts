@@ -36,294 +36,129 @@ interface CollectionSize {
   width_cm: number;
 }
 
-// Function to determine currency based on destination country
-function getCurrencyForCountry(countryCode: string): string {
-  const currencyMap: { [key: string]: string } = {
-    // EUR countries
-    'AT': 'EUR', 'BE': 'EUR', 'CY': 'EUR', 'EE': 'EUR', 'FI': 'EUR',
-    'FR': 'EUR', 'DE': 'EUR', 'GR': 'EUR', 'IE': 'EUR', 'IT': 'EUR',
-    'LV': 'EUR', 'LT': 'EUR', 'LU': 'EUR', 'MT': 'EUR', 'NL': 'EUR',
-    'PT': 'EUR', 'SK': 'EUR', 'SI': 'EUR', 'ES': 'EUR',
-    
-    // GBP countries
-    'GB': 'GBP',
-    
-    // CAD countries
-    'CA': 'CAD',
-    
-    // AUD countries
-    'AU': 'AUD',
-    
-    // JPY countries
-    'JP': 'JPY',
-    
-    // CHF countries
-    'CH': 'CHF',
-    
-    // SEK countries
-    'SE': 'SEK',
-    
-    // NOK countries
-    'NO': 'NOK',
-    
-    // DKK countries
-    'DK': 'DKK',
-    
-    // PLN countries
-    'PL': 'PLN',
-    
-    // CZK countries
-    'CZ': 'CZK',
-    
-    // HUF countries
-    'HU': 'HUF',
-    
-    // THB countries (origin)
-    'TH': 'THB',
-  };
-  
-  // Default to USD for international shipments and unlisted countries
-  return currencyMap[countryCode.toUpperCase()] || 'USD';
+interface RetryOptions {
+  maxRetries: number;
+  baseDelay: number;
+  maxDelay: number;
 }
 
-// Function to generate current date in ISO format for shipDateStamp
-function getCurrentShipDate(): string {
-  const now = new Date();
-  return now.toISOString().split('T')[0]; // YYYY-MM-DD format
+// Enhanced error types for better error handling
+enum ErrorType {
+  VALIDATION = 'VALIDATION',
+  AUTHENTICATION = 'AUTHENTICATION',
+  AUTHORIZATION = 'AUTHORIZATION',
+  NETWORK = 'NETWORK',
+  API_RESPONSE = 'API_RESPONSE',
+  RATE_PARSING = 'RATE_PARSING',
+  DATABASE = 'DATABASE',
+  CONFIGURATION = 'CONFIGURATION',
+  TIMEOUT = 'TIMEOUT'
 }
 
-async function getFedexAuthToken(clientId: string, clientSecret: string) {
-  const authUrl = "https://apis.fedex.com/oauth/token";
-  
-  const response = await fetch(authUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
-  });
+class ShippingError extends Error {
+  public readonly type: ErrorType;
+  public readonly userMessage: string;
+  public readonly details?: any;
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`FedEx auth failed: ${response.statusText} - ${errorText}`);
+  constructor(type: ErrorType, message: string, userMessage: string, details?: any) {
+    super(message);
+    this.type = type;
+    this.userMessage = userMessage;
+    this.details = details;
+    this.name = 'ShippingError';
+  }
+}
+
+// Enhanced logging utility with request/response tracking
+class Logger {
+  private static requestId: string = '';
+
+  static setRequestId(id: string) {
+    this.requestId = id;
   }
 
-  const data = await response.json();
-  return data.access_token;
-}
+  static log(level: 'INFO' | 'WARN' | 'ERROR', message: string, data?: any) {
+    const timestamp = new Date().toISOString();
+    const logEntry = {
+      timestamp,
+      requestId: this.requestId,
+      level,
+      message,
+      ...(data && { data: this.sanitizeData(data) })
+    };
+    console.log(JSON.stringify(logEntry));
+  }
 
-async function getFedexRates(
-  accessToken: string,
-  accountNumber: string,
-  fromCountry: string,
-  fromPostalCode: string,
-  toCountry: string,
-  toPostalCode: string,
-  dimensions: CollectionSize
-) {
-  const rateUrl = "https://apis.fedex.com/rate/v1/rates/quotes";
-  
-  // Determine currency based on destination country
-  const preferredCurrency = getCurrencyForCountry(toCountry);
-  
-  // Generate current ship date
-  const shipDateStamp = getCurrentShipDate();
-  
-  // Updated payload structure to match n8n workflow format
-  const requestPayload = {
-    accountNumber: {
-      value: accountNumber
-    },
-    rateRequestType: ["LIST", "ACCOUNT", "INCENTIVE"],
-    requestedShipment: {
-      shipper: {
-        address: {
-          postalCode: fromPostalCode,
-          countryCode: fromCountry
+  static info(message: string, data?: any) {
+    this.log('INFO', message, data);
+  }
+
+  static warn(message: string, data?: any) {
+    this.log('WARN', message, data);
+  }
+
+  static error(message: string, data?: any) {
+    this.log('ERROR', message, data);
+  }
+
+  // Sanitize sensitive data for logging
+  private static sanitizeData(data: any): any {
+    if (typeof data !== 'object' || data === null) {
+      return data;
+    }
+
+    const sensitiveFields = ['clientSecret', 'access_token', 'clientId', 'accountNumber'];
+    const sanitized = JSON.parse(JSON.stringify(data));
+
+    const sanitizeRecursive = (obj: any): any => {
+      if (Array.isArray(obj)) {
+        return obj.map(sanitizeRecursive);
+      }
+      
+      if (typeof obj === 'object' && obj !== null) {
+        const result: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+          if (sensitiveFields.some(field => key.toLowerCase().includes(field.toLowerCase()))) {
+            result[key] = '[REDACTED]';
+          } else {
+            result[key] = sanitizeRecursive(value);
+          }
         }
-      },
-      recipient: {
-        address: {
-          postalCode: toPostalCode,
-          countryCode: toCountry
-        }
-      },
-      shipDateStamp: shipDateStamp,
-      pickupType: "DROPOFF_AT_FEDEX_LOCATION",
-      preferredCurrency: preferredCurrency,
-      groupPackageCount: 1,
-      requestedPackageLineItems: [
-        {
-          sequenceNumber: 1,
-          groupPackageCount: 1,
-          weight: {
-            units: "KG",
-            value: dimensions.weight_kg
-          },
-          dimensions: {
-            length: dimensions.length_cm,
-            width: dimensions.width_cm,
-            height: dimensions.height_cm,
-            units: "CM"
-          },
-          packagingType: "YOUR_PACKAGING"
-        }
-      ]
-    }
-  };
+        return result;
+      }
+      
+      return obj;
+    };
 
-  console.log('FedEx request payload:', JSON.stringify(requestPayload, null, 2));
-
-  const response = await fetch(rateUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${accessToken}`,
-      "X-locale": "en_US"
-    },
-    body: JSON.stringify(requestPayload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('FedEx API Error Response:', errorText);
-    throw new Error(`FedEx API failed: ${response.statusText} - ${errorText}`);
+    return sanitizeRecursive(sanitized);
   }
-
-  return await response.json();
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+// Retry utility with exponential backoff
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions,
+  errorType: ErrorType,
+  operationName: string
+): Promise<T> {
+  let lastError: Error;
+  
+  for (let attempt = 1; attempt <= options.maxRetries; attempt++) {
+    try {
+      Logger.info(`${operationName} - Attempt ${attempt}/${options.maxRetries}`);
+      const result = await operation();
+      if (attempt > 1) {
+        Logger.info(`${operationName} succeeded on attempt ${attempt}`);
+      }
+      return result;
+    } catch (error) {
+      lastError = error as Error;
+      Logger.warn(`${operationName} failed on attempt ${attempt}`, { 
+        error: lastError.message,
+        attempt,
+        maxRetries: options.maxRetries
+      });
 
-  try {
-    const { collection, size, country, postalCode, originCountry, originPostalCode, fedexConfig }: ShippingRequest = await req.json()
-
-    if (!collection || !size || !country || !postalCode || !originCountry || !originPostalCode) {
-      throw new Error('Missing required fields: collection, size, country, postalCode, originCountry, and originPostalCode are all required')
-    }
-
-    if (!fedexConfig || !fedexConfig.clientId || !fedexConfig.clientSecret || !fedexConfig.accountNumber) {
-      throw new Error('FedEx API configuration is required to get real shipping rates')
-    }
-
-    console.log('Calculating shipping rates for:', { collection, size, country, postalCode, originCountry, originPostalCode });
-
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Fetch collection size data from database
-    const { data: collectionSizeData, error: dbError } = await supabase
-      .from('collection_sizes')
-      .select('weight_kg, height_cm, length_cm, width_cm')
-      .eq('collection_id', collection)
-      .eq('size', size)
-      .single();
-
-    if (dbError) {
-      console.error('Database error:', dbError);
-      throw new Error(`Failed to fetch collection size data: ${dbError.message}`);
-    }
-
-    if (!collectionSizeData) {
-      throw new Error(`No size data found for collection ${collection} with size ${size}`);
-    }
-
-    // Validate that we have all required dimensional data
-    if (!collectionSizeData.weight_kg || !collectionSizeData.height_cm || 
-        !collectionSizeData.length_cm || !collectionSizeData.width_cm) {
-      throw new Error(`Incomplete dimensional data for collection ${collection} with size ${size}. Missing weight, height, length, or width.`);
-    }
-
-    console.log('Collection size data:', collectionSizeData);
-
-    const accessToken = await getFedexAuthToken(fedexConfig.clientId, fedexConfig.clientSecret);
-    
-    const fedexResponse = await getFedexRates(
-      accessToken,
-      fedexConfig.accountNumber,
-      originCountry,
-      originPostalCode,
-      country,
-      postalCode,
-      collectionSizeData
-    );
-
-    console.log('FedEx API response:', JSON.stringify(fedexResponse, null, 2));
-
-    let rates: ShippingRate[] = [];
-
-    // Parse FedEx response and convert to our format
-    if (fedexResponse.output?.rateReplyDetails) {
-      rates = fedexResponse.output.rateReplyDetails.map((rate: any) => {
-        const ratedShipment = rate.ratedShipmentDetails?.[0];
-        const totalNetCharge = ratedShipment?.totalNetChargeWithDutiesAndTaxes || ratedShipment?.totalNetCharge || 0;
-        const currency = ratedShipment?.currency || getCurrencyForCountry(country);
-        
-        return {
-          service: getServiceDisplayName(rate.serviceType || rate.serviceName || "FedEx Service"),
-          cost: parseFloat(totalNetCharge) || 0,
-          currency: currency,
-          transitTime: rate.commit?.transitTime || rate.operationalDetail?.transitTime || "Unknown",
-          deliveryDate: rate.commit?.dateDetail?.dayFormat || rate.operationalDetail?.deliveryDate
-        };
-      }).filter((rate: ShippingRate) => rate.cost > 0);
-    }
-
-    console.log('Processed rates:', rates);
-
-    if (rates.length === 0) {
-      console.warn('No shipping rates found in FedEx response. Response structure:', fedexResponse);
-      throw new Error('No shipping rates available for the specified destination');
-    }
-
-    return new Response(
-      JSON.stringify({ rates }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
-    )
-  } catch (error) {
-    console.error('Error calculating shipping rates:', error)
-    return new Response(
-      JSON.stringify({ error: error.message || 'Failed to calculate shipping rates' }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      },
-    )
-  }
-})
-
-function getServiceDisplayName(serviceType: string): string {
-  const serviceMap: { [key: string]: string } = {
-    'INTERNATIONAL_PRIORITY': 'FedEx International Priority',
-    'INTERNATIONAL_ECONOMY': 'FedEx International Economy',
-    'INTERNATIONAL_CONNECT_PLUS': 'FedEx International Connect Plus',
-    'INTERNATIONAL_FIRST': 'FedEx International First',
-    'EUROPE_FIRST_INTERNATIONAL_PRIORITY': 'FedEx Europe First International Priority',
-    'FEDEX_1_DAY_FREIGHT': 'FedEx 1Day Freight',
-    'FEDEX_2_DAY_FREIGHT': 'FedEx 2Day Freight',
-    'FEDEX_3_DAY_FREIGHT': 'FedEx 3Day Freight',
-    'PRIORITY_OVERNIGHT': 'FedEx Priority Overnight',
-    'STANDARD_OVERNIGHT': 'FedEx Standard Overnight',
-    'FIRST_OVERNIGHT': 'FedEx First Overnight',
-    'FEDEX_2_DAY': 'FedEx 2Day',
-    'FEDEX_2_DAY_AM': 'FedEx 2Day A.M.',
-    'FEDEX_EXPRESS_SAVER': 'FedEx Express Saver',
-    'FEDEX_GROUND': 'FedEx Ground',
-    'GROUND_HOME_DELIVERY': 'FedEx Home Delivery',
-    'SMART_POST': 'FedEx SmartPost'
-  };
-
-  return serviceMap[serviceType] || serviceType;
-}
+      // Don't retry on certain error types
+      if (error instanceof ShippingError) {
+        if
