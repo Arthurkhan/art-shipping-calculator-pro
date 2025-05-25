@@ -189,13 +189,13 @@ async function retryWithBackoff<T>(
   throw lastError;
 }
 
-// Get size data for collection
+// Get size data for collection - FIXED to match frontend query pattern
 async function getCollectionSize(collection: string, size: string): Promise<CollectionSize> {
   try {
     Logger.info('Fetching collection size data', { collection, size });
     
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new ShippingError(
@@ -207,15 +207,45 @@ async function getCollectionSize(collection: string, size: string): Promise<Coll
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
+    // CRITICAL FIX: First get the collection ID from the collection name
+    Logger.info('Looking up collection ID for collection name', { collection });
+    const { data: collectionData, error: collectionError } = await supabase
+      .from('collections')
+      .select('id')
+      .eq('name', collection)
+      .single();
+
+    if (collectionError) {
+      Logger.error('Failed to find collection', { error: collectionError.message, collection });
+      throw new ShippingError(
+        ErrorType.VALIDATION,
+        `Collection not found: ${collection}`,
+        'The selected collection is not valid.'
+      );
+    }
+
+    if (!collectionData) {
+      Logger.warn('No collection found', { collection });
+      throw new ShippingError(
+        ErrorType.VALIDATION,
+        `No collection found with name: ${collection}`,
+        'The selected collection is not available.'
+      );
+    }
+
+    const collectionId = collectionData.id;
+    Logger.info('Found collection ID', { collection, collectionId });
+    
+    // Now query for the size data using the collection ID
     const { data, error } = await supabase
       .from('collection_sizes')
       .select('weight_kg, height_cm, length_cm, width_cm')
-      .eq('collection', collection)
+      .eq('collection_id', collectionId)
       .eq('size', size)
       .single();
 
     if (error) {
-      Logger.error('Database query failed', { error: error.message });
+      Logger.error('Database query failed', { error: error.message, collectionId, size });
       throw new ShippingError(
         ErrorType.DATABASE,
         `Database error: ${error.message}`,
@@ -224,7 +254,7 @@ async function getCollectionSize(collection: string, size: string): Promise<Coll
     }
 
     if (!data) {
-      Logger.warn('No size data found', { collection, size });
+      Logger.warn('No size data found', { collection, collectionId, size });
       throw new ShippingError(
         ErrorType.VALIDATION,
         `No size data found for collection: ${collection}, size: ${size}`,
