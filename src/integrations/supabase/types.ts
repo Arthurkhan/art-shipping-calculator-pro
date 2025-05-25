@@ -13,20 +13,32 @@ export type Database = {
         Row: {
           collection_id: string
           created_at: string
+          height_cm: number | null
           id: string
+          length_cm: number | null
           size: string
+          weight_kg: number | null
+          width_cm: number | null
         }
         Insert: {
           collection_id: string
           created_at?: string
+          height_cm?: number | null
           id?: string
+          length_cm?: number | null
           size: string
+          weight_kg?: number | null
+          width_cm?: number | null
         }
         Update: {
           collection_id?: string
           created_at?: string
+          height_cm?: number | null
           id?: string
+          length_cm?: number | null
           size?: string
+          weight_kg?: number | null
+          width_cm?: number | null
         }
         Relationships: [
           {

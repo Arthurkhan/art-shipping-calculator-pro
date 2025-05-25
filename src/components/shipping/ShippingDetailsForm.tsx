@@ -1,5 +1,4 @@
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MapPin, Mail } from "lucide-react";
@@ -10,21 +9,6 @@ interface ShippingDetailsFormProps {
   onCountryChange: (value: string) => void;
   onPostalCodeChange: (value: string) => void;
 }
-
-const countries = [
-  { code: "US", name: "United States" },
-  { code: "CA", name: "Canada" },
-  { code: "GB", name: "United Kingdom" },
-  { code: "FR", name: "France" },
-  { code: "DE", name: "Germany" },
-  { code: "IT", name: "Italy" },
-  { code: "ES", name: "Spain" },
-  { code: "AU", name: "Australia" },
-  { code: "JP", name: "Japan" },
-  { code: "BR", name: "Brazil" },
-  { code: "MX", name: "Mexico" },
-  { code: "OTHER", name: "Other" }
-];
 
 export const ShippingDetailsForm = ({
   country,
@@ -39,22 +23,14 @@ export const ShippingDetailsForm = ({
           <MapPin className="w-4 h-4 mr-2" />
           Country
         </Label>
-        <Select value={country} onValueChange={onCountryChange}>
-          <SelectTrigger className="w-full h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500">
-            <SelectValue placeholder="Select country..." />
-          </SelectTrigger>
-          <SelectContent className="bg-white border-slate-200 shadow-lg max-h-60">
-            {countries.map((country) => (
-              <SelectItem 
-                key={country.code} 
-                value={country.code}
-                className="hover:bg-blue-50 focus:bg-blue-50"
-              >
-                {country.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Input
+          id="country"
+          type="text"
+          placeholder="Enter country..."
+          value={country}
+          onChange={(e) => onCountryChange(e.target.value)}
+          className="h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+        />
       </div>
 
       <div className="space-y-2">

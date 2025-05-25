@@ -7,7 +7,8 @@ import { SizeSelector } from "@/components/shipping/SizeSelector";
 import { ShippingDetailsForm } from "@/components/shipping/ShippingDetailsForm";
 import { CalculateButton } from "@/components/shipping/CalculateButton";
 import { ResultsDisplay } from "@/components/shipping/ResultsDisplay";
-import { Truck, Package } from "lucide-react";
+import { FedexConfigForm } from "@/components/shipping/FedexConfigForm";
+import { Truck, Package, Settings, Calculator } from "lucide-react";
 
 interface Collection {
   id: string;
@@ -22,6 +23,13 @@ interface ShippingRate {
   deliveryDate?: string;
 }
 
+interface FedexConfig {
+  accountNumber: string;
+  apiKey: string;
+  secretKey: string;
+  meterNumber: string;
+}
+
 const Index = () => {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [sizes, setSizes] = useState<string[]>([]);
@@ -33,6 +41,8 @@ const Index = () => {
   const [isCalculating, setIsCalculating] = useState(false);
   const [rates, setRates] = useState<ShippingRate[]>([]);
   const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState<'calculator' | 'config'>('calculator');
+  const [fedexConfig, setFedexConfig] = useState<FedexConfig | null>(null);
   const { toast } = useToast();
 
   // Load collections on mount
@@ -104,28 +114,23 @@ const Index = () => {
     setRates([]);
 
     try {
-      const response = await fetch('/api/calculate-shipping', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const response = await supabase.functions.invoke('calculate-shipping', {
+        body: {
           collection: selectedCollection,
           size: selectedSize,
           country,
           postalCode,
-        }),
+          fedexConfig: fedexConfig || undefined,
+        },
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to calculate shipping rates');
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to calculate shipping rates');
       }
 
-      setRates(data.rates || []);
+      setRates(response.data?.rates || []);
       
-      if (data.rates?.length === 0) {
+      if (response.data?.rates?.length === 0) {
         setError("No shipping options available for this destination.");
       }
     } catch (err) {
@@ -133,7 +138,7 @@ const Index = () => {
       setError("Unable to calculate shipping rates. Please try again later.");
       toast({
         title: "Calculation Error",
-        description: "Failed to get shipping rates from FedEx. Please verify your postal code and try again.",
+        description: "Failed to get shipping rates from FedEx. Please verify your information and try again.",
         variant: "destructive",
       });
     } finally {
@@ -141,7 +146,11 @@ const Index = () => {
     }
   };
 
-  const isFormValid = selectedCollection && selectedSize && country && postalCode.trim();
+  const handleConfigSave = (config: FedexConfig) => {
+    setFedexConfig(config);
+  };
+
+  const isFormValid = selectedCollection && selectedSize && country.trim() && postalCode.trim();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -165,43 +174,74 @@ const Index = () => {
             </p>
           </div>
 
-          {/* Main Form */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
-            <div className="space-y-6">
-              <CollectionSelector
-                collections={collections}
-                selectedCollection={selectedCollection}
-                onCollectionChange={setSelectedCollection}
-                isLoading={isLoading}
-              />
+          {/* Tab Navigation */}
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+            <div className="flex border-b border-slate-200">
+              <button
+                onClick={() => setActiveTab('calculator')}
+                className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                  activeTab === 'calculator'
+                    ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
+                    : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                }`}
+              >
+                <Calculator className="w-4 h-4 inline mr-2" />
+                Rate Calculator
+              </button>
+              <button
+                onClick={() => setActiveTab('config')}
+                className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                  activeTab === 'config'
+                    ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
+                    : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                }`}
+              >
+                <Settings className="w-4 h-4 inline mr-2" />
+                FedEx Configuration
+              </button>
+            </div>
 
-              <SizeSelector
-                sizes={sizes}
-                selectedSize={selectedSize}
-                onSizeChange={setSelectedSize}
-                disabled={!selectedCollection}
-              />
+            <div className="p-8">
+              {activeTab === 'calculator' ? (
+                <div className="space-y-6">
+                  <CollectionSelector
+                    collections={collections}
+                    selectedCollection={selectedCollection}
+                    onCollectionChange={setSelectedCollection}
+                    isLoading={isLoading}
+                  />
 
-              <ShippingDetailsForm
-                country={country}
-                postalCode={postalCode}
-                onCountryChange={setCountry}
-                onPostalCodeChange={setPostalCode}
-              />
+                  <SizeSelector
+                    sizes={sizes}
+                    selectedSize={selectedSize}
+                    onSizeChange={setSelectedSize}
+                    disabled={!selectedCollection}
+                  />
 
-              <CalculateButton
-                onClick={calculateRates}
-                disabled={!isFormValid}
-                isLoading={isCalculating}
-              />
+                  <ShippingDetailsForm
+                    country={country}
+                    postalCode={postalCode}
+                    onCountryChange={setCountry}
+                    onPostalCodeChange={setPostalCode}
+                  />
 
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="text-red-600 text-sm">{error}</p>
+                  <CalculateButton
+                    onClick={calculateRates}
+                    disabled={!isFormValid}
+                    isLoading={isCalculating}
+                  />
+
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-red-600 text-sm">{error}</p>
+                    </div>
+                  )}
+
+                  <ResultsDisplay rates={rates} isLoading={isCalculating} />
                 </div>
+              ) : (
+                <FedexConfigForm onConfigSave={handleConfigSave} />
               )}
-
-              <ResultsDisplay rates={rates} isLoading={isCalculating} />
             </div>
           </div>
 
