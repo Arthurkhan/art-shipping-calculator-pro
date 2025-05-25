@@ -1,7 +1,15 @@
 // Form validation utilities for shipping calculator
 // Centralized validation rules for Phase 2 refactoring
+// Updated for Phase 4 - Using shared validation utilities
 
-import { validateOriginAddress, ValidationResult } from './utils';
+import { 
+  validateCountryCode, 
+  validateFedexAccountNumber,
+  validateCurrencyCode,
+  validatePostalCode,
+  sanitizeInput as sanitizeInputUtil,
+  ValidationResult 
+} from '@/lib/validation-utils';
 
 export interface FormValidationResult {
   isValid: boolean;
@@ -55,14 +63,31 @@ export const validateShippingForm = (data: {
 
   // Origin address validation
   if (data.originCountry && data.originPostalCode) {
-    const originValidation = validateOriginAddress(data.originCountry, data.originPostalCode);
+    const originValidation = validatePostalCode(data.originPostalCode, data.originCountry);
     if (!originValidation.isValid) {
       errors.push(`Origin address: ${originValidation.error}`);
     }
   }
 
+  // Destination address validation
+  if (data.country && data.postalCode) {
+    const destValidation = validatePostalCode(data.postalCode, data.country);
+    if (!destValidation.isValid) {
+      errors.push(`Destination address: ${destValidation.error}`);
+    }
+  }
+
+  // Country code validation
+  if (data.country && !validateCountryCode(data.country)) {
+    errors.push('Invalid destination country code');
+  }
+
+  if (data.originCountry && !validateCountryCode(data.originCountry)) {
+    errors.push('Invalid origin country code');
+  }
+
   // Currency validation
-  if (data.preferredCurrency && !isValidCurrency(data.preferredCurrency)) {
+  if (data.preferredCurrency && !validateCurrencyCode(data.preferredCurrency)) {
     errors.push('Invalid currency format');
   }
 
@@ -90,8 +115,8 @@ export const validateFedexConfig = (config: {
 
   if (!config.accountNumber?.trim()) {
     errors.push('FedEx account number is required');
-  } else if (!isValidFedexAccountNumber(config.accountNumber)) {
-    errors.push('FedEx account number format is invalid');
+  } else if (!validateFedexAccountNumber(config.accountNumber)) {
+    errors.push('FedEx account number format is invalid (should be 8-12 digits)');
   }
 
   if (!config.clientId?.trim()) {
@@ -110,23 +135,18 @@ export const validateFedexConfig = (config: {
 
 /**
  * Check if FedEx account number format is valid
+ * Delegating to shared validation utility
  */
 export const isValidFedexAccountNumber = (accountNumber: string): boolean => {
-  if (!accountNumber) return false;
-  
-  // FedEx account numbers are typically 9 digits
-  const cleaned = accountNumber.replace(/\D/g, '');
-  return cleaned.length >= 8 && cleaned.length <= 12;
+  return validateFedexAccountNumber(accountNumber);
 };
 
 /**
  * Basic currency code validation
+ * Delegating to shared validation utility
  */
 export const isValidCurrency = (currency: string): boolean => {
-  if (!currency) return false;
-  
-  // Currency codes are typically 3 uppercase letters (ISO 4217)
-  return /^[A-Z]{3}$/.test(currency.trim().toUpperCase());
+  return validateCurrencyCode(currency);
 };
 
 /**
@@ -186,25 +206,16 @@ export const getFedexConfigStatus = (config: {
 
 /**
  * Sanitize input strings
+ * Delegating to shared validation utility
  */
 export const sanitizeInput = (input: string): string => {
-  return input.trim().replace(/[<>'"]/g, '');
+  return sanitizeInputUtil(input);
 };
 
 /**
  * Validate postal code format for specific country
+ * Delegating to shared validation utility
  */
 export const validatePostalCodeForCountry = (postalCode: string, countryCode: string): ValidationResult => {
-  if (!postalCode?.trim()) {
-    return { isValid: false, error: 'Postal code is required' };
-  }
-
-  if (!countryCode?.trim()) {
-    return { isValid: false, error: 'Country code is required' };
-  }
-
-  const sanitized = sanitizeInput(postalCode);
-  
-  // Use existing validation from utils
-  return validateOriginAddress(countryCode, sanitized);
+  return validatePostalCode(postalCode, countryCode);
 };
