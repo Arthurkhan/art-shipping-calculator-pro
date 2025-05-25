@@ -7,7 +7,7 @@ import { CalculateButton } from "@/components/shipping/CalculateButton";
 import { ResultsDisplay } from "@/components/shipping/ResultsDisplay";
 import { FedexConfigForm } from "@/components/shipping/FedexConfigForm";
 import { ParameterPreview } from "@/components/shipping/ParameterPreview";
-import { Truck, Package, Settings, Calculator, AlertTriangle, CheckCircle } from "lucide-react";
+import { Truck, Package, Settings, Calculator, AlertTriangle, CheckCircle, Bug } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -44,25 +44,69 @@ const Index = () => {
     preferredCurrency: currencySelector.preferredCurrency,
   });
 
-  // REMOVED: Auto-suggest currency when destination country changes
-  // This was overriding manual currency selection
-
-  // Debug logging to help identify the issue
-  console.log('Debug - Button Status:', {
+  // Enhanced debug logging to help identify the issue
+  const debugInfo = {
+    // Button status
+    buttonDisabled: !validation.isReadyForSubmission || !fedexConfig.isConfigReady,
     validationReady: validation.isReadyForSubmission,
     fedexReady: fedexConfig.isConfigReady,
-    buttonDisabled: !validation.isReadyForSubmission || !fedexConfig.isConfigReady,
-    validationDetails: {
+    
+    // Detailed form data
+    formData: {
+      selectedCollection: collectionData.selectedCollection,
+      selectedSize: collectionData.selectedSize,
+      country,
+      postalCode,
+      originCountry: originAddress.originCountry,
+      originPostalCode: originAddress.originPostalCode,
+      preferredCurrency: currencySelector.preferredCurrency,
+    },
+    
+    // Validation breakdown
+    validationBreakdown: {
       isFormValid: validation.isFormValid,
       hasRequiredFields: validation.hasRequiredFields,
       errors: validation.errors,
       warnings: validation.warnings,
+      fieldValidations: validation.fieldValidations,
     },
-    fedexDetails: {
+    
+    // FedEx config breakdown
+    fedexBreakdown: {
       status: fedexConfig.fedexConfigStatus,
       hasCompleteConfig: fedexConfig.hasCompleteConfig,
+      hasPartialConfig: fedexConfig.hasPartialConfig,
+      isMissingConfig: fedexConfig.isMissingConfig,
+      isInvalidConfig: fedexConfig.isInvalidConfig,
+      statusDetails: fedexConfig.getStatusDetails(),
+    },
+    
+    // Collection data status
+    collectionStatus: {
+      isLoading: collectionData.isLoading,
+      collectionsCount: collectionData.collections.length,
+      sizesCount: collectionData.sizes.length,
+      hasSelectedCollection: !!collectionData.selectedCollection,
+      hasSelectedSize: !!collectionData.selectedSize,
     }
-  });
+  };
+
+  console.log('🔍 Enhanced Debug - Button Analysis:', debugInfo);
+
+  // Get missing validation details
+  const getMissingValidationDetails = () => {
+    const missing = [];
+    const data = debugInfo.formData;
+    
+    if (!data.selectedCollection) missing.push('Art Collection');
+    if (!data.selectedSize) missing.push('Artwork Size');
+    if (!data.country) missing.push('Destination Country');
+    if (!data.postalCode) missing.push('Destination Postal Code');
+    if (!data.originCountry) missing.push('Origin Country');
+    if (!data.originPostalCode) missing.push('Origin Postal Code');
+    
+    return missing;
+  };
 
   // Handle rate calculation
   const handleCalculateRates = async () => {
@@ -75,6 +119,10 @@ const Index = () => {
 
     // Use validation hook to check form
     if (!validation.isReadyForSubmission) {
+      console.warn('⚠️ Form validation failed:', {
+        missingFields: getMissingValidationDetails(),
+        validationErrors: validation.errors
+      });
       return;
     }
 
@@ -180,12 +228,52 @@ const Index = () => {
             </Alert>
           )}
 
-          {/* Debug info - Remove this in production */}
-          {validation.hasRequiredFields && !fedexConfig.isConfigReady && (
+          {/* Enhanced Debug Information */}
+          {debugInfo.buttonDisabled && (
             <Alert className="mb-4 border-blue-200 bg-blue-50">
+              <Bug className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800">
-                <strong>Debug Info:</strong> Form is valid but FedEx configuration is {fedexConfig.fedexConfigStatus}. 
-                Please configure FedEx API credentials in the Configuration tab to enable the Calculate button.
+                <div className="space-y-2">
+                  <div><strong>🚫 Calculate Button Disabled</strong></div>
+                  
+                  {!validation.hasRequiredFields && (
+                    <div>
+                      <strong>❌ Missing Required Fields:</strong>
+                      <ul className="list-disc list-inside ml-4 mt-1">
+                        {getMissingValidationDetails().map(field => (
+                          <li key={field} className="text-sm">{field}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {validation.hasRequiredFields && !validation.isFormValid && (
+                    <div>
+                      <strong>❌ Form Validation Errors:</strong>
+                      <ul className="list-disc list-inside ml-4 mt-1">
+                        {validation.errors.map((error, idx) => (
+                          <li key={idx} className="text-sm">{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {!fedexConfig.isConfigReady && (
+                    <div>
+                      <strong>❌ FedEx Configuration Issue:</strong>
+                      <div className="text-sm ml-4 mt-1">
+                        Status: {fedexConfig.fedexConfigStatus}
+                        {fedexConfig.getStatusDetails().missingFields.length > 0 && (
+                          <div>Missing: {fedexConfig.getStatusDetails().missingFields.join(', ')}</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="text-xs text-blue-600 mt-2">
+                    Check browser console for detailed debugging information.
+                  </div>
+                </div>
               </AlertDescription>
             </Alert>
           )}
