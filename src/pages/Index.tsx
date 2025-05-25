@@ -55,6 +55,7 @@ const Index = () => {
   
   const [country, setCountry] = useState("");
   const [postalCode, setPostalCode] = useState("");
+  const [preferredCurrency, setPreferredCurrency] = useState("USD"); // Default to USD
   const [isLoading, setIsLoading] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [rates, setRates] = useState<ShippingRate[]>([]);
@@ -89,6 +90,20 @@ const Index = () => {
     checkFedexConfigStatus();
   }, [fedexConfig]);
 
+  // Auto-suggest currency when country changes
+  useEffect(() => {
+    if (country) {
+      const suggestedCurrency = getAutoSuggestedCurrency(country);
+      if (suggestedCurrency !== preferredCurrency) {
+        setPreferredCurrency(suggestedCurrency);
+        toast({
+          title: "Currency Auto-Selected",
+          description: `Changed to ${suggestedCurrency} based on destination ${country}. You can modify this if needed.`,
+        });
+      }
+    }
+  }, [country]);
+
   // Initialize Thailand defaults in localStorage if not set (Phase 2)
   const initializeOriginDefaults = () => {
     const savedCountry = localStorage.getItem('origin_country');
@@ -100,6 +115,18 @@ const Index = () => {
     if (!savedPostalCode) {
       localStorage.setItem('origin_postal_code', originAddressDefaults.postalCode);
     }
+  };
+
+  // Get auto-suggested currency based on country
+  const getAutoSuggestedCurrency = (countryCode: string): string => {
+    const currencyMap: { [key: string]: string } = {
+      'US': 'USD', 'CA': 'CAD', 'GB': 'GBP', 'DE': 'EUR', 'FR': 'EUR',
+      'IT': 'EUR', 'ES': 'EUR', 'NL': 'EUR', 'AT': 'EUR', 'BE': 'EUR',
+      'JP': 'JPY', 'AU': 'AUD', 'TH': 'THB', 'SG': 'SGD', 'HK': 'HKD',
+      'ID': 'IDR', 'MY': 'MYR', 'PH': 'PHP', 'VN': 'VND', 'IN': 'INR',
+      'KR': 'KRW', 'TW': 'TWD', 'CN': 'CNY', 'BR': 'BRL', 'MX': 'MXN'
+    };
+    return currencyMap[countryCode] || 'USD'; // Default to USD
   };
 
   const checkFedexConfigStatus = () => {
@@ -171,9 +198,9 @@ const Index = () => {
       return;
     }
 
-    // Enhanced validation for Phase 2
-    if (!selectedCollection || !selectedSize || !country || !postalCode || !originCountry || !originPostalCode) {
-      setError("Please fill in all fields before calculating rates.");
+    // Enhanced validation for Phase 2 - including currency
+    if (!selectedCollection || !selectedSize || !country || !postalCode || !originCountry || !originPostalCode || !preferredCurrency) {
+      setError("Please fill in all fields including preferred currency before calculating rates.");
       return;
     }
 
@@ -192,7 +219,7 @@ const Index = () => {
       // Enhanced feedback during calculation
       toast({
         title: "Calculating Rates",
-        description: "Contacting FedEx API to get shipping rates...",
+        description: `Contacting FedEx API for rates in ${preferredCurrency}...`,
       });
 
       const response = await supabase.functions.invoke('calculate-shipping', {
@@ -203,6 +230,7 @@ const Index = () => {
           postalCode,
           originCountry,
           originPostalCode,
+          preferredCurrency, // Pass user-selected currency
           fedexConfig: fedexConfig || undefined,
         },
       });
@@ -230,7 +258,7 @@ const Index = () => {
         // Success feedback
         toast({
           title: "Rates Calculated",
-          description: `Found ${response.data?.rates?.length} shipping options.`,
+          description: `Found ${response.data?.rates?.length} shipping options in ${preferredCurrency}.`,
         });
       }
     } catch (err) {
@@ -264,9 +292,17 @@ const Index = () => {
     localStorage.setItem('origin_postal_code', value);
   };
 
-  // Enhanced form validation for Phase 2
+  const handlePreferredCurrencyChange = (value: string) => {
+    setPreferredCurrency(value);
+    toast({
+      title: "Currency Updated",
+      description: `Preferred currency changed to ${value}`,
+    });
+  };
+
+  // Enhanced form validation for Phase 2 - including currency
   const isFormValid = () => {
-    if (!selectedCollection || !selectedSize || !country.trim() || !postalCode.trim() || !originCountry.trim() || !originPostalCode.trim()) {
+    if (!selectedCollection || !selectedSize || !country.trim() || !postalCode.trim() || !originCountry.trim() || !originPostalCode.trim() || !preferredCurrency) {
       return false;
     }
     
@@ -277,7 +313,7 @@ const Index = () => {
 
   // Check if we should show the parameter preview
   const shouldShowParameterPreview = () => {
-    return selectedCollection && selectedSize && country && postalCode && originCountry && originPostalCode;
+    return selectedCollection && selectedSize && country && postalCode && originCountry && originPostalCode && preferredCurrency;
   };
 
   // Get configuration status badge
@@ -425,11 +461,14 @@ const Index = () => {
 
                   <Separator className="my-4" />
 
+                  {/* Enhanced ShippingDetailsForm with currency selector */}
                   <ShippingDetailsForm
                     country={country}
                     postalCode={postalCode}
+                    preferredCurrency={preferredCurrency}
                     onCountryChange={setCountry}
                     onPostalCodeChange={setPostalCode}
+                    onPreferredCurrencyChange={handlePreferredCurrencyChange}
                   />
 
                   {/* Parameter Preview - Show when all fields are filled */}
@@ -443,6 +482,7 @@ const Index = () => {
                         postalCode={postalCode}
                         originCountry={originCountry}
                         originPostalCode={originPostalCode}
+                        preferredCurrency={preferredCurrency}
                         isVisible={true}
                       />
                     </div>
