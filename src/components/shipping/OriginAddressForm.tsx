@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { MapPin, Mail, RotateCcw, AlertCircle, CheckCircle2 } from "lucide-react";
+import { MapPin, Mail, RotateCcw, AlertCircle, CheckCircle2, Settings } from "lucide-react";
 import { cn, originAddressDefaults, validateOriginAddress, type ValidationResult } from "@/lib/utils";
 
 interface OriginAddressFormProps {
@@ -58,6 +58,12 @@ export const OriginAddressForm = ({
     onOriginPostalCodeChange(originAddressDefaults.postalCode);
   };
 
+  const handleSetCurrentAsDefault = () => {
+    // Store current values as the new defaults in localStorage
+    localStorage.setItem('origin_country', originCountry);
+    localStorage.setItem('origin_postal_code', originPostalCode);
+  };
+
   const handleCountryChange = (value: string) => {
     onOriginCountryChange(value);
   };
@@ -83,24 +89,36 @@ export const OriginAddressForm = ({
             <h3 className="text-base font-semibold text-slate-800">Origin Address</h3>
             <p className="text-xs text-slate-600">Where are you shipping from?</p>
           </div>
-          {!isUsingDefaults && (
+          <div className="flex gap-2">
+            {!isUsingDefaults && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSetToDefaults}
+                className="text-xs px-3 py-1.5 h-auto"
+              >
+                <RotateCcw className="w-3 h-3 mr-1.5" />
+                Use Thailand Default
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
-              onClick={handleSetToDefaults}
+              onClick={handleSetCurrentAsDefault}
               className="text-xs px-3 py-1.5 h-auto"
+              disabled={!originCountry.trim() || !originPostalCode.trim()}
             >
-              <RotateCcw className="w-3 h-3 mr-1.5" />
-              Use Thailand Default
+              <Settings className="w-3 h-3 mr-1.5" />
+              Set as Default
             </Button>
-          )}
+          </div>
         </div>
         
-        {/* Thailand Default Notice */}
+        {/* Thailand Default Notice - Simplified */}
         <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-xs text-blue-700 flex items-center">
             <MapPin className="w-3 h-3 mr-1.5" />
-            <strong>Default:</strong> Thailand (TH), Postal Code 10240 - matching n8n workflow configuration
+            <strong>Default:</strong> Thailand (TH), Postal Code 10240
           </p>
           <p className="text-xs text-blue-600 mt-1">
             You can override these values if shipping from a different location.
@@ -173,15 +191,6 @@ export const OriginAddressForm = ({
           </p>
         </div>
       </div>
-      
-      {isUsingDefaults && (
-        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-xs text-green-700 flex items-center">
-            <CheckCircle2 className="w-3 h-3 mr-1.5" />
-            Using Thailand default origin address (matching n8n workflow)
-          </p>
-        </div>
-      )}
     </div>
   );
 };
