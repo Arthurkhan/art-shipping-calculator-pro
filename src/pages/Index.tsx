@@ -9,6 +9,7 @@ import { CalculateButton } from "@/components/shipping/CalculateButton";
 import { ResultsDisplay } from "@/components/shipping/ResultsDisplay";
 import { FedexConfigForm } from "@/components/shipping/FedexConfigForm";
 import { Truck, Package, Settings, Calculator } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 interface Collection {
   id: string;
@@ -164,63 +165,65 @@ const Index = () => {
   const isFormValid = selectedCollection && selectedSize && country.trim() && postalCode.trim() && originCountry.trim() && originPostalCode.trim();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center mb-4">
-              <div className="bg-blue-600 p-3 rounded-full mr-3">
-                <Truck className="w-8 h-8 text-white" />
+            <div className="flex items-center justify-center mb-6">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 rounded-2xl mr-4 shadow-lg">
+                <Truck className="w-10 h-10 text-white" />
               </div>
-              <div className="bg-slate-600 p-3 rounded-full">
-                <Package className="w-8 h-8 text-white" />
+              <div className="bg-gradient-to-r from-slate-600 to-slate-700 p-4 rounded-2xl shadow-lg">
+                <Package className="w-10 h-10 text-white" />
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-slate-800 mb-2">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-blue-800 bg-clip-text text-transparent mb-3">
               Art Collection Shipping Calculator
             </h1>
-            <p className="text-slate-600">
-              Get instant FedEx shipping rates for your art collections
+            <p className="text-slate-600 text-lg">
+              Get instant FedEx shipping rates for your art collections worldwide
             </p>
           </div>
 
           {/* Tab Navigation */}
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-            <div className="flex border-b border-slate-200">
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-slate-200/50 overflow-hidden">
+            <div className="flex border-b border-slate-200/70">
               <button
                 onClick={() => setActiveTab('calculator')}
-                className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                className={`flex-1 px-8 py-5 text-sm font-semibold transition-all duration-200 ${
                   activeTab === 'calculator'
-                    ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
-                    : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-b-3 border-blue-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50/80'
                 }`}
               >
-                <Calculator className="w-4 h-4 inline mr-2" />
+                <Calculator className="w-5 h-5 inline mr-3" />
                 Rate Calculator
               </button>
               <button
                 onClick={() => setActiveTab('config')}
-                className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                className={`flex-1 px-8 py-5 text-sm font-semibold transition-all duration-200 ${
                   activeTab === 'config'
-                    ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
-                    : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-b-3 border-blue-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50/80'
                 }`}
               >
-                <Settings className="w-4 h-4 inline mr-2" />
+                <Settings className="w-5 h-5 inline mr-3" />
                 FedEx Configuration
               </button>
             </div>
 
             <div className="p-8">
               {activeTab === 'calculator' ? (
-                <div className="space-y-6">
+                <div className="space-y-8">
                   <OriginAddressForm
                     originCountry={originCountry}
                     originPostalCode={originPostalCode}
                     onOriginCountryChange={handleOriginCountryChange}
                     onOriginPostalCodeChange={handleOriginPostalCodeChange}
                   />
+
+                  <Separator className="my-6" />
 
                   <CollectionSelector
                     collections={collections}
@@ -236,6 +239,8 @@ const Index = () => {
                     disabled={!selectedCollection}
                   />
 
+                  <Separator className="my-6" />
+
                   <ShippingDetailsForm
                     country={country}
                     postalCode={postalCode}
@@ -243,15 +248,17 @@ const Index = () => {
                     onPostalCodeChange={setPostalCode}
                   />
 
-                  <CalculateButton
-                    onClick={calculateRates}
-                    disabled={!isFormValid}
-                    isLoading={isCalculating}
-                  />
+                  <div className="pt-4">
+                    <CalculateButton
+                      onClick={calculateRates}
+                      disabled={!isFormValid}
+                      isLoading={isCalculating}
+                    />
+                  </div>
 
                   {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <p className="text-red-600 text-sm">{error}</p>
+                    <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-5 shadow-sm">
+                      <p className="text-red-700 text-sm font-medium">{error}</p>
                     </div>
                   )}
 
@@ -265,7 +272,10 @@ const Index = () => {
 
           {/* Footer */}
           <div className="text-center mt-8 text-slate-500 text-sm">
-            <p>Powered by FedEx Shipping API • Rates updated in real-time</p>
+            <p className="flex items-center justify-center">
+              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+              Powered by FedEx Shipping API • Rates updated in real-time
+            </p>
           </div>
         </div>
       </div>
