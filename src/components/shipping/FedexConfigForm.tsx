@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Settings, Save, Eye, EyeOff, CheckCircle, XCircle, Loader2, TestTube } from "lucide-react";
+import { validateFedexAccountNumberStrict } from "@/lib/validation-utils";
+import { handleApiError, logError } from "@/lib/error-utils";
 
 interface FedexConfigFormProps {
   onConfigSave: (config: FedexConfig) => void;
@@ -29,12 +30,6 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  const validateAccountNumber = (accountNumber: string): boolean => {
-    // FedEx account numbers should be 9 digits
-    const cleaned = accountNumber.replace(/\D/g, '');
-    return cleaned.length === 9;
-  };
-
   const testCredentials = async () => {
     if (!config.accountNumber || !config.clientId || !config.clientSecret) {
       toast({
@@ -45,7 +40,7 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
       return;
     }
 
-    if (!validateAccountNumber(config.accountNumber)) {
+    if (!validateFedexAccountNumberStrict(config.accountNumber)) {
       toast({
         title: "Invalid Account Number",
         description: "Account number must be exactly 9 digits.",
@@ -77,11 +72,13 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
         description: "Your FedEx API credentials are working correctly!",
       });
     } catch (err) {
-      console.error('Credential test error:', err);
+      logError(err as Error, 'FedexConfigForm.testCredentials');
       setCredentialsValid(false);
+      
+      const { message } = handleApiError(err);
       toast({
         title: "Credentials Invalid",
-        description: err instanceof Error ? err.message : "Failed to validate FedEx credentials. Please check your account details.",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -99,7 +96,7 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
       return;
     }
 
-    if (!validateAccountNumber(config.accountNumber)) {
+    if (!validateFedexAccountNumberStrict(config.accountNumber)) {
       toast({
         title: "Invalid Account Number",
         description: "Account number must be exactly 9 digits.",
@@ -123,6 +120,7 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
         description: "FedEx API configuration has been saved successfully.",
       });
     } catch (err) {
+      logError(err as Error, 'FedexConfigForm.handleSave');
       toast({
         title: "Save Failed",
         description: "Failed to save configuration. Please try again.",
@@ -201,13 +199,13 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
               setCredentialsValid(null); // Reset validation status
             }}
             className={`h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500 ${
-              config.accountNumber && !validateAccountNumber(config.accountNumber)
+              config.accountNumber && !validateFedexAccountNumberStrict(config.accountNumber)
                 ? 'border-red-300 focus:border-red-500'
                 : ''
             }`}
             maxLength={9}
           />
-          {config.accountNumber && !validateAccountNumber(config.accountNumber) && (
+          {config.accountNumber && !validateFedexAccountNumberStrict(config.accountNumber) && (
             <p className="text-sm text-red-600">Account number must be exactly 9 digits</p>
           )}
         </div>
