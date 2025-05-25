@@ -10,6 +10,7 @@ import { ResultsDisplay } from "@/components/shipping/ResultsDisplay";
 import { FedexConfigForm } from "@/components/shipping/FedexConfigForm";
 import { Truck, Package, Settings, Calculator } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { originAddressDefaults, validateOriginAddress } from "@/lib/utils";
 
 interface Collection {
   id: string;
@@ -35,8 +36,20 @@ const Index = () => {
   const [sizes, setSizes] = useState<string[]>([]);
   const [selectedCollection, setSelectedCollection] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
-  const [originCountry, setOriginCountry] = useState(localStorage.getItem('origin_country') || '');
-  const [originPostalCode, setOriginPostalCode] = useState(localStorage.getItem('origin_postal_code') || '');
+  
+  // Initialize origin address with Thailand defaults (Phase 2 implementation)
+  const [originCountry, setOriginCountry] = useState(() => {
+    // Check localStorage first, otherwise use Thailand default
+    const savedCountry = localStorage.getItem('origin_country');
+    return savedCountry || originAddressDefaults.countryName;
+  });
+  
+  const [originPostalCode, setOriginPostalCode] = useState(() => {
+    // Check localStorage first, otherwise use Thailand default
+    const savedPostalCode = localStorage.getItem('origin_postal_code');
+    return savedPostalCode || originAddressDefaults.postalCode;
+  });
+  
   const [country, setCountry] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -50,6 +63,8 @@ const Index = () => {
   // Load collections on mount
   useEffect(() => {
     loadCollections();
+    // Set Thailand defaults in localStorage if first time user (Phase 2)
+    initializeOriginDefaults();
   }, []);
 
   // Load sizes when collection changes
@@ -62,6 +77,19 @@ const Index = () => {
       setSelectedSize("");
     }
   }, [selectedCollection]);
+
+  // Initialize Thailand defaults in localStorage if not set (Phase 2)
+  const initializeOriginDefaults = () => {
+    const savedCountry = localStorage.getItem('origin_country');
+    const savedPostalCode = localStorage.getItem('origin_postal_code');
+    
+    if (!savedCountry) {
+      localStorage.setItem('origin_country', originAddressDefaults.countryName);
+    }
+    if (!savedPostalCode) {
+      localStorage.setItem('origin_postal_code', originAddressDefaults.postalCode);
+    }
+  };
 
   const loadCollections = async () => {
     setIsLoading(true);
@@ -106,8 +134,16 @@ const Index = () => {
   };
 
   const calculateRates = async () => {
+    // Enhanced validation for Phase 2
     if (!selectedCollection || !selectedSize || !country || !postalCode || !originCountry || !originPostalCode) {
       setError("Please fill in all fields before calculating rates.");
+      return;
+    }
+
+    // Validate origin address using new validation utilities
+    const originValidation = validateOriginAddress(originCountry, originPostalCode);
+    if (!originValidation.isValid) {
+      setError(`Origin address validation failed: ${originValidation.error}`);
       return;
     }
 
@@ -164,7 +200,16 @@ const Index = () => {
     localStorage.setItem('origin_postal_code', value);
   };
 
-  const isFormValid = selectedCollection && selectedSize && country.trim() && postalCode.trim() && originCountry.trim() && originPostalCode.trim();
+  // Enhanced form validation for Phase 2
+  const isFormValid = () => {
+    if (!selectedCollection || !selectedSize || !country.trim() || !postalCode.trim() || !originCountry.trim() || !originPostalCode.trim()) {
+      return false;
+    }
+    
+    // Validate origin address
+    const originValidation = validateOriginAddress(originCountry, originPostalCode);
+    return originValidation.isValid;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -218,6 +263,7 @@ const Index = () => {
             <div className="p-6">
               {activeTab === 'calculator' ? (
                 <div className="space-y-5">
+                  {/* Enhanced OriginAddressForm with Phase 2 improvements */}
                   <OriginAddressForm
                     originCountry={originCountry}
                     originPostalCode={originPostalCode}
@@ -253,7 +299,7 @@ const Index = () => {
                   <div className="pt-3">
                     <CalculateButton
                       onClick={calculateRates}
-                      disabled={!isFormValid}
+                      disabled={!isFormValid()}
                       isLoading={isCalculating}
                     />
                   </div>
