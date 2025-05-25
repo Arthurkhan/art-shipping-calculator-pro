@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -76,8 +77,7 @@ async function getFedexRates(
         }
       },
       pickupType: "USE_SCHEDULED_PICKUP",
-      serviceType: "PRIORITY_OVERNIGHT",
-      packagingType: "YOUR_PACKAGING",
+      rateRequestType: "ACCOUNT",
       requestedPackageLineItems: [
         {
           weight: {
@@ -106,7 +106,8 @@ async function getFedexRates(
   });
 
   if (!response.ok) {
-    throw new Error(`FedEx API failed: ${response.statusText}`);
+    const errorText = await response.text();
+    throw new Error(`FedEx API failed: ${response.statusText} - ${errorText}`);
   }
 
   return await response.json();
@@ -124,51 +125,52 @@ serve(async (req) => {
       throw new Error('Missing required fields')
     }
 
+    if (!fedexConfig || !fedexConfig.clientId || !fedexConfig.clientSecret || !fedexConfig.accountNumber) {
+      throw new Error('FedEx API configuration is required to get real shipping rates')
+    }
+
     console.log('Calculating shipping rates for:', { collection, size, country, postalCode });
+
+    const accessToken = await getFedexAuthToken(fedexConfig.clientId, fedexConfig.clientSecret);
+    
+    // Estimate weight based on size
+    const sizeMultiplier = size.toLowerCase().includes('large') ? 15 : 
+                          size.toLowerCase().includes('medium') ? 10 : 5;
+    
+    const fedexResponse = await getFedexRates(
+      accessToken,
+      fedexConfig.accountNumber,
+      "US",
+      country,
+      postalCode,
+      sizeMultiplier
+    );
+
+    console.log('FedEx API response:', JSON.stringify(fedexResponse, null, 2));
 
     let rates: ShippingRate[] = [];
 
-    // If FedEx config is provided, use real API
-    if (fedexConfig && fedexConfig.clientId && fedexConfig.clientSecret) {
-      try {
-        console.log('Using real FedEx API');
+    // Parse FedEx response and convert to our format
+    if (fedexResponse.output?.rateReplyDetails) {
+      rates = fedexResponse.output.rateReplyDetails.map((rate: any) => {
+        const ratedShipment = rate.ratedShipmentDetails?.[0];
+        const totalNetCharge = ratedShipment?.totalNetChargeWithDutiesAndTaxes || ratedShipment?.totalNetCharge || 0;
+        const currency = ratedShipment?.currency || "USD";
         
-        const accessToken = await getFedexAuthToken(fedexConfig.clientId, fedexConfig.clientSecret);
-        
-        // Estimate weight based on size
-        const sizeMultiplier = size.toLowerCase().includes('large') ? 15 : 
-                              size.toLowerCase().includes('medium') ? 10 : 5;
-        
-        const fedexResponse = await getFedexRates(
-          accessToken,
-          fedexConfig.accountNumber,
-          "US",
-          country,
-          postalCode,
-          sizeMultiplier
-        );
+        return {
+          service: getServiceDisplayName(rate.serviceType || rate.serviceName || "FedEx Service"),
+          cost: parseFloat(totalNetCharge) || 0,
+          currency: currency,
+          transitTime: rate.commit?.transitTime || rate.operationalDetail?.transitTime || "Unknown",
+          deliveryDate: rate.commit?.dateDetail?.dayFormat || rate.operationalDetail?.deliveryDate
+        };
+      }).filter((rate: ShippingRate) => rate.cost > 0);
+    }
 
-        // Parse FedEx response and convert to our format
-        if (fedexResponse.output?.rateReplyDetails) {
-          rates = fedexResponse.output.rateReplyDetails.map((rate: any) => ({
-            service: rate.serviceType || "FedEx Service",
-            cost: rate.ratedShipmentDetails?.[0]?.totalNetCharge || 0,
-            currency: rate.ratedShipmentDetails?.[0]?.currency || "USD",
-            transitTime: rate.commit?.transitTime || "Unknown",
-            deliveryDate: rate.commit?.dateDetail?.dayFormat
-          }));
-        }
-        
-        console.log('FedEx API returned rates:', rates);
-        
-      } catch (apiError) {
-        console.error('FedEx API error:', apiError);
-        // Fall back to mock data if real API fails
-        rates = getMockRates(size, country);
-      }
-    } else {
-      console.log('Using mock FedEx data - no configuration provided');
-      rates = getMockRates(size, country);
+    console.log('Processed rates:', rates);
+
+    if (rates.length === 0) {
+      throw new Error('No shipping rates available for the specified destination');
     }
 
     return new Response(
@@ -190,56 +192,26 @@ serve(async (req) => {
   }
 })
 
-function getMockRates(size: string, country: string): ShippingRate[] {
-  const mockRates: ShippingRate[] = [
-    {
-      service: "FedEx Standard Overnight",
-      cost: 89.99,
-      currency: "USD",
-      transitTime: "1 business day",
-      deliveryDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString()
-    },
-    {
-      service: "FedEx 2Day",
-      cost: 45.99,
-      currency: "USD",
-      transitTime: "2 business days",
-      deliveryDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toLocaleDateString()
-    },
-    {
-      service: "FedEx Express Saver",
-      cost: 32.99,
-      currency: "USD",
-      transitTime: "3 business days",
-      deliveryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString()
-    },
-    {
-      service: "FedEx Ground",
-      cost: 18.99,
-      currency: "USD",
-      transitTime: "5-7 business days",
-      deliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString()
-    }
-  ];
+function getServiceDisplayName(serviceType: string): string {
+  const serviceMap: { [key: string]: string } = {
+    'INTERNATIONAL_PRIORITY': 'FedEx International Priority',
+    'INTERNATIONAL_ECONOMY': 'FedEx International Economy',
+    'INTERNATIONAL_CONNECT_PLUS': 'FedEx International Connect Plus',
+    'INTERNATIONAL_FIRST': 'FedEx International First',
+    'EUROPE_FIRST_INTERNATIONAL_PRIORITY': 'FedEx Europe First International Priority',
+    'FEDEX_1_DAY_FREIGHT': 'FedEx 1Day Freight',
+    'FEDEX_2_DAY_FREIGHT': 'FedEx 2Day Freight',
+    'FEDEX_3_DAY_FREIGHT': 'FedEx 3Day Freight',
+    'PRIORITY_OVERNIGHT': 'FedEx Priority Overnight',
+    'STANDARD_OVERNIGHT': 'FedEx Standard Overnight',
+    'FIRST_OVERNIGHT': 'FedEx First Overnight',
+    'FEDEX_2_DAY': 'FedEx 2Day',
+    'FEDEX_2_DAY_AM': 'FedEx 2Day A.M.',
+    'FEDEX_EXPRESS_SAVER': 'FedEx Express Saver',
+    'FEDEX_GROUND': 'FedEx Ground',
+    'GROUND_HOME_DELIVERY': 'FedEx Home Delivery',
+    'SMART_POST': 'FedEx SmartPost'
+  };
 
-  const sizeMultiplier = size.toLowerCase().includes('large') ? 1.5 : 
-                        size.toLowerCase().includes('medium') ? 1.2 : 1.0;
-
-  const adjustedRates = mockRates.map(rate => ({
-    ...rate,
-    cost: Math.round(rate.cost * sizeMultiplier * 100) / 100
-  }));
-
-  if (country !== 'US' && country.toLowerCase() !== 'united states') {
-    adjustedRates.forEach(rate => {
-      rate.cost = Math.round(rate.cost * 1.8 * 100) / 100;
-      rate.service = rate.service.replace('FedEx', 'FedEx International');
-      if (rate.transitTime.includes('business day')) {
-        const days = parseInt(rate.transitTime) + 2;
-        rate.transitTime = `${days}-${days + 2} business days`;
-      }
-    });
-  }
-
-  return adjustedRates;
+  return serviceMap[serviceType] || serviceType;
 }
