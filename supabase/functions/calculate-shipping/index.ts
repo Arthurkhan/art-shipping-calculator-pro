@@ -385,17 +385,31 @@ async function getFedexRates(
     const shipDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Tomorrow
     const shipDateStamp = shipDate.toISOString().split('T')[0];
 
-    // Phase 1: Dynamic currency handling based on destination country
+    // Phase 1: Enhanced dynamic currency handling - ADDED INDONESIA SUPPORT
     const getCurrency = (country: string): string => {
       const currencyMap: { [key: string]: string } = {
         'US': 'USD', 'CA': 'CAD', 'GB': 'GBP', 'DE': 'EUR', 'FR': 'EUR',
         'IT': 'EUR', 'ES': 'EUR', 'NL': 'EUR', 'AT': 'EUR', 'BE': 'EUR',
-        'JP': 'JPY', 'AU': 'AUD', 'TH': 'THB', 'SG': 'SGD', 'HK': 'HKD'
+        'JP': 'JPY', 'AU': 'AUD', 'TH': 'THB', 'SG': 'SGD', 'HK': 'HKD',
+        'ID': 'IDR', 'MY': 'MYR', 'PH': 'PHP', 'VN': 'VND', 'IN': 'INR',
+        'KR': 'KRW', 'TW': 'TWD', 'CN': 'CNY', 'BR': 'BRL', 'MX': 'MXN'
       };
       return currencyMap[country] || 'USD'; // Default to USD for international
     };
 
     const preferredCurrency = getCurrency(destinationCountry);
+
+    // Enhanced debugging: Log dimensional weight calculation
+    const dimensionalWeight = (sizeData.length_cm * sizeData.width_cm * sizeData.height_cm) / 5000;
+    const billedWeight = Math.max(sizeData.weight_kg, dimensionalWeight);
+    
+    Logger.info('Weight calculations for debugging', {
+      actualWeight: sizeData.weight_kg,
+      dimensionalWeight: Math.round(dimensionalWeight * 100) / 100,
+      billedWeight: Math.round(billedWeight * 100) / 100,
+      dimensions: `${sizeData.length_cm}x${sizeData.width_cm}x${sizeData.height_cm} cm`,
+      volume: sizeData.length_cm * sizeData.width_cm * sizeData.height_cm
+    });
 
     // PHASE 1 CRITICAL FIX: Construct payload exactly matching n8n workflow structure
     // - Remove unit conversions (use CM/KG directly)
@@ -444,10 +458,21 @@ async function getFedexRates(
       }
     };
 
-    Logger.info('Sending FedEx rate request with n8n structure', { 
+    // Enhanced debugging: Log full payload details (sanitized)
+    Logger.info('Sending FedEx rate request with enhanced debugging', { 
       payload: {
         ...payload,
         accountNumber: { value: '[REDACTED]' }
+      },
+      debugInfo: {
+        route: `${originCountry} ${originPostalCode} → ${destinationCountry} ${destinationPostalCode}`,
+        currency: preferredCurrency,
+        shipDate: shipDateStamp,
+        weightInfo: {
+          actual: sizeData.weight_kg,
+          dimensional: Math.round(dimensionalWeight * 100) / 100,
+          billed: Math.round(billedWeight * 100) / 100
+        }
       }
     });
 
@@ -474,7 +499,14 @@ async function getFedexRates(
       });
 
       const responseData = await response.json();
-      Logger.info('FedEx rate response data', { responseData });
+      
+      // Enhanced debugging: Log full response for analysis
+      Logger.info('FedEx rate response data (full for debugging)', { 
+        responseData,
+        hasOutput: !!responseData.output,
+        hasRateReplyDetails: !!(responseData.output?.rateReplyDetails),
+        rateReplyCount: responseData.output?.rateReplyDetails?.length || 0
+      });
 
       if (!response.ok) {
         Logger.error('FedEx rate request failed', { 
@@ -483,7 +515,28 @@ async function getFedexRates(
           responseData 
         });
 
-        if (response.status === 401) {
+        // Enhanced 400 error handling with detailed logging
+        if (response.status === 400) {
+          const errorDetails = responseData?.errors || responseData?.messages || [];
+          const errorMessage = errorDetails.length > 0 
+            ? `Validation error: ${JSON.stringify(errorDetails)}`
+            : 'Invalid request parameters';
+          
+          Logger.error('FedEx validation error details (400 - Bad Request)', { 
+            errorDetails, 
+            responseData,
+            sentPayload: {
+              ...payload,
+              accountNumber: { value: '[REDACTED]' }
+            }
+          });
+          
+          throw new ShippingError(
+            ErrorType.VALIDATION,
+            errorMessage,
+            'Invalid shipping parameters. Please check your destination details and try again.'
+          );
+        } else if (response.status === 401) {
           throw new ShippingError(
             ErrorType.AUTHENTICATION,
             'FedEx access token expired or invalid',
@@ -494,20 +547,6 @@ async function getFedexRates(
             ErrorType.AUTHORIZATION,
             'FedEx account not authorized for rate requests',
             'Account not authorized for shipping rates.'
-          );
-        } else if (response.status === 400) {
-          // Enhanced 400 error handling for Phase 3
-          const errorDetails = responseData?.errors || responseData?.messages || [];
-          const errorMessage = errorDetails.length > 0 
-            ? `Validation error: ${JSON.stringify(errorDetails)}`
-            : 'Invalid request parameters';
-          
-          Logger.error('FedEx validation error details', { errorDetails, responseData });
-          
-          throw new ShippingError(
-            ErrorType.VALIDATION,
-            errorMessage,
-            'Invalid shipping parameters. Please check your destination details and try again.'
           );
         } else if (response.status >= 500) {
           throw new ShippingError(
@@ -568,7 +607,19 @@ async function getFedexRates(
       }
 
       if (rates.length === 0) {
-        Logger.warn('No rates found in FedEx response', { responseData });
+        Logger.warn('No rates found in FedEx response - Enhanced debugging', { 
+          responseData,
+          sentPayload: {
+            ...payload,
+            accountNumber: { value: '[REDACTED]' }
+          },
+          possibleIssues: [
+            'Destination postal code not serviced by FedEx',
+            'Currency not supported for destination',
+            'Package dimensions exceed limits',
+            'Account restrictions for destination country'
+          ]
+        });
         throw new ShippingError(
           ErrorType.RATE_PARSING,
           'No shipping rates available for this destination',
@@ -626,7 +677,12 @@ serve(async (req) => {
     }
 
     const requestData: ShippingRequest = await req.json();
-    Logger.info('Request payload received', { requestData });
+    Logger.info('Request payload received with enhanced debugging', { 
+      requestData: {
+        ...requestData,
+        fedexConfig: requestData.fedexConfig ? '[REDACTED]' : 'Not provided'
+      }
+    });
 
     // Validate required fields
     if (!requestData.collection || !requestData.size || !requestData.country || !requestData.postalCode) {
