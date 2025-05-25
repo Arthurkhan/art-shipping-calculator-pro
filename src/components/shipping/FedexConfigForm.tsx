@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, Save, Eye, EyeOff } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Settings, Save, Eye, EyeOff, CheckCircle, XCircle, Loader2, TestTube } from "lucide-react";
 
 interface FedexConfigFormProps {
   onConfigSave: (config: FedexConfig) => void;
@@ -23,9 +24,72 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
     clientSecret: localStorage.getItem('fedex_client_secret') || '',
   });
   const [showSecrets, setShowSecrets] = useState(false);
+  const [isTestingCredentials, setIsTestingCredentials] = useState(false);
+  const [credentialsValid, setCredentialsValid] = useState<boolean | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  const handleSave = () => {
+  const validateAccountNumber = (accountNumber: string): boolean => {
+    // FedEx account numbers should be 9 digits
+    const cleaned = accountNumber.replace(/\D/g, '');
+    return cleaned.length === 9;
+  };
+
+  const testCredentials = async () => {
+    if (!config.accountNumber || !config.clientId || !config.clientSecret) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all FedEx configuration fields before testing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateAccountNumber(config.accountNumber)) {
+      toast({
+        title: "Invalid Account Number",
+        description: "Account number must be exactly 9 digits.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsTestingCredentials(true);
+    setCredentialsValid(null);
+
+    try {
+      // Test credentials by making a simple API call
+      const response = await supabase.functions.invoke('test-fedex-credentials', {
+        body: {
+          accountNumber: config.accountNumber,
+          clientId: config.clientId,
+          clientSecret: config.clientSecret,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Credential test failed');
+      }
+
+      setCredentialsValid(true);
+      toast({
+        title: "Credentials Valid",
+        description: "Your FedEx API credentials are working correctly!",
+      });
+    } catch (err) {
+      console.error('Credential test error:', err);
+      setCredentialsValid(false);
+      toast({
+        title: "Credentials Invalid",
+        description: err instanceof Error ? err.message : "Failed to validate FedEx credentials. Please check your account details.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingCredentials(false);
+    }
+  };
+
+  const handleSave = async () => {
     if (!config.accountNumber || !config.clientId || !config.clientSecret) {
       toast({
         title: "Missing Information",
@@ -35,8 +99,7 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
       return;
     }
 
-    // Validate account number is 9 digits
-    if (!/^\d{9}$/.test(config.accountNumber)) {
+    if (!validateAccountNumber(config.accountNumber)) {
       toast({
         title: "Invalid Account Number",
         description: "Account number must be exactly 9 digits.",
@@ -45,25 +108,82 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
       return;
     }
 
-    // Save to localStorage
-    localStorage.setItem('fedex_account_number', config.accountNumber);
-    localStorage.setItem('fedex_client_id', config.clientId);
-    localStorage.setItem('fedex_client_secret', config.clientSecret);
+    setIsSaving(true);
 
-    onConfigSave(config);
-    
-    toast({
-      title: "Configuration Saved",
-      description: "FedEx API configuration has been saved successfully.",
-    });
+    try {
+      // Save to localStorage
+      localStorage.setItem('fedex_account_number', config.accountNumber);
+      localStorage.setItem('fedex_client_id', config.clientId);
+      localStorage.setItem('fedex_client_secret', config.clientSecret);
+
+      onConfigSave(config);
+      
+      toast({
+        title: "Configuration Saved",
+        description: "FedEx API configuration has been saved successfully.",
+      });
+    } catch (err) {
+      toast({
+        title: "Save Failed",
+        description: "Failed to save configuration. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  const getCredentialStatusIcon = () => {
+    if (isTestingCredentials) {
+      return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />;
+    }
+    if (credentialsValid === true) {
+      return <CheckCircle className="w-5 h-5 text-green-500" />;
+    }
+    if (credentialsValid === false) {
+      return <XCircle className="w-5 h-5 text-red-500" />;
+    }
+    return null;
+  };
+
+  const getCredentialStatusMessage = () => {
+    if (isTestingCredentials) {
+      return "Testing credentials...";
+    }
+    if (credentialsValid === true) {
+      return "Credentials verified successfully";
+    }
+    if (credentialsValid === false) {
+      return "Credentials test failed";
+    }
+    return null;
+  };
+
+  const isFormComplete = config.accountNumber && config.clientId && config.clientSecret;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center mb-4">
         <Settings className="w-5 h-5 mr-2 text-blue-600" />
         <h3 className="text-lg font-semibold text-slate-800">FedEx API Configuration</h3>
+        {getCredentialStatusIcon()}
       </div>
+
+      {/* Credential Status Banner */}
+      {getCredentialStatusMessage() && (
+        <div className={`p-4 rounded-lg border ${
+          credentialsValid === true
+            ? 'bg-green-50 border-green-200 text-green-700'
+            : credentialsValid === false
+            ? 'bg-red-50 border-red-200 text-red-700'
+            : 'bg-blue-50 border-blue-200 text-blue-700'
+        }`}>
+          <div className="flex items-center">
+            {getCredentialStatusIcon()}
+            <span className="ml-2 font-medium">{getCredentialStatusMessage()}</span>
+          </div>
+        </div>
+      )}
       
       <div className="space-y-4">
         <div className="space-y-2">
@@ -75,10 +195,21 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
             type="text"
             placeholder="123456789"
             value={config.accountNumber}
-            onChange={(e) => setConfig({ ...config, accountNumber: e.target.value })}
-            className="h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+            onChange={(e) => {
+              const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+              setConfig({ ...config, accountNumber: value });
+              setCredentialsValid(null); // Reset validation status
+            }}
+            className={`h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500 ${
+              config.accountNumber && !validateAccountNumber(config.accountNumber)
+                ? 'border-red-300 focus:border-red-500'
+                : ''
+            }`}
             maxLength={9}
           />
+          {config.accountNumber && !validateAccountNumber(config.accountNumber) && (
+            <p className="text-sm text-red-600">Account number must be exactly 9 digits</p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -90,7 +221,10 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
             type="text"
             placeholder="Enter FedEx Client ID..."
             value={config.clientId}
-            onChange={(e) => setConfig({ ...config, clientId: e.target.value })}
+            onChange={(e) => {
+              setConfig({ ...config, clientId: e.target.value });
+              setCredentialsValid(null); // Reset validation status
+            }}
             className="h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
@@ -105,7 +239,10 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
               type={showSecrets ? "text" : "password"}
               placeholder="Enter FedEx Client Secret..."
               value={config.clientSecret}
-              onChange={(e) => setConfig({ ...config, clientSecret: e.target.value })}
+              onChange={(e) => {
+                setConfig({ ...config, clientSecret: e.target.value });
+                setCredentialsValid(null); // Reset validation status
+              }}
               className="h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500 pr-12"
             />
             <Button
@@ -121,18 +258,52 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
         </div>
       </div>
 
-      <Button
-        onClick={handleSave}
-        className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium"
-      >
-        <Save className="w-5 h-5 mr-2" />
-        Save Configuration
-      </Button>
+      {/* Action Buttons */}
+      <div className="space-y-3">
+        <Button
+          onClick={testCredentials}
+          disabled={!isFormComplete || isTestingCredentials}
+          variant="outline"
+          className="w-full h-12 font-medium"
+        >
+          {isTestingCredentials ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Testing Credentials...
+            </>
+          ) : (
+            <>
+              <TestTube className="w-5 h-5 mr-2" />
+              Test Credentials
+            </>
+          )}
+        </Button>
+
+        <Button
+          onClick={handleSave}
+          disabled={!isFormComplete || isSaving}
+          className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium"
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="w-5 h-5 mr-2" />
+              Save Configuration
+            </>
+          )}
+        </Button>
+      </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-blue-700 text-sm">
           <strong>Note:</strong> Your FedEx API credentials are stored locally in your browser cache. 
           You can find your Client ID and Client Secret in your FedEx Developer Portal account.
+          <br /><br />
+          <strong>Tip:</strong> Test your credentials before saving to ensure they work properly with the FedEx API.
         </p>
       </div>
     </div>
