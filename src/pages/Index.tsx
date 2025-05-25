@@ -70,7 +70,7 @@ const Index = () => {
     loadCollections();
     // Set Thailand defaults in localStorage if first time user (Phase 2)
     initializeOriginDefaults();
-    // Check FedEx configuration status
+    // Check FedEx configuration status on initial load
     checkFedexConfigStatus();
   }, []);
 
@@ -84,11 +84,6 @@ const Index = () => {
       setSelectedSize("");
     }
   }, [selectedCollection]);
-
-  // Check FedEx configuration status on mount and config changes
-  useEffect(() => {
-    checkFedexConfigStatus();
-  }, [fedexConfig]);
 
   // Auto-suggest currency when country changes
   useEffect(() => {
@@ -136,11 +131,22 @@ const Index = () => {
 
     if (!accountNumber && !clientId && !clientSecret) {
       setFedexConfigStatus('missing');
+      setFedexConfig(null);
     } else if (!accountNumber || !clientId || !clientSecret) {
       setFedexConfigStatus('partial');
+      setFedexConfig(null);
     } else {
       setFedexConfigStatus('complete');
-      setFedexConfig({ accountNumber, clientId, clientSecret });
+      // Only set fedexConfig if it's not already set or if the values changed
+      setFedexConfig(prev => {
+        if (!prev || 
+            prev.accountNumber !== accountNumber || 
+            prev.clientId !== clientId || 
+            prev.clientSecret !== clientSecret) {
+          return { accountNumber, clientId, clientSecret };
+        }
+        return prev;
+      });
     }
   };
 
@@ -280,6 +286,8 @@ const Index = () => {
   const handleConfigSave = (config: FedexConfig) => {
     setFedexConfig(config);
     setFedexConfigStatus('complete');
+    // Re-check status after saving to ensure consistency
+    checkFedexConfigStatus();
   };
 
   const handleOriginCountryChange = (value: string) => {
