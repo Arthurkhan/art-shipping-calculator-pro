@@ -387,7 +387,7 @@ async function getFedexAccessToken(clientId: string, clientSecret: string): Prom
   }, retryOptions, ErrorType.AUTHENTICATION, operationName);
 }
 
-// Get FedEx shipping rates with comprehensive error handling
+// ROADMAP PHASE 1: Updated FedEx API payload to match n8n workflow structure exactly
 async function getFedexRates(
   accessToken: string,
   accountNumber: string,
@@ -407,24 +407,29 @@ async function getFedexRates(
   return retryWithBackoff(async () => {
     Logger.info('Requesting FedEx shipping rates');
 
-    // Get current date for shipping
+    // Phase 1: Get current date for shipDateStamp - as required by roadmap
     const now = new Date();
     const shipDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Tomorrow
     const shipDateStamp = shipDate.toISOString().split('T')[0];
 
-    // Determine currency based on destination country
+    // Phase 1: Dynamic currency handling based on destination country
     const getCurrency = (country: string): string => {
       const currencyMap: { [key: string]: string } = {
         'US': 'USD', 'CA': 'CAD', 'GB': 'GBP', 'DE': 'EUR', 'FR': 'EUR',
         'IT': 'EUR', 'ES': 'EUR', 'NL': 'EUR', 'AT': 'EUR', 'BE': 'EUR',
         'JP': 'JPY', 'AU': 'AUD', 'TH': 'THB', 'SG': 'SGD', 'HK': 'HKD'
       };
-      return currencyMap[country] || 'USD';
+      return currencyMap[country] || 'USD'; // Default to USD for international
     };
 
     const preferredCurrency = getCurrency(destinationCountry);
 
-    // Construct FedEx API payload matching n8n workflow structure
+    // PHASE 1 CRITICAL FIX: Construct payload exactly matching n8n workflow structure
+    // - Remove unit conversions (use CM/KG directly)
+    // - Add missing required fields: preferredCurrency, shipDateStamp, packagingType
+    // - Fix pickupType to "DROPOFF_AT_FEDEX_LOCATION"
+    // - Update rateRequestType to array format: ["LIST", "ACCOUNT", "INCENTIVE"]
+    // - Add groupPackageCount field
     const payload = {
       accountNumber: {
         value: accountNumber
@@ -442,31 +447,31 @@ async function getFedexRates(
             countryCode: destinationCountry
           }
         },
-        shipDateStamp: shipDateStamp,
-        rateRequestType: ["LIST", "ACCOUNT", "INCENTIVE"],
+        shipDateStamp: shipDateStamp, // Required field added
+        rateRequestType: ["LIST", "ACCOUNT", "INCENTIVE"], // Array format as required
         requestedPackageLineItems: [
           {
-            groupPackageCount: 1,
+            groupPackageCount: 1, // Added groupPackageCount to line item
             weight: {
-              units: "KG",
+              units: "KG", // Use KG directly - no unit conversion
               value: sizeData.weight_kg
             },
             dimensions: {
-              length: sizeData.length_cm,
+              length: sizeData.length_cm, // Use CM directly - no unit conversion
               width: sizeData.width_cm,
               height: sizeData.height_cm,
               units: "CM"
             }
           }
         ],
-        pickupType: "DROPOFF_AT_FEDEX_LOCATION",
-        packagingType: "YOUR_PACKAGING",
-        groupPackageCount: 1,
-        preferredCurrency: preferredCurrency
+        pickupType: "DROPOFF_AT_FEDEX_LOCATION", // Fixed pickup type as per roadmap
+        packagingType: "YOUR_PACKAGING", // Required field added
+        groupPackageCount: 1, // Required field added
+        preferredCurrency: preferredCurrency // Required field added
       }
     };
 
-    Logger.info('Sending FedEx rate request', { 
+    Logger.info('Sending FedEx rate request with n8n structure', { 
       payload: {
         ...payload,
         accountNumber: { value: '[REDACTED]' }
@@ -518,10 +523,18 @@ async function getFedexRates(
             'Account not authorized for shipping rates.'
           );
         } else if (response.status === 400) {
+          // Enhanced 400 error handling for Phase 3
+          const errorDetails = responseData?.errors || responseData?.messages || [];
+          const errorMessage = errorDetails.length > 0 
+            ? `Validation error: ${JSON.stringify(errorDetails)}`
+            : 'Invalid request parameters';
+          
+          Logger.error('FedEx validation error details', { errorDetails, responseData });
+          
           throw new ShippingError(
             ErrorType.VALIDATION,
-            `Invalid request parameters: ${JSON.stringify(responseData)}`,
-            'Invalid shipping parameters. Please check your destination details.'
+            errorMessage,
+            'Invalid shipping parameters. Please check your destination details and try again.'
           );
         } else if (response.status >= 500) {
           throw new ShippingError(
@@ -538,7 +551,7 @@ async function getFedexRates(
         }
       }
 
-      // Parse and validate response
+      // Enhanced response parsing and validation
       if (!responseData.output || !responseData.output.rateReplyDetails) {
         Logger.error('Invalid FedEx response structure', { responseData });
         throw new ShippingError(
@@ -651,11 +664,11 @@ serve(async (req) => {
       );
     }
 
-    // Set default origin if not provided (Thailand as per Phase 2)
+    // PHASE 2: Set default origin to Thailand if not provided (matching roadmap)
     const originCountry = requestData.originCountry || 'TH';
     const originPostalCode = requestData.originPostalCode || '10240';
 
-    Logger.info('Using origin address', { originCountry, originPostalCode });
+    Logger.info('Using origin address (Phase 2 defaults)', { originCountry, originPostalCode });
 
     // Get collection size data
     const sizeData = await getCollectionSize(requestData.collection, requestData.size);
