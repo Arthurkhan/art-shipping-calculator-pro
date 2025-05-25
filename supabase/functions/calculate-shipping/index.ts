@@ -16,6 +16,7 @@ interface ShippingRequest {
   postalCode: string;
   originCountry: string;
   originPostalCode: string;
+  preferredCurrency?: string; // User-selected currency (optional, defaults to auto-mapping)
   fedexConfig?: {
     accountNumber: string;
     clientId: string;
@@ -360,6 +361,32 @@ async function getFedexAccessToken(clientId: string, clientSecret: string): Prom
   }, retryOptions, ErrorType.AUTHENTICATION, operationName);
 }
 
+// Get currency - either user-provided or auto-mapped from destination country
+function getPreferredCurrency(userCurrency: string | undefined, destinationCountry: string): string {
+  // If user provided a currency, use it
+  if (userCurrency && userCurrency.trim()) {
+    Logger.info('Using user-provided currency', { userCurrency, destinationCountry });
+    return userCurrency.toUpperCase();
+  }
+
+  // Fall back to auto-mapping based on destination country
+  const currencyMap: { [key: string]: string } = {
+    'US': 'USD', 'CA': 'CAD', 'GB': 'GBP', 'DE': 'EUR', 'FR': 'EUR',
+    'IT': 'EUR', 'ES': 'EUR', 'NL': 'EUR', 'AT': 'EUR', 'BE': 'EUR',
+    'JP': 'JPY', 'AU': 'AUD', 'TH': 'THB', 'SG': 'SGD', 'HK': 'HKD',
+    'ID': 'IDR', 'MY': 'MYR', 'PH': 'PHP', 'VN': 'VND', 'IN': 'INR',
+    'KR': 'KRW', 'TW': 'TWD', 'CN': 'CNY', 'BR': 'BRL', 'MX': 'MXN'
+  };
+  
+  const autoMappedCurrency = currencyMap[destinationCountry] || 'USD';
+  Logger.info('Auto-mapped currency from destination country', { 
+    destinationCountry, 
+    autoMappedCurrency 
+  });
+  
+  return autoMappedCurrency;
+}
+
 // ROADMAP PHASE 1: Updated FedEx API payload to match n8n workflow structure exactly
 async function getFedexRates(
   accessToken: string,
@@ -368,7 +395,8 @@ async function getFedexRates(
   originCountry: string,
   originPostalCode: string,
   destinationCountry: string,
-  destinationPostalCode: string
+  destinationPostalCode: string,
+  userPreferredCurrency?: string // New parameter for user-selected currency
 ): Promise<ShippingRate[]> {
   const operationName = 'FedEx Rate Request';
   const retryOptions: RetryOptions = {
@@ -385,19 +413,8 @@ async function getFedexRates(
     const shipDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Tomorrow
     const shipDateStamp = shipDate.toISOString().split('T')[0];
 
-    // Phase 1: Enhanced dynamic currency handling - ADDED INDONESIA SUPPORT
-    const getCurrency = (country: string): string => {
-      const currencyMap: { [key: string]: string } = {
-        'US': 'USD', 'CA': 'CAD', 'GB': 'GBP', 'DE': 'EUR', 'FR': 'EUR',
-        'IT': 'EUR', 'ES': 'EUR', 'NL': 'EUR', 'AT': 'EUR', 'BE': 'EUR',
-        'JP': 'JPY', 'AU': 'AUD', 'TH': 'THB', 'SG': 'SGD', 'HK': 'HKD',
-        'ID': 'IDR', 'MY': 'MYR', 'PH': 'PHP', 'VN': 'VND', 'IN': 'INR',
-        'KR': 'KRW', 'TW': 'TWD', 'CN': 'CNY', 'BR': 'BRL', 'MX': 'MXN'
-      };
-      return currencyMap[country] || 'USD'; // Default to USD for international
-    };
-
-    const preferredCurrency = getCurrency(destinationCountry);
+    // UPDATED: Use user-provided currency or fall back to auto-mapping
+    const preferredCurrency = getPreferredCurrency(userPreferredCurrency, destinationCountry);
 
     // Enhanced debugging: Log dimensional weight calculation
     const dimensionalWeight = (sizeData.length_cm * sizeData.width_cm * sizeData.height_cm) / 5000;
@@ -454,12 +471,12 @@ async function getFedexRates(
         pickupType: "DROPOFF_AT_FEDEX_LOCATION", // Fixed pickup type as per roadmap
         packagingType: "YOUR_PACKAGING", // Required field added
         groupPackageCount: 1, // Required field added
-        preferredCurrency: preferredCurrency // Required field added
+        preferredCurrency: preferredCurrency // USER-CONTROLLED CURRENCY
       }
     };
 
     // Enhanced debugging: Log full payload details (sanitized)
-    Logger.info('Sending FedEx rate request with enhanced debugging', { 
+    Logger.info('Sending FedEx rate request with USER-CONTROLLED currency', { 
       payload: {
         ...payload,
         accountNumber: { value: '[REDACTED]' }
@@ -467,6 +484,8 @@ async function getFedexRates(
       debugInfo: {
         route: `${originCountry} ${originPostalCode} → ${destinationCountry} ${destinationPostalCode}`,
         currency: preferredCurrency,
+        currencySource: userPreferredCurrency ? 'USER_SELECTED' : 'AUTO_MAPPED',
+        userProvidedCurrency: userPreferredCurrency || 'Not provided',
         shipDate: shipDateStamp,
         weightInfo: {
           actual: sizeData.weight_kg,
@@ -528,7 +547,9 @@ async function getFedexRates(
             sentPayload: {
               ...payload,
               accountNumber: { value: '[REDACTED]' }
-            }
+            },
+            currencyUsed: preferredCurrency,
+            currencySource: userPreferredCurrency ? 'USER_SELECTED' : 'AUTO_MAPPED'
           });
           
           throw new ShippingError(
@@ -607,17 +628,23 @@ async function getFedexRates(
       }
 
       if (rates.length === 0) {
-        Logger.warn('No rates found in FedEx response - Enhanced debugging', { 
+        Logger.warn('No rates found in FedEx response - Enhanced debugging with currency info', { 
           responseData,
           sentPayload: {
             ...payload,
             accountNumber: { value: '[REDACTED]' }
           },
+          currencyInfo: {
+            requested: preferredCurrency,
+            source: userPreferredCurrency ? 'USER_SELECTED' : 'AUTO_MAPPED',
+            userInput: userPreferredCurrency || 'Not provided'
+          },
           possibleIssues: [
             'Destination postal code not serviced by FedEx',
-            'Currency not supported for destination',
+            'Currency not supported for this route',
             'Package dimensions exceed limits',
-            'Account restrictions for destination country'
+            'Account restrictions for destination country',
+            'Currency conversion not available for selected route'
           ]
         });
         throw new ShippingError(
@@ -627,7 +654,7 @@ async function getFedexRates(
         );
       }
 
-      Logger.info(`Successfully parsed ${rates.length} FedEx rates`);
+      Logger.info(`Successfully parsed ${rates.length} FedEx rates with currency ${preferredCurrency}`);
       return rates;
 
     } catch (error) {
@@ -677,10 +704,11 @@ serve(async (req) => {
     }
 
     const requestData: ShippingRequest = await req.json();
-    Logger.info('Request payload received with enhanced debugging', { 
+    Logger.info('Request payload received with currency enhancement', { 
       requestData: {
         ...requestData,
-        fedexConfig: requestData.fedexConfig ? '[REDACTED]' : 'Not provided'
+        fedexConfig: requestData.fedexConfig ? '[REDACTED]' : 'Not provided',
+        preferredCurrency: requestData.preferredCurrency || 'Not provided (will auto-map)'
       }
     });
 
@@ -727,7 +755,8 @@ serve(async (req) => {
           originCountry,
           originPostalCode,
           requestData.country,
-          requestData.postalCode
+          requestData.postalCode,
+          requestData.preferredCurrency // Pass user-selected currency
         );
         
         rates = rates.concat(fedexRates);
@@ -750,7 +779,8 @@ serve(async (req) => {
 
     Logger.info('Shipping calculation completed successfully', {
       totalRates: rates.length,
-      requestId
+      requestId,
+      currencyUsed: requestData.preferredCurrency || 'auto-mapped'
     });
 
     return new Response(
