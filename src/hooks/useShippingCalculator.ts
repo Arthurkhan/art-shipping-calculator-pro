@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { FedexConfig } from './useFedexConfig';
+import { handleApiError, logError, ErrorType, createShippingError } from '@/lib/error-utils';
 
 export interface ShippingRate {
   service: string;
@@ -25,6 +26,7 @@ export interface CalculateRatesParams {
 /**
  * Custom hook for shipping rate calculations
  * Extracted from Index.tsx for Phase 2 refactoring - Core business logic
+ * Updated for Phase 4 - Using shared error handling utilities
  */
 export const useShippingCalculator = () => {
   const [rates, setRates] = useState<ShippingRate[]>([]);
@@ -49,7 +51,15 @@ export const useShippingCalculator = () => {
     // Validation - FedEx config must be provided
     if (!fedexConfig) {
       const errorMsg = "FedEx configuration is required to calculate rates";
+      const error = createShippingError(
+        ErrorType.CONFIGURATION_ERROR,
+        errorMsg,
+        'CONFIG_MISSING',
+        null,
+        'useShippingCalculator.calculateRates'
+      );
       setError(errorMsg);
+      logError(error, 'useShippingCalculator.calculateRates.validation');
       toast({
         title: "Configuration Error",
         description: errorMsg,
@@ -62,7 +72,15 @@ export const useShippingCalculator = () => {
     if (!selectedCollection || !selectedSize || !country || !postalCode || 
         !originCountry || !originPostalCode || !preferredCurrency) {
       const errorMsg = "Please fill in all required fields before calculating rates";
+      const error = createShippingError(
+        ErrorType.VALIDATION,
+        errorMsg,
+        'MISSING_REQUIRED_FIELDS',
+        { params },
+        'useShippingCalculator.calculateRates'
+      );
       setError(errorMsg);
+      logError(error, 'useShippingCalculator.calculateRates.validation');
       toast({
         title: "Validation Error",
         description: errorMsg,
@@ -97,21 +115,7 @@ export const useShippingCalculator = () => {
       });
 
       if (response.error) {
-        // Enhanced error handling with more specific messages
-        const errorMessage = response.error.message || 'Failed to calculate shipping rates';
-        
-        let userFriendlyError: string;
-        if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
-          userFriendlyError = 'FedEx API credentials are invalid. Please check your configuration.';
-        } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
-          userFriendlyError = 'Your FedEx account does not have permission to access the API. Please contact FedEx support.';
-        } else if (errorMessage.includes('timeout')) {
-          userFriendlyError = 'Request timed out. Please try again.';
-        } else {
-          userFriendlyError = errorMessage;
-        }
-        
-        throw new Error(userFriendlyError);
+        throw response.error;
       }
 
       const calculatedRates = response.data?.rates || [];
@@ -135,14 +139,20 @@ export const useShippingCalculator = () => {
       
       return true;
     } catch (err) {
-      console.error('Error calculating rates:', err);
-      const errorMessage = err instanceof Error ? err.message : "Unable to calculate shipping rates. Please try again later.";
-      setError(errorMessage);
+      logError(err as Error, 'useShippingCalculator.calculateRates', { params });
       
-      // Enhanced error feedback
+      const { message, type } = handleApiError(err);
+      setError(message);
+      
+      // Enhanced error feedback based on error type
+      const title = type === ErrorType.AUTH_ERROR ? "Authentication Error" :
+                   type === ErrorType.NETWORK_ERROR ? "Network Error" :
+                   type === ErrorType.PERMISSION_ERROR ? "Permission Error" :
+                   "Calculation Error";
+      
       toast({
-        title: "Calculation Error",
-        description: errorMessage,
+        title,
+        description: message,
         variant: "destructive",
       });
       
