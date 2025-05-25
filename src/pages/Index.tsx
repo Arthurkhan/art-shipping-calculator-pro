@@ -47,6 +47,23 @@ const Index = () => {
   // REMOVED: Auto-suggest currency when destination country changes
   // This was overriding manual currency selection
 
+  // Debug logging to help identify the issue
+  console.log('Debug - Button Status:', {
+    validationReady: validation.isReadyForSubmission,
+    fedexReady: fedexConfig.isConfigReady,
+    buttonDisabled: !validation.isReadyForSubmission || !fedexConfig.isConfigReady,
+    validationDetails: {
+      isFormValid: validation.isFormValid,
+      hasRequiredFields: validation.hasRequiredFields,
+      errors: validation.errors,
+      warnings: validation.warnings,
+    },
+    fedexDetails: {
+      status: fedexConfig.fedexConfigStatus,
+      hasCompleteConfig: fedexConfig.hasCompleteConfig,
+    }
+  });
+
   // Handle rate calculation
   const handleCalculateRates = async () => {
     // Check FedEx configuration first
@@ -159,6 +176,16 @@ const Index = () => {
                     Configure Now
                   </button>
                 </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Debug info - Remove this in production */}
+          {validation.hasRequiredFields && !fedexConfig.isConfigReady && (
+            <Alert className="mb-4 border-blue-200 bg-blue-50">
+              <AlertDescription className="text-blue-800">
+                <strong>Debug Info:</strong> Form is valid but FedEx configuration is {fedexConfig.fedexConfigStatus}. 
+                Please configure FedEx API credentials in the Configuration tab to enable the Calculate button.
               </AlertDescription>
             </Alert>
           )}
