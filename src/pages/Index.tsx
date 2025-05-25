@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CollectionSelector } from "@/components/shipping/CollectionSelector";
 import { SizeSelector } from "@/components/shipping/SizeSelector";
 import { ShippingDetailsForm } from "@/components/shipping/ShippingDetailsForm";
+import { OriginAddressForm } from "@/components/shipping/OriginAddressForm";
 import { CalculateButton } from "@/components/shipping/CalculateButton";
 import { ResultsDisplay } from "@/components/shipping/ResultsDisplay";
 import { FedexConfigForm } from "@/components/shipping/FedexConfigForm";
@@ -33,6 +34,8 @@ const Index = () => {
   const [sizes, setSizes] = useState<string[]>([]);
   const [selectedCollection, setSelectedCollection] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
+  const [originCountry, setOriginCountry] = useState(localStorage.getItem('origin_country') || '');
+  const [originPostalCode, setOriginPostalCode] = useState(localStorage.getItem('origin_postal_code') || '');
   const [country, setCountry] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -148,7 +151,17 @@ const Index = () => {
     setFedexConfig(config);
   };
 
-  const isFormValid = selectedCollection && selectedSize && country.trim() && postalCode.trim();
+  const handleOriginCountryChange = (value: string) => {
+    setOriginCountry(value);
+    localStorage.setItem('origin_country', value);
+  };
+
+  const handleOriginPostalCodeChange = (value: string) => {
+    setOriginPostalCode(value);
+    localStorage.setItem('origin_postal_code', value);
+  };
+
+  const isFormValid = selectedCollection && selectedSize && country.trim() && postalCode.trim() && originCountry.trim() && originPostalCode.trim();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -202,6 +215,13 @@ const Index = () => {
             <div className="p-8">
               {activeTab === 'calculator' ? (
                 <div className="space-y-6">
+                  <OriginAddressForm
+                    originCountry={originCountry}
+                    originPostalCode={originPostalCode}
+                    onOriginCountryChange={handleOriginCountryChange}
+                    onOriginPostalCodeChange={handleOriginPostalCodeChange}
+                  />
+
                   <CollectionSelector
                     collections={collections}
                     selectedCollection={selectedCollection}
