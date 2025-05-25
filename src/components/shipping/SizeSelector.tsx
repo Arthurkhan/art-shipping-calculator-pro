@@ -23,7 +23,7 @@ export const SizeSelector = ({
         Artwork Size
       </Label>
       <Select value={selectedSize} onValueChange={onSizeChange} disabled={disabled}>
-        <SelectTrigger className="w-full h-10 border-slate-300 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100">
+        <SelectTrigger id="size" className="w-full h-10 border-slate-300 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100">
           <SelectValue placeholder={disabled ? "Select a collection first..." : "Select artwork size..."} />
         </SelectTrigger>
         <SelectContent className="bg-white border-slate-200 shadow-lg">
