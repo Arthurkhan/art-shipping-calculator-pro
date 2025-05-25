@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -161,4 +160,579 @@ async function retryWithBackoff<T>(
 
       // Don't retry on certain error types
       if (error instanceof ShippingError) {
-        if
+        if (error.type === ErrorType.AUTHENTICATION || 
+            error.type === ErrorType.AUTHORIZATION || 
+            error.type === ErrorType.VALIDATION ||
+            error.type === ErrorType.CONFIGURATION) {
+          Logger.info(`Not retrying ${operationName} due to error type: ${error.type}`);
+          throw error;
+        }
+      }
+
+      // Don't retry on last attempt
+      if (attempt === options.maxRetries) {
+        Logger.error(`${operationName} failed after ${options.maxRetries} attempts`);
+        break;
+      }
+
+      // Calculate delay with exponential backoff
+      const delay = Math.min(
+        options.baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000,
+        options.maxDelay
+      );
+      
+      Logger.info(`Retrying ${operationName} in ${Math.round(delay)}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError;
+}
+
+// Get size data for collection
+async function getCollectionSize(collection: string, size: string): Promise<CollectionSize> {
+  try {
+    Logger.info('Fetching collection size data', { collection, size });
+    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new ShippingError(
+        ErrorType.CONFIGURATION,
+        'Missing Supabase configuration',
+        'Configuration error. Please contact support.'
+      );
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data, error } = await supabase
+      .from('collection_sizes')
+      .select('weight_kg, height_cm, length_cm, width_cm')
+      .eq('collection', collection)
+      .eq('size', size)
+      .single();
+
+    if (error) {
+      Logger.error('Database query failed', { error: error.message });
+      throw new ShippingError(
+        ErrorType.DATABASE,
+        `Database error: ${error.message}`,
+        'Unable to retrieve shipping information. Please try again.'
+      );
+    }
+
+    if (!data) {
+      Logger.warn('No size data found', { collection, size });
+      throw new ShippingError(
+        ErrorType.VALIDATION,
+        `No size data found for collection: ${collection}, size: ${size}`,
+        'The selected artwork size is not available for shipping calculation.'
+      );
+    }
+
+    Logger.info('Collection size data retrieved successfully', { data });
+    return data;
+  } catch (error) {
+    if (error instanceof ShippingError) {
+      throw error;
+    }
+    
+    Logger.error('Unexpected error fetching collection size', { error: error.message });
+    throw new ShippingError(
+      ErrorType.DATABASE,
+      `Unexpected database error: ${error.message}`,
+      'Unable to retrieve shipping information. Please contact support.'
+    );
+  }
+}
+
+// Get FedEx access token with enhanced error handling
+async function getFedexAccessToken(clientId: string, clientSecret: string): Promise<string> {
+  const operationName = 'FedEx Authentication';
+  const retryOptions: RetryOptions = {
+    maxRetries: 3,
+    baseDelay: 1000,
+    maxDelay: 10000
+  };
+
+  return retryWithBackoff(async () => {
+    Logger.info('Requesting FedEx access token');
+    
+    const authPayload = {
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret
+    };
+
+    Logger.info('Sending FedEx auth request', { 
+      grant_type: authPayload.grant_type,
+      client_id: authPayload.client_id 
+    });
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    try {
+      const response = await fetch('https://apis.fedex.com/oauth/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(authPayload).toString(),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      Logger.info('FedEx auth response received', { 
+        status: response.status,
+        statusText: response.statusText 
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        Logger.error('FedEx authentication failed', { 
+          status: response.status,
+          statusText: response.statusText,
+          errorText 
+        });
+
+        if (response.status === 401) {
+          throw new ShippingError(
+            ErrorType.AUTHENTICATION,
+            `Authentication failed: ${response.status}`,
+            'Invalid FedEx credentials. Please check your API keys.'
+          );
+        } else if (response.status === 403) {
+          throw new ShippingError(
+            ErrorType.AUTHORIZATION,
+            `Authorization failed: ${response.status}`,
+            'FedEx account not authorized for this operation.'
+          );
+        } else if (response.status >= 500) {
+          throw new ShippingError(
+            ErrorType.NETWORK,
+            `FedEx server error: ${response.status}`,
+            'FedEx service temporarily unavailable. Please try again.'
+          );
+        } else {
+          throw new ShippingError(
+            ErrorType.API_RESPONSE,
+            `Unexpected response: ${response.status}`,
+            'Authentication error. Please try again or contact support.'
+          );
+        }
+      }
+
+      const data = await response.json();
+      Logger.info('FedEx access token received successfully');
+      
+      if (!data.access_token) {
+        throw new ShippingError(
+          ErrorType.API_RESPONSE,
+          'No access token in response',
+          'Authentication error. Please try again.'
+        );
+      }
+
+      return data.access_token;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        throw new ShippingError(
+          ErrorType.TIMEOUT,
+          'FedEx authentication request timed out',
+          'Request timed out. Please try again.'
+        );
+      }
+      
+      throw error;
+    }
+  }, retryOptions, ErrorType.AUTHENTICATION, operationName);
+}
+
+// Get FedEx shipping rates with comprehensive error handling
+async function getFedexRates(
+  accessToken: string,
+  accountNumber: string,
+  sizeData: CollectionSize,
+  originCountry: string,
+  originPostalCode: string,
+  destinationCountry: string,
+  destinationPostalCode: string
+): Promise<ShippingRate[]> {
+  const operationName = 'FedEx Rate Request';
+  const retryOptions: RetryOptions = {
+    maxRetries: 3,
+    baseDelay: 2000,
+    maxDelay: 15000
+  };
+
+  return retryWithBackoff(async () => {
+    Logger.info('Requesting FedEx shipping rates');
+
+    // Get current date for shipping
+    const now = new Date();
+    const shipDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Tomorrow
+    const shipDateStamp = shipDate.toISOString().split('T')[0];
+
+    // Determine currency based on destination country
+    const getCurrency = (country: string): string => {
+      const currencyMap: { [key: string]: string } = {
+        'US': 'USD', 'CA': 'CAD', 'GB': 'GBP', 'DE': 'EUR', 'FR': 'EUR',
+        'IT': 'EUR', 'ES': 'EUR', 'NL': 'EUR', 'AT': 'EUR', 'BE': 'EUR',
+        'JP': 'JPY', 'AU': 'AUD', 'TH': 'THB', 'SG': 'SGD', 'HK': 'HKD'
+      };
+      return currencyMap[country] || 'USD';
+    };
+
+    const preferredCurrency = getCurrency(destinationCountry);
+
+    // Construct FedEx API payload matching n8n workflow structure
+    const payload = {
+      accountNumber: {
+        value: accountNumber
+      },
+      requestedShipment: {
+        shipper: {
+          address: {
+            postalCode: originPostalCode,
+            countryCode: originCountry
+          }
+        },
+        recipient: {
+          address: {
+            postalCode: destinationPostalCode,
+            countryCode: destinationCountry
+          }
+        },
+        shipDateStamp: shipDateStamp,
+        rateRequestType: ["LIST", "ACCOUNT", "INCENTIVE"],
+        requestedPackageLineItems: [
+          {
+            groupPackageCount: 1,
+            weight: {
+              units: "KG",
+              value: sizeData.weight_kg
+            },
+            dimensions: {
+              length: sizeData.length_cm,
+              width: sizeData.width_cm,
+              height: sizeData.height_cm,
+              units: "CM"
+            }
+          }
+        ],
+        pickupType: "DROPOFF_AT_FEDEX_LOCATION",
+        packagingType: "YOUR_PACKAGING",
+        groupPackageCount: 1,
+        preferredCurrency: preferredCurrency
+      }
+    };
+
+    Logger.info('Sending FedEx rate request', { 
+      payload: {
+        ...payload,
+        accountNumber: { value: '[REDACTED]' }
+      }
+    });
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+
+    try {
+      const response = await fetch('https://apis.fedex.com/rate/v1/rates/quotes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+          'X-locale': 'en_US'
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      Logger.info('FedEx rate response received', { 
+        status: response.status,
+        statusText: response.statusText 
+      });
+
+      const responseData = await response.json();
+      Logger.info('FedEx rate response data', { responseData });
+
+      if (!response.ok) {
+        Logger.error('FedEx rate request failed', { 
+          status: response.status,
+          statusText: response.statusText,
+          responseData 
+        });
+
+        if (response.status === 401) {
+          throw new ShippingError(
+            ErrorType.AUTHENTICATION,
+            'FedEx access token expired or invalid',
+            'Authentication expired. Please try again.'
+          );
+        } else if (response.status === 403) {
+          throw new ShippingError(
+            ErrorType.AUTHORIZATION,
+            'FedEx account not authorized for rate requests',
+            'Account not authorized for shipping rates.'
+          );
+        } else if (response.status === 400) {
+          throw new ShippingError(
+            ErrorType.VALIDATION,
+            `Invalid request parameters: ${JSON.stringify(responseData)}`,
+            'Invalid shipping parameters. Please check your destination details.'
+          );
+        } else if (response.status >= 500) {
+          throw new ShippingError(
+            ErrorType.NETWORK,
+            `FedEx server error: ${response.status}`,
+            'FedEx service temporarily unavailable. Please try again.'
+          );
+        } else {
+          throw new ShippingError(
+            ErrorType.API_RESPONSE,
+            `Unexpected response: ${response.status}`,
+            'Rate calculation error. Please try again or contact support.'
+          );
+        }
+      }
+
+      // Parse and validate response
+      if (!responseData.output || !responseData.output.rateReplyDetails) {
+        Logger.error('Invalid FedEx response structure', { responseData });
+        throw new ShippingError(
+          ErrorType.RATE_PARSING,
+          'Invalid response structure from FedEx',
+          'Unable to parse shipping rates. Please try again.'
+        );
+      }
+
+      const rates: ShippingRate[] = [];
+      
+      try {
+        for (const rateDetail of responseData.output.rateReplyDetails) {
+          if (rateDetail.ratedShipmentDetails && rateDetail.ratedShipmentDetails.length > 0) {
+            const shipmentDetail = rateDetail.ratedShipmentDetails[0];
+            
+            if (shipmentDetail.totalNetCharge) {
+              const rate: ShippingRate = {
+                service: rateDetail.serviceType || 'Unknown Service',
+                cost: parseFloat(shipmentDetail.totalNetCharge.amount) || 0,
+                currency: shipmentDetail.totalNetCharge.currency || preferredCurrency,
+                transitTime: rateDetail.transitTime || 'Unknown',
+                deliveryDate: rateDetail.deliveryTimestamp
+              };
+              
+              rates.push(rate);
+              Logger.info('Parsed FedEx rate', { rate });
+            }
+          }
+        }
+      } catch (parseError) {
+        Logger.error('Error parsing FedEx rates', { 
+          parseError: parseError.message,
+          responseData 
+        });
+        throw new ShippingError(
+          ErrorType.RATE_PARSING,
+          `Rate parsing error: ${parseError.message}`,
+          'Unable to process shipping rates. Please try again.'
+        );
+      }
+
+      if (rates.length === 0) {
+        Logger.warn('No rates found in FedEx response', { responseData });
+        throw new ShippingError(
+          ErrorType.RATE_PARSING,
+          'No shipping rates available for this destination',
+          'No shipping options available for this destination.'
+        );
+      }
+
+      Logger.info(`Successfully parsed ${rates.length} FedEx rates`);
+      return rates;
+
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        throw new ShippingError(
+          ErrorType.TIMEOUT,
+          'FedEx rate request timed out',
+          'Request timed out. Please try again.'
+        );
+      }
+      
+      throw error;
+    }
+  }, retryOptions, ErrorType.NETWORK, operationName);
+}
+
+// Main serve function with comprehensive error handling
+serve(async (req) => {
+  // Generate unique request ID for correlation
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  Logger.setRequestId(requestId);
+  
+  Logger.info('New shipping calculation request received', {
+    method: req.method,
+    url: req.url,
+    requestId
+  });
+
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    if (req.method !== 'POST') {
+      throw new ShippingError(
+        ErrorType.VALIDATION,
+        `Method ${req.method} not allowed`,
+        'Only POST requests are allowed.'
+      );
+    }
+
+    const requestData: ShippingRequest = await req.json();
+    Logger.info('Request payload received', { requestData });
+
+    // Validate required fields
+    if (!requestData.collection || !requestData.size || !requestData.country || !requestData.postalCode) {
+      throw new ShippingError(
+        ErrorType.VALIDATION,
+        'Missing required fields',
+        'Please fill in all required shipping information.'
+      );
+    }
+
+    // Set default origin if not provided (Thailand as per Phase 2)
+    const originCountry = requestData.originCountry || 'TH';
+    const originPostalCode = requestData.originPostalCode || '10240';
+
+    Logger.info('Using origin address', { originCountry, originPostalCode });
+
+    // Get collection size data
+    const sizeData = await getCollectionSize(requestData.collection, requestData.size);
+
+    let rates: ShippingRate[] = [];
+
+    // Calculate FedEx rates if config is provided
+    if (requestData.fedexConfig) {
+      Logger.info('FedEx configuration provided, calculating rates');
+      
+      const { accountNumber, clientId, clientSecret } = requestData.fedexConfig;
+      
+      if (!accountNumber || !clientId || !clientSecret) {
+        throw new ShippingError(
+          ErrorType.CONFIGURATION,
+          'Incomplete FedEx configuration',
+          'FedEx configuration is incomplete. Please check your API credentials.'
+        );
+      }
+
+      try {
+        const accessToken = await getFedexAccessToken(clientId, clientSecret);
+        const fedexRates = await getFedexRates(
+          accessToken,
+          accountNumber,
+          sizeData,
+          originCountry,
+          originPostalCode,
+          requestData.country,
+          requestData.postalCode
+        );
+        
+        rates = rates.concat(fedexRates);
+        Logger.info(`Added ${fedexRates.length} FedEx rates`);
+      } catch (error) {
+        Logger.error('FedEx rate calculation failed', { error: error.message });
+        
+        if (error instanceof ShippingError) {
+          // For FedEx-specific errors, we can still return partial results
+          Logger.warn('Continuing with empty FedEx rates due to error');
+        } else {
+          throw error;
+        }
+      }
+    } else {
+      Logger.info('No FedEx configuration provided, skipping FedEx rates');
+    }
+
+    // TODO: Add other shipping providers here (DHL, UPS, etc.)
+
+    Logger.info('Shipping calculation completed successfully', {
+      totalRates: rates.length,
+      requestId
+    });
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        rates,
+        requestId
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+
+  } catch (error) {
+    Logger.error('Request failed', { 
+      error: error.message,
+      type: error instanceof ShippingError ? error.type : 'UNKNOWN',
+      requestId
+    });
+
+    let statusCode = 500;
+    let userMessage = 'An unexpected error occurred. Please try again.';
+
+    if (error instanceof ShippingError) {
+      userMessage = error.userMessage;
+      
+      // Map error types to appropriate HTTP status codes
+      switch (error.type) {
+        case ErrorType.VALIDATION:
+          statusCode = 400;
+          break;
+        case ErrorType.AUTHENTICATION:
+        case ErrorType.AUTHORIZATION:
+          statusCode = 401;
+          break;
+        case ErrorType.CONFIGURATION:
+          statusCode = 422;
+          break;
+        case ErrorType.TIMEOUT:
+          statusCode = 408;
+          break;
+        case ErrorType.NETWORK:
+        case ErrorType.API_RESPONSE:
+        case ErrorType.RATE_PARSING:
+        case ErrorType.DATABASE:
+        default:
+          statusCode = 500;
+          break;
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: userMessage,
+        requestId,
+        ...(error instanceof ShippingError && { errorType: error.type })
+      }),
+      {
+        status: statusCode,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+});
