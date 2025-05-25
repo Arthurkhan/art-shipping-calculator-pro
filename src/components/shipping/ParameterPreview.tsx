@@ -19,6 +19,7 @@ interface ParameterPreviewProps {
   postalCode: string;
   originCountry: string;
   originPostalCode: string;
+  preferredCurrency: string;
   isVisible: boolean;
 }
 
@@ -29,6 +30,7 @@ export const ParameterPreview = ({
   postalCode,
   originCountry,
   originPostalCode,
+  preferredCurrency,
   isVisible
 }: ParameterPreviewProps) => {
   const [sizeData, setSizeData] = useState<CollectionSize | null>(null);
@@ -102,17 +104,6 @@ export const ParameterPreview = ({
     if (!sizeData) return 0;
     const dimWeight = calculateDimensionalWeight();
     return Math.max(sizeData.weight_kg, dimWeight);
-  };
-
-  // Get currency based on destination country
-  const getCurrency = (countryCode: string): string => {
-    const currencyMap: { [key: string]: string } = {
-      'US': 'USD', 'CA': 'CAD', 'GB': 'GBP', 'DE': 'EUR', 'FR': 'EUR',
-      'IT': 'EUR', 'ES': 'EUR', 'NL': 'EUR', 'AT': 'EUR', 'BE': 'EUR',
-      'JP': 'JPY', 'AU': 'AUD', 'TH': 'THB', 'SG': 'SGD', 'HK': 'HKD',
-      'ID': 'IDR', 'MY': 'MYR', 'PH': 'PHP', 'VN': 'VND', 'IN': 'INR'
-    };
-    return currencyMap[countryCode] || 'USD'; // Default to USD for international
   };
 
   // Get current ship date (tomorrow)
@@ -254,7 +245,9 @@ export const ParameterPreview = ({
             <div className="space-y-1">
               <div className="text-sm">
                 <span className="font-medium">Preferred Currency:</span>{" "}
-                <Badge variant="outline">{getCurrency(country)}</Badge>
+                <Badge variant="outline" className="bg-green-100 text-green-800">
+                  {preferredCurrency}
+                </Badge>
               </div>
               <div className="text-sm">
                 <span className="font-medium">Pickup Type:</span> DROPOFF_AT_FEDEX_LOCATION
@@ -279,6 +272,19 @@ export const ParameterPreview = ({
           </div>
         </div>
 
+        {/* Enhanced Currency Info */}
+        <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+          <div className="text-sm font-medium text-green-800 mb-1">
+            💰 Currency Selection: User-Controlled
+          </div>
+          <div className="text-xs text-green-700">
+            <div>Selected: <strong>{preferredCurrency}</strong> (manually chosen)</div>
+            <div className="mt-1 text-green-600">
+              Note: You can test different currencies to see which ones FedEx supports for your route.
+            </div>
+          </div>
+        </div>
+
         {/* Debug Info */}
         <div className="bg-slate-100 rounded-lg p-3 mt-4">
           <div className="text-xs text-slate-600">
@@ -287,6 +293,7 @@ export const ParameterPreview = ({
             <div>Volume: {(sizeData.length_cm * sizeData.width_cm * sizeData.height_cm).toLocaleString()} cm³</div>
             <div>DIM Factor: 5000 (FedEx standard for CM/KG)</div>
             <div>Ship Date: {getShipDate()} (Tomorrow)</div>
+            <div>Currency Source: User-selected (not auto-mapped)</div>
           </div>
         </div>
       </CardContent>
