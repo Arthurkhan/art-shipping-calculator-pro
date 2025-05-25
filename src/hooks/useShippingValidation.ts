@@ -15,6 +15,7 @@ export interface ShippingFormData {
 /**
  * Custom hook for shipping form validation
  * Extracted from Index.tsx for Phase 2 refactoring
+ * Updated: Currency is now optional
  */
 export const useShippingValidation = (formData: ShippingFormData) => {
   // Comprehensive form validation
@@ -35,7 +36,7 @@ export const useShippingValidation = (formData: ShippingFormData) => {
     return validateOriginAddress(formData.originCountry, formData.originPostalCode);
   }, [formData.originCountry, formData.originPostalCode]);
 
-  // Check if basic required fields are filled
+  // Check if basic required fields are filled (currency is now optional)
   const hasRequiredFields = useMemo(() => {
     return !!(
       formData.selectedCollection?.trim() &&
@@ -43,8 +44,8 @@ export const useShippingValidation = (formData: ShippingFormData) => {
       formData.country?.trim() &&
       formData.postalCode?.trim() &&
       formData.originCountry?.trim() &&
-      formData.originPostalCode?.trim() &&
-      formData.preferredCurrency?.trim()
+      formData.originPostalCode?.trim()
+      // Removed currency requirement - it's now optional
     );
   }, [formData]);
 
@@ -87,7 +88,7 @@ export const useShippingValidation = (formData: ShippingFormData) => {
         destinationPostalCode: !!formData.postalCode,
         originCountry: !!formData.originCountry,
         originPostalCode: !!formData.originPostalCode,
-        currency: !!formData.preferredCurrency,
+        currency: !!formData.preferredCurrency, // Optional field
       },
       validationDetails: {
         form: formValidation,
@@ -105,7 +106,7 @@ export const useShippingValidation = (formData: ShippingFormData) => {
     isDestinationPostalCodeValid: !!formData.postalCode?.trim(),
     isOriginCountryValid: !!formData.originCountry?.trim(),
     isOriginPostalCodeValid: !!formData.originPostalCode?.trim() && originValidation.isValid,
-    isCurrencyValid: !!formData.preferredCurrency?.trim(),
+    isCurrencyValid: !formData.preferredCurrency || !!formData.preferredCurrency?.trim(), // Optional, valid if empty
   }), [formData, originValidation.isValid]);
 
   return {
