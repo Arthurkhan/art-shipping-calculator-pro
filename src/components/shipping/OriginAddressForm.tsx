@@ -25,7 +25,7 @@ export const OriginAddressForm = ({
   // Check if current values match Thailand defaults
   useEffect(() => {
     const matchesDefaults = (
-      (originCountry === originAddressDefaults.country || originCountry === originAddressDefaults.countryName) &&
+      originCountry === originAddressDefaults.country &&
       originPostalCode === originAddressDefaults.postalCode
     );
     setIsUsingDefaults(matchesDefaults);
@@ -54,7 +54,7 @@ export const OriginAddressForm = ({
   }, [originPostalCode, originCountry]);
 
   const handleSetToDefaults = () => {
-    onOriginCountryChange(originAddressDefaults.countryName);
+    onOriginCountryChange(originAddressDefaults.country);
     onOriginPostalCodeChange(originAddressDefaults.postalCode);
   };
 
@@ -65,7 +65,8 @@ export const OriginAddressForm = ({
   };
 
   const handleCountryChange = (value: string) => {
-    onOriginCountryChange(value);
+    // Convert to uppercase and limit to 2 characters
+    onOriginCountryChange(value.toUpperCase());
   };
 
   const handlePostalCodeChange = (value: string) => {
@@ -114,14 +115,14 @@ export const OriginAddressForm = ({
           </div>
         </div>
         
-        {/* Thailand Default Notice - Simplified */}
+        {/* Thailand Default Notice - Updated */}
         <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-xs text-blue-700 flex items-center">
             <MapPin className="w-3 h-3 mr-1.5" />
             <strong>Default:</strong> Thailand (TH), Postal Code 10240
           </p>
           <p className="text-xs text-blue-600 mt-1">
-            You can override these values if shipping from a different location.
+            Use 2-letter country codes (TH, US, GB, etc.) for all addresses.
           </p>
         </div>
       </div>
@@ -130,19 +131,20 @@ export const OriginAddressForm = ({
         <div className="space-y-1.5">
           <Label htmlFor="originCountry" className="text-sm text-slate-700 font-medium flex items-center">
             <MapPin className="w-3.5 h-3.5 mr-1.5" />
-            Origin Country
+            Origin Country Code
           </Label>
           <div className="relative">
             <Input
               id="originCountry"
               type="text"
-              placeholder="Thailand or TH"
+              placeholder="e.g., TH, US, GB"
               value={originCountry}
               onChange={(e) => handleCountryChange(e.target.value)}
               className={cn(
                 "h-10 pr-8 border-slate-300 focus:border-blue-500 focus:ring-blue-500",
                 !countryValidation.isValid && originCountry && "border-red-300 focus:border-red-500 focus:ring-red-500"
               )}
+              maxLength={2}
             />
             <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
               {getFieldValidationIcon(countryValidation, !!originCountry)}
@@ -155,7 +157,7 @@ export const OriginAddressForm = ({
             </p>
           )}
           <p className="text-xs text-slate-500">
-            Use country name (Thailand) or ISO code (TH)
+            2-letter country code (e.g., TH, US, GB)
           </p>
         </div>
 
@@ -187,7 +189,7 @@ export const OriginAddressForm = ({
             </p>
           )}
           <p className="text-xs text-slate-500">
-            5-digit postal code for Thailand
+            Origin postal code
           </p>
         </div>
       </div>
