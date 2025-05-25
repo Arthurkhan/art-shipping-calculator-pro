@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { CollectionSelector } from "@/components/shipping/CollectionSelector";
 import { SizeSelector } from "@/components/shipping/SizeSelector";
 import { ShippingDetailsForm } from "@/components/shipping/ShippingDetailsForm";
@@ -44,12 +44,8 @@ const Index = () => {
     preferredCurrency: currencySelector.preferredCurrency,
   });
 
-  // Auto-suggest currency when destination country changes
-  useEffect(() => {
-    if (country) {
-      currencySelector.autoSuggestCurrency(country);
-    }
-  }, [country, currencySelector]);
+  // REMOVED: Auto-suggest currency when destination country changes
+  // This was overriding manual currency selection
 
   // Handle rate calculation
   const handleCalculateRates = async () => {
