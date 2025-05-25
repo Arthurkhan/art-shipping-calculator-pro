@@ -6,12 +6,17 @@ import { initializeOriginDefaults, getOriginAddress, updateOriginCountry, update
 /**
  * Custom hook for managing origin address with Thailand defaults
  * Extracted from Index.tsx for Phase 2 refactoring
+ * Updated: Now uses 2-letter country codes only
  */
 export const useOriginAddress = () => {
-  // Initialize origin address with Thailand defaults
+  // Initialize origin address with Thailand defaults (2-letter code)
   const [originCountry, setOriginCountry] = useState(() => {
     const savedCountry = originStorage.getOriginCountry('');
-    return savedCountry || originAddressDefaults.countryName;
+    // Ensure we use 2-letter code, convert if necessary
+    if (savedCountry === 'Thailand') {
+      return originAddressDefaults.country; // "TH"
+    }
+    return savedCountry || originAddressDefaults.country; // "TH"
   });
   
   const [originPostalCode, setOriginPostalCode] = useState(() => {
@@ -24,10 +29,11 @@ export const useOriginAddress = () => {
     initializeOriginDefaults();
   }, []);
 
-  // Handle origin country change
+  // Handle origin country change with automatic uppercase conversion
   const handleOriginCountryChange = (value: string) => {
-    setOriginCountry(value);
-    updateOriginCountry(value);
+    const upperValue = value.toUpperCase();
+    setOriginCountry(upperValue);
+    updateOriginCountry(upperValue);
   };
 
   // Handle origin postal code change
@@ -41,11 +47,11 @@ export const useOriginAddress = () => {
     return validateOriginAddress(originCountry, originPostalCode);
   };
 
-  // Reset to defaults
+  // Reset to defaults (using 2-letter code)
   const resetToDefaults = () => {
-    setOriginCountry(originAddressDefaults.countryName);
+    setOriginCountry(originAddressDefaults.country); // "TH"
     setOriginPostalCode(originAddressDefaults.postalCode);
-    updateOriginCountry(originAddressDefaults.countryName);
+    updateOriginCountry(originAddressDefaults.country); // "TH"
     updateOriginPostalCode(originAddressDefaults.postalCode);
   };
 
@@ -54,7 +60,7 @@ export const useOriginAddress = () => {
     return {
       country: originCountry,
       postalCode: originPostalCode,
-      countryCode: originAddressDefaults.country,
+      countryCode: originCountry, // Now same as country since we only use codes
     };
   };
 
