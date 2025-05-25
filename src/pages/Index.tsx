@@ -6,7 +6,7 @@ import { OriginAddressForm } from "@/components/shipping/OriginAddressForm";
 import { CalculateButton } from "@/components/shipping/CalculateButton";
 import { ResultsDisplay } from "@/components/shipping/ResultsDisplay";
 import { FedexConfigForm } from "@/components/shipping/FedexConfigForm/FedexConfigForm";
-import { ParameterPreview } from "@/components/shipping/ParameterPreview";
+import { ParameterPreview } from "@/components/shipping/ParameterPreview/ParameterPreview";
 import { Truck, Package, Settings, Calculator, AlertTriangle, CheckCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
