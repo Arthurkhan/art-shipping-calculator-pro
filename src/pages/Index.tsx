@@ -166,56 +166,56 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6">
         <div className="max-w-2xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center mb-6">
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 rounded-2xl mr-4 shadow-lg">
-                <Truck className="w-10 h-10 text-white" />
+          {/* Compact Header */}
+          <div className="text-center mb-6">
+            <div className="flex items-center justify-center mb-4">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 rounded-xl mr-3 shadow-lg">
+                <Truck className="w-6 h-6 text-white" />
               </div>
-              <div className="bg-gradient-to-r from-slate-600 to-slate-700 p-4 rounded-2xl shadow-lg">
-                <Package className="w-10 h-10 text-white" />
+              <div className="bg-gradient-to-r from-slate-600 to-slate-700 p-3 rounded-xl shadow-lg">
+                <Package className="w-6 h-6 text-white" />
               </div>
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-blue-800 bg-clip-text text-transparent mb-3">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-blue-800 bg-clip-text text-transparent mb-2">
               Art Collection Shipping Calculator
             </h1>
-            <p className="text-slate-600 text-lg">
+            <p className="text-slate-600">
               Get instant FedEx shipping rates for your art collections worldwide
             </p>
           </div>
 
-          {/* Tab Navigation */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-slate-200/50 overflow-hidden">
+          {/* Compact Tab Navigation */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50 overflow-hidden">
             <div className="flex border-b border-slate-200/70">
               <button
                 onClick={() => setActiveTab('calculator')}
-                className={`flex-1 px-8 py-5 text-sm font-semibold transition-all duration-200 ${
+                className={`flex-1 px-6 py-3 text-sm font-semibold transition-all duration-200 ${
                   activeTab === 'calculator'
-                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-b-3 border-blue-600 shadow-sm'
+                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-b-2 border-blue-600'
                     : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50/80'
                 }`}
               >
-                <Calculator className="w-5 h-5 inline mr-3" />
+                <Calculator className="w-4 h-4 inline mr-2" />
                 Rate Calculator
               </button>
               <button
                 onClick={() => setActiveTab('config')}
-                className={`flex-1 px-8 py-5 text-sm font-semibold transition-all duration-200 ${
+                className={`flex-1 px-6 py-3 text-sm font-semibold transition-all duration-200 ${
                   activeTab === 'config'
-                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-b-3 border-blue-600 shadow-sm'
+                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-b-2 border-blue-600'
                     : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50/80'
                 }`}
               >
-                <Settings className="w-5 h-5 inline mr-3" />
+                <Settings className="w-4 h-4 inline mr-2" />
                 FedEx Configuration
               </button>
             </div>
 
-            <div className="p-8">
+            <div className="p-6">
               {activeTab === 'calculator' ? (
-                <div className="space-y-8">
+                <div className="space-y-5">
                   <OriginAddressForm
                     originCountry={originCountry}
                     originPostalCode={originPostalCode}
@@ -223,7 +223,7 @@ const Index = () => {
                     onOriginPostalCodeChange={handleOriginPostalCodeChange}
                   />
 
-                  <Separator className="my-6" />
+                  <Separator className="my-4" />
 
                   <CollectionSelector
                     collections={collections}
@@ -239,7 +239,7 @@ const Index = () => {
                     disabled={!selectedCollection}
                   />
 
-                  <Separator className="my-6" />
+                  <Separator className="my-4" />
 
                   <ShippingDetailsForm
                     country={country}
@@ -248,7 +248,7 @@ const Index = () => {
                     onPostalCodeChange={setPostalCode}
                   />
 
-                  <div className="pt-4">
+                  <div className="pt-3">
                     <CalculateButton
                       onClick={calculateRates}
                       disabled={!isFormValid}
@@ -257,7 +257,7 @@ const Index = () => {
                   </div>
 
                   {error && (
-                    <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-5 shadow-sm">
+                    <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-lg p-4">
                       <p className="text-red-700 text-sm font-medium">{error}</p>
                     </div>
                   )}
@@ -270,8 +270,8 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="text-center mt-8 text-slate-500 text-sm">
+          {/* Compact Footer */}
+          <div className="text-center mt-6 text-slate-500 text-sm">
             <p className="flex items-center justify-center">
               <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
               Powered by FedEx Shipping API • Rates updated in real-time

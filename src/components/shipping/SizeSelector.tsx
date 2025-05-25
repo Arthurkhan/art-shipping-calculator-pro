@@ -17,13 +17,13 @@ export const SizeSelector = ({
   disabled
 }: SizeSelectorProps) => {
   return (
-    <div className="space-y-2">
-      <Label htmlFor="size" className="text-slate-700 font-medium flex items-center">
-        <Ruler className="w-4 h-4 mr-2" />
+    <div className="space-y-1.5">
+      <Label htmlFor="size" className="text-sm text-slate-700 font-medium flex items-center">
+        <Ruler className="w-3.5 h-3.5 mr-1.5" />
         Artwork Size
       </Label>
       <Select value={selectedSize} onValueChange={onSizeChange} disabled={disabled}>
-        <SelectTrigger className="w-full h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100">
+        <SelectTrigger className="w-full h-10 border-slate-300 focus:border-blue-500 focus:ring-blue-500 disabled:bg-slate-100">
           <SelectValue placeholder={disabled ? "Select a collection first..." : "Select artwork size..."} />
         </SelectTrigger>
         <SelectContent className="bg-white border-slate-200 shadow-lg">
