@@ -98,11 +98,13 @@ export function validateOriginAddress(country: string, postalCode: string): Vali
     return { isValid: false, error: "Postal code is required" };
   }
   
-  // If it's a 2-letter code, validate as country code
-  if (country.length === 2) {
-    if (!validateCountryCode(country)) {
-      return { isValid: false, error: "Invalid country code (use ISO 3166-1 alpha-2 format like 'TH', 'US', 'GB')" };
-    }
+  // Updated validation: Only accept 2-letter country codes
+  if (country.length !== 2) {
+    return { isValid: false, error: "Country must be a 2-letter code (e.g., TH, US, GB)" };
+  }
+  
+  if (!validateCountryCode(country)) {
+    return { isValid: false, error: "Invalid country code (use ISO 3166-1 alpha-2 format like 'TH', 'US', 'GB')" };
   }
   
   if (!validatePostalCode(postalCode, country)) {
