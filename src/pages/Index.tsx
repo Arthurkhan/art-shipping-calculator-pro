@@ -8,8 +8,10 @@ import { OriginAddressForm } from "@/components/shipping/OriginAddressForm";
 import { CalculateButton } from "@/components/shipping/CalculateButton";
 import { ResultsDisplay } from "@/components/shipping/ResultsDisplay";
 import { FedexConfigForm } from "@/components/shipping/FedexConfigForm";
-import { Truck, Package, Settings, Calculator } from "lucide-react";
+import { Truck, Package, Settings, Calculator, AlertTriangle, CheckCircle, Info } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { originAddressDefaults, validateOriginAddress } from "@/lib/utils";
 
 interface Collection {
@@ -58,6 +60,7 @@ const Index = () => {
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<'calculator' | 'config'>('calculator');
   const [fedexConfig, setFedexConfig] = useState<FedexConfig | null>(null);
+  const [fedexConfigStatus, setFedexConfigStatus] = useState<'missing' | 'partial' | 'complete'>('missing');
   const { toast } = useToast();
 
   // Load collections on mount
@@ -65,6 +68,8 @@ const Index = () => {
     loadCollections();
     // Set Thailand defaults in localStorage if first time user (Phase 2)
     initializeOriginDefaults();
+    // Check FedEx configuration status
+    checkFedexConfigStatus();
   }, []);
 
   // Load sizes when collection changes
@@ -78,6 +83,11 @@ const Index = () => {
     }
   }, [selectedCollection]);
 
+  // Check FedEx configuration status on mount and config changes
+  useEffect(() => {
+    checkFedexConfigStatus();
+  }, [fedexConfig]);
+
   // Initialize Thailand defaults in localStorage if not set (Phase 2)
   const initializeOriginDefaults = () => {
     const savedCountry = localStorage.getItem('origin_country');
@@ -88,6 +98,21 @@ const Index = () => {
     }
     if (!savedPostalCode) {
       localStorage.setItem('origin_postal_code', originAddressDefaults.postalCode);
+    }
+  };
+
+  const checkFedexConfigStatus = () => {
+    const accountNumber = localStorage.getItem('fedex_account_number') || '';
+    const clientId = localStorage.getItem('fedex_client_id') || '';
+    const clientSecret = localStorage.getItem('fedex_client_secret') || '';
+
+    if (!accountNumber && !clientId && !clientSecret) {
+      setFedexConfigStatus('missing');
+    } else if (!accountNumber || !clientId || !clientSecret) {
+      setFedexConfigStatus('partial');
+    } else {
+      setFedexConfigStatus('complete');
+      setFedexConfig({ accountNumber, clientId, clientSecret });
     }
   };
 
@@ -134,6 +159,17 @@ const Index = () => {
   };
 
   const calculateRates = async () => {
+    // Enhanced validation for Phase 5 - Clear FedEx config feedback
+    if (fedexConfigStatus !== 'complete') {
+      toast({
+        title: "FedEx Configuration Required",
+        description: "Please configure your FedEx API credentials in the Configuration tab before calculating rates.",
+        variant: "destructive",
+      });
+      setActiveTab('config');
+      return;
+    }
+
     // Enhanced validation for Phase 2
     if (!selectedCollection || !selectedSize || !country || !postalCode || !originCountry || !originPostalCode) {
       setError("Please fill in all fields before calculating rates.");
@@ -152,6 +188,12 @@ const Index = () => {
     setRates([]);
 
     try {
+      // Enhanced feedback during calculation
+      toast({
+        title: "Calculating Rates",
+        description: "Contacting FedEx API to get shipping rates...",
+      });
+
       const response = await supabase.functions.invoke('calculate-shipping', {
         body: {
           collection: selectedCollection,
@@ -165,20 +207,40 @@ const Index = () => {
       });
 
       if (response.error) {
-        throw new Error(response.error.message || 'Failed to calculate shipping rates');
+        // Enhanced error handling with more specific messages
+        const errorMessage = response.error.message || 'Failed to calculate shipping rates';
+        
+        if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+          throw new Error('FedEx API credentials are invalid. Please check your configuration.');
+        } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+          throw new Error('Your FedEx account does not have permission to access the API. Please contact FedEx support.');
+        } else if (errorMessage.includes('timeout')) {
+          throw new Error('Request timed out. Please try again.');
+        } else {
+          throw new Error(errorMessage);
+        }
       }
 
       setRates(response.data?.rates || []);
       
       if (response.data?.rates?.length === 0) {
         setError("No shipping options available for this destination.");
+      } else {
+        // Success feedback
+        toast({
+          title: "Rates Calculated",
+          description: `Found ${response.data?.rates?.length} shipping options.`,
+        });
       }
     } catch (err) {
       console.error('Error calculating rates:', err);
-      setError("Unable to calculate shipping rates. Please try again later.");
+      const errorMessage = err instanceof Error ? err.message : "Unable to calculate shipping rates. Please try again later.";
+      setError(errorMessage);
+      
+      // Enhanced error feedback
       toast({
         title: "Calculation Error",
-        description: "Failed to get shipping rates from FedEx. Please verify your information and try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -188,6 +250,7 @@ const Index = () => {
 
   const handleConfigSave = (config: FedexConfig) => {
     setFedexConfig(config);
+    setFedexConfigStatus('complete');
   };
 
   const handleOriginCountryChange = (value: string) => {
@@ -209,6 +272,33 @@ const Index = () => {
     // Validate origin address
     const originValidation = validateOriginAddress(originCountry, originPostalCode);
     return originValidation.isValid;
+  };
+
+  // Get configuration status badge
+  const getConfigStatusBadge = () => {
+    switch (fedexConfigStatus) {
+      case 'complete':
+        return (
+          <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Configured
+          </Badge>
+        );
+      case 'partial':
+        return (
+          <Badge variant="destructive" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+            <AlertTriangle className="w-3 h-3 mr-1" />
+            Incomplete
+          </Badge>
+        );
+      case 'missing':
+        return (
+          <Badge variant="destructive">
+            <AlertTriangle className="w-3 h-3 mr-1" />
+            Missing
+          </Badge>
+        );
+    }
   };
 
   return (
@@ -233,6 +323,29 @@ const Index = () => {
             </p>
           </div>
 
+          {/* FedEx Configuration Status Alert */}
+          {fedexConfigStatus !== 'complete' && (
+            <Alert className="mb-6 border-yellow-200 bg-yellow-50">
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              <AlertDescription className="text-yellow-800">
+                <div className="flex items-center justify-between">
+                  <span>
+                    {fedexConfigStatus === 'missing' 
+                      ? 'FedEx API configuration is required to calculate shipping rates.'
+                      : 'FedEx API configuration is incomplete. Some credentials are missing.'
+                    }
+                  </span>
+                  <button
+                    onClick={() => setActiveTab('config')}
+                    className="ml-4 text-sm text-yellow-700 underline hover:text-yellow-900"
+                  >
+                    Configure Now
+                  </button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Compact Tab Navigation */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50 overflow-hidden">
             <div className="flex border-b border-slate-200/70">
@@ -249,7 +362,7 @@ const Index = () => {
               </button>
               <button
                 onClick={() => setActiveTab('config')}
-                className={`flex-1 px-6 py-3 text-sm font-semibold transition-all duration-200 ${
+                className={`flex-1 px-6 py-3 text-sm font-semibold transition-all duration-200 relative ${
                   activeTab === 'config'
                     ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-b-2 border-blue-600'
                     : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50/80'
@@ -257,6 +370,9 @@ const Index = () => {
               >
                 <Settings className="w-4 h-4 inline mr-2" />
                 FedEx Configuration
+                <div className="ml-2 inline-block">
+                  {getConfigStatusBadge()}
+                </div>
               </button>
             </div>
 
@@ -299,15 +415,16 @@ const Index = () => {
                   <div className="pt-3">
                     <CalculateButton
                       onClick={calculateRates}
-                      disabled={!isFormValid()}
+                      disabled={!isFormValid() || fedexConfigStatus !== 'complete'}
                       isLoading={isCalculating}
                     />
                   </div>
 
                   {error && (
-                    <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-lg p-4">
-                      <p className="text-red-700 text-sm font-medium">{error}</p>
-                    </div>
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
                   )}
 
                   <ResultsDisplay rates={rates} isLoading={isCalculating} />
@@ -318,12 +435,18 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Compact Footer */}
-          <div className="text-center mt-6 text-slate-500 text-sm">
-            <p className="flex items-center justify-center">
+          {/* Enhanced Footer with Status Information */}
+          <div className="text-center mt-6 space-y-2">
+            <div className="flex items-center justify-center text-slate-500 text-sm">
               <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
               Powered by FedEx Shipping API • Rates updated in real-time
-            </p>
+            </div>
+            {fedexConfigStatus === 'complete' && (
+              <div className="flex items-center justify-center text-slate-400 text-xs">
+                <CheckCircle className="w-3 h-3 mr-1" />
+                FedEx configuration validated and ready
+              </div>
+            )}
           </div>
         </div>
       </div>
