@@ -28,7 +28,7 @@ export const CollectionSelector = ({
         Art Collection
       </Label>
       <Select value={selectedCollection} onValueChange={onCollectionChange} disabled={isLoading}>
-        <SelectTrigger className="w-full h-10 border-slate-300 focus:border-blue-500 focus:ring-blue-500">
+        <SelectTrigger id="collection" className="w-full h-10 border-slate-300 focus:border-blue-500 focus:ring-blue-500">
           <SelectValue placeholder={isLoading ? "Loading collections..." : "Select an art collection..."} />
         </SelectTrigger>
         <SelectContent className="bg-white border-slate-200 shadow-lg">
