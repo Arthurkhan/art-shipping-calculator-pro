@@ -417,6 +417,7 @@ const Index = () => {
                       onClick={calculateRates}
                       disabled={!isFormValid() || fedexConfigStatus !== 'complete'}
                       isLoading={isCalculating}
+                      fedexConfigMissing={fedexConfigStatus !== 'complete'}
                     />
                   </div>
 
