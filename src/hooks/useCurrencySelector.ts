@@ -5,19 +5,23 @@ import { useToast } from '@/hooks/use-toast';
 /**
  * Custom hook for managing currency selection with auto-suggestion
  * Extracted from Index.tsx for Phase 2 refactoring
+ * Updated: Currency now defaults to empty string for manual selection
  */
 export const useCurrencySelector = () => {
-  const [preferredCurrency, setPreferredCurrency] = useState<string>('USD');
+  const [preferredCurrency, setPreferredCurrency] = useState<string>(''); // Changed from 'USD' to ''
   const { toast } = useToast();
 
   // Handle currency change with validation
   const handlePreferredCurrencyChange = useCallback((value: string) => {
-    if (validateCurrency(value)) {
+    // Allow empty currency selection
+    if (!value || validateCurrency(value)) {
       setPreferredCurrency(value);
-      toast({
-        title: "Currency Updated",
-        description: `Preferred currency changed to ${value}`,
-      });
+      if (value) {
+        toast({
+          title: "Currency Updated",
+          description: `Preferred currency changed to ${value}`,
+        });
+      }
     } else {
       toast({
         title: "Invalid Currency",
@@ -41,26 +45,26 @@ export const useCurrencySelector = () => {
     }
   }, [preferredCurrency, toast]);
 
-  // Reset to default currency (USD)
+  // Reset to default currency (now empty)
   const resetToDefault = useCallback(() => {
-    setPreferredCurrency('USD');
+    setPreferredCurrency('');
     toast({
       title: "Currency Reset",
-      description: "Currency reset to USD",
+      description: "Currency selection cleared",
     });
   }, [toast]);
 
   // Get list of supported currencies
   const supportedCurrencies = getSupportedCurrencies();
 
-  // Check if current currency is valid
-  const isCurrentCurrencyValid = validateCurrency(preferredCurrency);
+  // Check if current currency is valid (empty is now valid)
+  const isCurrentCurrencyValid = !preferredCurrency || validateCurrency(preferredCurrency);
 
   // Get currency info
   const getCurrencyInfo = () => ({
     code: preferredCurrency,
     isValid: isCurrentCurrencyValid,
-    isDefault: preferredCurrency === 'USD',
+    isDefault: preferredCurrency === '',
   });
 
   return {
@@ -81,6 +85,6 @@ export const useCurrencySelector = () => {
     
     // Status
     isCurrentCurrencyValid,
-    isDefaultCurrency: preferredCurrency === 'USD',
+    isDefaultCurrency: preferredCurrency === '',
   };
 };
