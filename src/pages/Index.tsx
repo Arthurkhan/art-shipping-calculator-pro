@@ -389,27 +389,31 @@ const Index = () => {
 
                   <Separator className="my-4" />
 
-                  {/* Art Collection and Artwork Size - Side by Side Layout */}
+                  {/* Art Collection and Artwork Size - 70/30 Layout */}
                   <div className="space-y-3">
                     <div className="border-b border-slate-200 pb-2">
                       <h3 className="text-base font-semibold text-slate-800">Art Collection Selection</h3>
                       <p className="text-xs text-slate-600">Choose the artwork you want to ship</p>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <CollectionSelector
-                        collections={collections}
-                        selectedCollection={selectedCollection}
-                        onCollectionChange={setSelectedCollection}
-                        isLoading={isLoading}
-                      />
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <div className="w-full md:w-[70%]">
+                        <CollectionSelector
+                          collections={collections}
+                          selectedCollection={selectedCollection}
+                          onCollectionChange={setSelectedCollection}
+                          isLoading={isLoading}
+                        />
+                      </div>
 
-                      <SizeSelector
-                        sizes={sizes}
-                        selectedSize={selectedSize}
-                        onSizeChange={setSelectedSize}
-                        disabled={!selectedCollection}
-                      />
+                      <div className="w-full md:w-[30%]">
+                        <SizeSelector
+                          sizes={sizes}
+                          selectedSize={selectedSize}
+                          onSizeChange={setSelectedSize}
+                          disabled={!selectedCollection}
+                        />
+                      </div>
                     </div>
                   </div>
 
