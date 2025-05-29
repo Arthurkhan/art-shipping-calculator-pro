@@ -81,7 +81,7 @@ export function validatePostalCode(postalCode: string, countryCode: string): boo
   }
   
   // For countries without specific patterns, use general alphanumeric validation
-  return /^[A-Z0-9\s\-]{3,10}$/i.test(code);
+  return /^[A-Z0-9\s-]{3,10}$/i.test(code);
 }
 
 export interface ValidationResult {
