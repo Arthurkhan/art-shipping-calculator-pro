@@ -11,19 +11,7 @@ import type { ShippingRate, CollectionSize } from '../types/index.ts';
 import type { 
   FedexRateResponse, 
   FedexChargeVariant, 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-  FedexRatedShipmentDetail,
->>>>>>> parent of 3b3a745 (Remove unused import FedexRatedShipmentDetailExtended)
-=======
-  FedexRatedShipmentDetail,
->>>>>>> parent of 3b3a745 (Remove unused import FedexRatedShipmentDetailExtended)
-=======
-  FedexRatedShipmentDetail,
->>>>>>> parent of 3b3a745 (Remove unused import FedexRatedShipmentDetailExtended)
-  FedexRatedShipmentDetailExtended 
+  FedexRatedShipmentDetail
 } from '../types/fedex-types.ts';
 
 /**
@@ -251,32 +239,33 @@ export class FedexRatesService {
         Logger.info('Processing rate detail', {
           serviceType: rateDetail.serviceType,
           hasRatedShipmentDetails: !!rateDetail.ratedShipmentDetails,
-          ratedShipmentDetailsCount: rateDetail.ratedShipmentDetails?.length || 0
+          ratedShipmentDetailsCount: rateDetail.ratedShipmentDetails?.length || 0,
+          hasOperationalDetail: !!rateDetail.operationalDetail,
+          hasCommit: !!rateDetail.commit
         });
 
         if (rateDetail.ratedShipmentDetails && rateDetail.ratedShipmentDetails.length > 0) {
           // FIXED: Check all ratedShipmentDetails and prioritize LIST rates
-          let selectedDetail = null;
+          let selectedDetail: FedexRatedShipmentDetail | null = null;
           
           // First, try to find a LIST rate (customer rate)
           for (const detail of rateDetail.ratedShipmentDetails) {
-            const shipmentDetail = detail as any; // Type workaround for missing fields
             Logger.info('Checking ratedShipmentDetail', {
-              rateType: shipmentDetail.rateType,
-              hasTotalNetCharge: 'totalNetCharge' in shipmentDetail,
-              totalNetCharge: shipmentDetail.totalNetCharge,
-              currency: shipmentDetail.currency
+              rateType: detail.rateType,
+              hasTotalNetCharge: 'totalNetCharge' in detail,
+              totalNetCharge: detail.totalNetCharge,
+              currency: detail.currency
             });
             
-            if (shipmentDetail.rateType === 'LIST' || shipmentDetail.rateType === 'RATED_LIST_PACKAGE') {
-              selectedDetail = shipmentDetail;
+            if (detail.rateType === 'LIST' || detail.rateType === 'RATED_LIST_PACKAGE') {
+              selectedDetail = detail;
               break;
             }
           }
           
           // If no LIST rate found, fall back to the first detail (usually ACCOUNT)
           if (!selectedDetail) {
-            selectedDetail = rateDetail.ratedShipmentDetails[0] as any;
+            selectedDetail = rateDetail.ratedShipmentDetails[0];
             Logger.info('No LIST rate found, using first detail', {
               rateType: selectedDetail.rateType
             });
@@ -298,23 +287,22 @@ export class FedexRatesService {
             });
           }
 
-          // Extract transit time from the correct fields (using any to access fields not in types)
-          const detail = rateDetail as any;
+          // FIXED: Extract transit time from the correct fields
           let transitTime = 'Unknown';
           let deliveryDate = undefined;
           
-          if (detail.operationalDetail) {
-            transitTime = detail.operationalDetail.transitTime || transitTime;
-            deliveryDate = detail.operationalDetail.deliveryDate || 
-                          detail.operationalDetail.deliveryDayOfWeek;
+          if (rateDetail.operationalDetail) {
+            transitTime = rateDetail.operationalDetail.transitTime || transitTime;
+            deliveryDate = rateDetail.operationalDetail.deliveryDate || 
+                          rateDetail.operationalDetail.deliveryDayOfWeek;
           }
           
-          if (detail.commit) {
-            transitTime = detail.commit.label || 
-                         detail.commit.transitTime || 
+          if (rateDetail.commit) {
+            transitTime = rateDetail.commit.label || 
+                         rateDetail.commit.transitTime || 
                          transitTime;
-            if (!deliveryDate && detail.commit.dateDetail) {
-              deliveryDate = detail.commit.dateDetail.dayOfWeek;
+            if (!deliveryDate && rateDetail.commit.dateDetail) {
+              deliveryDate = rateDetail.commit.dateDetail.dayOfWeek;
             }
           }
 
