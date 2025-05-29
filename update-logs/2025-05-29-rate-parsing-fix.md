@@ -40,28 +40,50 @@ After investigating the codebase, the issue was identified in the `FedexRatesSer
    - Full response structure when rates aren't found
    - Each step of the parsing process
 
+### 3. Additional Enhancement (Second Commit)
+- **Added `extractAmount()` Helper Method**: Created a robust helper function to extract amount values from various possible structures:
+  - Handles direct `amount` field
+  - Checks for alternative `value` field
+  - Handles nested amount objects (e.g., `amount.value`)
+  - Returns null for invalid values instead of NaN
+  
+- **Extended Rate Location Checks**: Added support for:
+  - Alternative field names like `totalNetFedExCharge`
+  - More flexible amount extraction using the helper method
+  - Better null handling throughout the parsing process
+
 ## Technical Details
-The FedEx API can return amount values as either strings (e.g., "123.45") or numbers (e.g., 123.45). The original code wasn't handling this variation properly, causing `parseFloat()` to potentially fail or return NaN when the amount was already a number.
+The FedEx API can return amount values in various formats:
+1. As strings (e.g., "123.45")
+2. As numbers (e.g., 123.45)
+3. As nested objects (e.g., `{ amount: { value: "123.45" } }`)
+4. Using alternative field names (e.g., `value` instead of `amount`)
+
+The original code wasn't handling these variations properly, causing `parseFloat()` to potentially fail or return NaN when the amount was in an unexpected format.
 
 ## Testing Recommendations
 1. Test with different destination countries and postal codes
 2. Verify rates are displayed correctly for all currency types
 3. Check that the rates match expected FedEx pricing
 4. Monitor the logs to ensure the parsing is working correctly
+5. Test with various package sizes and weights
 
 ## Success Criteria
 - ✅ Rates should now display actual values instead of 0
 - ✅ All FedEx service types should show proper pricing
 - ✅ Currency should be correctly displayed
 - ✅ No parsing errors in the logs
+- ✅ Handles various FedEx response formats
 
 ## Next Steps
 1. Monitor the application to ensure rates are being calculated correctly
 2. If rates still show as 0, check the FedEx API credentials and account status
-3. Consider adding more robust error handling for edge cases
-4. Implement rate caching to improve performance
+3. Review the full response logs to understand the actual response structure
+4. Consider adding more robust error handling for edge cases
+5. Implement rate caching to improve performance
 
 ## Notes
 - The fix maintains backward compatibility
 - No changes to the API interface or payload structure
 - Enhanced logging will help diagnose any future issues
+- The `extractAmount()` helper method makes the code more maintainable and can be reused for other rate parsing scenarios
