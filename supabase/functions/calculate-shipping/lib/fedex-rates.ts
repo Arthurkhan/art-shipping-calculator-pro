@@ -224,6 +224,13 @@ export class FedexRatesService {
     const rates: ShippingRate[] = [];
     
     try {
+      // TEMPORARY DEBUG: Always log the first rate detail completely
+      if (responseData.output.rateReplyDetails.length > 0) {
+        Logger.warn('TEMPORARY DEBUG - Full first rate detail structure', {
+          firstRateDetail: JSON.stringify(responseData.output.rateReplyDetails[0], null, 2)
+        });
+      }
+
       for (const rateDetail of responseData.output.rateReplyDetails) {
         // Log each rate detail for debugging
         Logger.info('Processing rate detail', {
@@ -311,20 +318,18 @@ export class FedexRatesService {
               });
             }
 
-            // Only add the rate if we found a valid amount
-            if (rateAmount !== null && rateAmount > 0) {
-              const rate: ShippingRate = {
-                service: rateDetail.serviceType || 'Unknown Service',
-                cost: rateAmount,
-                currency: rateCurrency,
-                transitTime: rateDetail.transitTime || 'Unknown',
-                deliveryDate: rateDetail.deliveryTimestamp
-              };
-              
-              rates.push(rate);
-              Logger.info('Added FedEx rate', { rate });
-              break; // Only use the first valid shipment detail
-            }
+            // TEMPORARY: Always add the rate even if amount is 0 or null for debugging
+            const rate: ShippingRate = {
+              service: rateDetail.serviceType || 'Unknown Service',
+              cost: rateAmount || 0,
+              currency: rateCurrency,
+              transitTime: rateDetail.transitTime || 'Unknown',
+              deliveryDate: rateDetail.deliveryTimestamp
+            };
+            
+            rates.push(rate);
+            Logger.info('Added FedEx rate (including zero rates for debugging)', { rate });
+            break; // Only use the first valid shipment detail
           }
         }
       }
