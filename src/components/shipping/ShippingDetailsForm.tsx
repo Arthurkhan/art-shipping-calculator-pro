@@ -1,34 +1,51 @@
-import { MapPin, Globe, DollarSign } from "lucide-react";
+import { MapPin, Globe, DollarSign, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
 
 interface ShippingDetailsFormProps {
   country: string;
   postalCode: string;
   preferredCurrency: string;
+  shipDate: Date | undefined;
   onCountryChange: (value: string) => void;
   onPostalCodeChange: (value: string) => void;
   onPreferredCurrencyChange: (value: string) => void;
+  onShipDateChange: (date: Date | undefined) => void;
 }
 
 export const ShippingDetailsForm = ({
   country,
   postalCode,
   preferredCurrency,
+  shipDate,
   onCountryChange,
   onPostalCodeChange,
   onPreferredCurrencyChange,
+  onShipDateChange,
 }: ShippingDetailsFormProps) => {
+  // Calculate tomorrow's date as default
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  // Set minimum date to tomorrow
+  const minDate = new Date();
+  minDate.setHours(0, 0, 0, 0);
+  minDate.setDate(minDate.getDate() + 1);
+  
   return (
     <div className="space-y-3">
       <div className="border-b border-slate-200 pb-2">
-        <h3 className="text-base font-semibold text-slate-800">Destination Details</h3>
-        <p className="text-xs text-slate-600">Where do you want to ship this artwork?</p>
+        <h3 className="text-base font-semibold text-slate-800">Shipping Details</h3>
+        <p className="text-xs text-slate-600">Destination and shipping date information</p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-1 space-y-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
           <Label htmlFor="country" className="text-sm font-medium">
             <Globe className="w-4 h-4 inline mr-1" />
             Country Code
@@ -44,7 +61,7 @@ export const ShippingDetailsForm = ({
           <p className="text-xs text-slate-500">2-letter country code</p>
         </div>
 
-        <div className="md:col-span-1 space-y-2">
+        <div className="space-y-2">
           <Label htmlFor="postalCode" className="text-sm font-medium">
             <MapPin className="w-4 h-4 inline mr-1" />
             Postal Code
@@ -59,7 +76,36 @@ export const ShippingDetailsForm = ({
           <p className="text-xs text-slate-500">Destination postal code</p>
         </div>
 
-        <div className="md:col-span-1 space-y-2">
+        <div className="space-y-2">
+          <Label htmlFor="shipDate" className="text-sm font-medium">
+            <Calendar className="w-4 h-4 inline mr-1" />
+            Ship Date
+          </Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                id="shipDate"
+                variant="outline"
+                className="w-full h-10 justify-start text-left font-normal"
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                {shipDate ? format(shipDate, "PPP") : "Select ship date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                mode="single"
+                selected={shipDate}
+                onSelect={onShipDateChange}
+                disabled={(date) => date < minDate}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          <p className="text-xs text-slate-500">Earliest ship date is tomorrow</p>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="currency" className="text-sm font-medium">
             <DollarSign className="w-4 h-4 inline mr-1" />
             Preferred Currency
