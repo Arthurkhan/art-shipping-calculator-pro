@@ -22,9 +22,9 @@ enum ErrorType {
 class CredentialTestError extends Error {
   public readonly type: ErrorType;
   public readonly userMessage: string;
-  public readonly details?: any;
+  public readonly details?: unknown;
 
-  constructor(type: ErrorType, message: string, userMessage: string, details?: any) {
+  constructor(type: ErrorType, message: string, userMessage: string, details?: unknown) {
     super(message);
     this.type = type;
     this.userMessage = userMessage;
@@ -32,6 +32,8 @@ class CredentialTestError extends Error {
     this.name = 'CredentialTestError';
   }
 }
+
+type LogData = Record<string, unknown>;
 
 // Enhanced logging
 class Logger {
@@ -41,7 +43,7 @@ class Logger {
     this.requestId = id;
   }
 
-  static log(level: 'INFO' | 'WARN' | 'ERROR', message: string, data?: any) {
+  static log(level: 'INFO' | 'WARN' | 'ERROR', message: string, data?: unknown) {
     const timestamp = new Date().toISOString();
     const logEntry = {
       timestamp,
@@ -53,19 +55,19 @@ class Logger {
     console.log(JSON.stringify(logEntry));
   }
 
-  static info(message: string, data?: any) {
+  static info(message: string, data?: unknown) {
     this.log('INFO', message, data);
   }
 
-  static warn(message: string, data?: any) {
+  static warn(message: string, data?: unknown) {
     this.log('WARN', message, data);
   }
 
-  static error(message: string, data?: any) {
+  static error(message: string, data?: unknown) {
     this.log('ERROR', message, data);
   }
 
-  private static sanitizeData(data: any): any {
+  private static sanitizeData(data: unknown): unknown {
     if (typeof data !== 'object' || data === null) {
       return data;
     }
@@ -73,13 +75,13 @@ class Logger {
     const sensitiveFields = ['clientSecret', 'access_token', 'clientId', 'accountNumber'];
     const sanitized = JSON.parse(JSON.stringify(data));
 
-    const sanitizeRecursive = (obj: any): any => {
+    const sanitizeRecursive = (obj: unknown): unknown => {
       if (Array.isArray(obj)) {
         return obj.map(sanitizeRecursive);
       }
       
       if (typeof obj === 'object' && obj !== null) {
-        const result: any = {};
+        const result: LogData = {};
         for (const [key, value] of Object.entries(obj)) {
           if (sensitiveFields.some(field => key.toLowerCase().includes(field.toLowerCase()))) {
             result[key] = '[REDACTED]';
@@ -184,7 +186,7 @@ async function testFedexAuthentication(clientId: string, clientSecret: string): 
   } catch (error) {
     clearTimeout(timeoutId);
     
-    if (error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       throw new CredentialTestError(
         ErrorType.TIMEOUT,
         'FedEx authentication request timed out',
@@ -268,10 +270,21 @@ async function testFedexApiAccess(accessToken: string, accountNumber: string): P
         testResult 
       });
       
+      interface FedexError {
+        code?: string;
+      }
+      
       // Check if it's an account-related error
-      if (testResult.errors && testResult.errors.some((error: any) => 
-        error.code && (error.code.includes('ACCOUNT') || error.code.includes('UNAUTHORIZED'))
-      )) {
+      if (testResult.errors && Array.isArray(testResult.errors) && 
+          testResult.errors.some((error: unknown) => {
+            if (error && typeof error === 'object') {
+              const fedexError = error as FedexError;
+              return fedexError.code && 
+                (fedexError.code.includes('ACCOUNT') || fedexError.code.includes('UNAUTHORIZED'));
+            }
+            return false;
+          })
+      ) {
         throw new CredentialTestError(
           ErrorType.AUTHORIZATION,
           'Account number is invalid or not authorized for API access',
@@ -289,7 +302,7 @@ async function testFedexApiAccess(accessToken: string, accountNumber: string): P
   } catch (error) {
     clearTimeout(timeoutId);
     
-    if (error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       throw new CredentialTestError(
         ErrorType.TIMEOUT,
         'FedEx API test request timed out',
@@ -377,7 +390,7 @@ serve(async (req) => {
 
   } catch (error) {
     Logger.error('Credential test failed', { 
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       type: error instanceof CredentialTestError ? error.type : 'UNKNOWN',
       requestId
     });
