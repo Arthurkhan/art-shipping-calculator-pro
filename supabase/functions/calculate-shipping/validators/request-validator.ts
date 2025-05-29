@@ -13,17 +13,27 @@ export class RequestValidator {
   /**
    * Validate shipping request data
    */
-  static validateShippingRequest(requestData: any): ShippingRequest {
+  static validateShippingRequest(requestData: unknown): ShippingRequest {
+    if (!requestData || typeof requestData !== 'object') {
+      throw new ShippingError(
+        ErrorType.VALIDATION,
+        'Invalid request data',
+        'Invalid request format.'
+      );
+    }
+
+    const data = requestData as Record<string, unknown>;
+
     Logger.info('Validating shipping request', { 
-      hasCollection: !!requestData.collection,
-      hasSize: !!requestData.size,
-      hasCountry: !!requestData.country,
-      hasPostalCode: !!requestData.postalCode,
-      hasFedexConfig: !!requestData.fedexConfig
+      hasCollection: !!data.collection,
+      hasSize: !!data.size,
+      hasCountry: !!data.country,
+      hasPostalCode: !!data.postalCode,
+      hasFedexConfig: !!data.fedexConfig
     });
 
     // Validate required fields
-    if (!requestData.collection || !requestData.size || !requestData.country || !requestData.postalCode) {
+    if (!data.collection || !data.size || !data.country || !data.postalCode) {
       throw new ShippingError(
         ErrorType.VALIDATION,
         'Missing required fields',
@@ -32,7 +42,7 @@ export class RequestValidator {
     }
 
     // Validate string fields
-    if (typeof requestData.collection !== 'string' || requestData.collection.trim() === '') {
+    if (typeof data.collection !== 'string' || data.collection.trim() === '') {
       throw new ShippingError(
         ErrorType.VALIDATION,
         'Invalid collection ID',
@@ -40,7 +50,7 @@ export class RequestValidator {
       );
     }
 
-    if (typeof requestData.size !== 'string' || requestData.size.trim() === '') {
+    if (typeof data.size !== 'string' || data.size.trim() === '') {
       throw new ShippingError(
         ErrorType.VALIDATION,
         'Invalid size',
@@ -48,7 +58,7 @@ export class RequestValidator {
       );
     }
 
-    if (typeof requestData.country !== 'string' || requestData.country.trim() === '') {
+    if (typeof data.country !== 'string' || data.country.trim() === '') {
       throw new ShippingError(
         ErrorType.VALIDATION,
         'Invalid destination country',
@@ -56,7 +66,7 @@ export class RequestValidator {
       );
     }
 
-    if (typeof requestData.postalCode !== 'string' || requestData.postalCode.trim() === '') {
+    if (typeof data.postalCode !== 'string' || data.postalCode.trim() === '') {
       throw new ShippingError(
         ErrorType.VALIDATION,
         'Invalid postal code',
@@ -65,8 +75,8 @@ export class RequestValidator {
     }
 
     // Validate optional currency field
-    if (requestData.preferredCurrency && 
-        (typeof requestData.preferredCurrency !== 'string' || requestData.preferredCurrency.trim() === '')) {
+    if (data.preferredCurrency && 
+        (typeof data.preferredCurrency !== 'string' || data.preferredCurrency.trim() === '')) {
       throw new ShippingError(
         ErrorType.VALIDATION,
         'Invalid preferred currency',
@@ -75,18 +85,18 @@ export class RequestValidator {
     }
 
     // Validate FedEx config if provided
-    if (requestData.fedexConfig) {
-      this.validateFedexConfig(requestData.fedexConfig);
+    if (data.fedexConfig) {
+      this.validateFedexConfig(data.fedexConfig);
     }
 
     Logger.info('Shipping request validation successful');
-    return requestData as ShippingRequest;
+    return data as ShippingRequest;
   }
 
   /**
    * Validate FedEx configuration
    */
-  static validateFedexConfig(fedexConfig: any): FedexConfig {
+  static validateFedexConfig(fedexConfig: unknown): FedexConfig {
     if (!fedexConfig || typeof fedexConfig !== 'object') {
       throw new ShippingError(
         ErrorType.CONFIGURATION,
@@ -95,7 +105,8 @@ export class RequestValidator {
       );
     }
 
-    const { accountNumber, clientId, clientSecret } = fedexConfig;
+    const config = fedexConfig as Record<string, unknown>;
+    const { accountNumber, clientId, clientSecret } = config;
     
     if (!accountNumber || !clientId || !clientSecret) {
       throw new ShippingError(
@@ -136,7 +147,7 @@ export class RequestValidator {
     }
 
     Logger.info('FedEx configuration validation successful');
-    return fedexConfig as FedexConfig;
+    return config as FedexConfig;
   }
 
   /**
