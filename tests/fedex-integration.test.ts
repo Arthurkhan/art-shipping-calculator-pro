@@ -8,7 +8,7 @@ interface TestResult {
   passed: boolean;
   message: string;
   duration: number;
-  details?: any;
+  details?: unknown;
 }
 
 interface TestConfig {
@@ -31,6 +31,19 @@ interface TestConfig {
     length_cm: number;
     width_cm: number;
   }>;
+}
+
+interface ApiResponse {
+  success: boolean;
+  rates?: Array<{
+    service: string;
+    cost: number;
+    currency: string;
+    transitTime: string;
+    deliveryDate?: string;
+  }>;
+  error?: string;
+  errorType?: string;
 }
 
 class FedExIntegrationTester {
@@ -119,9 +132,9 @@ class FedExIntegrationTester {
       this.addResult({
         name: 'API Endpoint Verification',
         passed: false,
-        message: `❌ API endpoint verification failed: ${error.message}`,
+        message: `❌ API endpoint verification failed: ${error instanceof Error ? error.message : String(error)}`,
         duration: Date.now() - startTime,
-        details: { error: error.message }
+        details: { error: error instanceof Error ? error.message : String(error) }
       });
     }
   }
@@ -199,9 +212,9 @@ class FedExIntegrationTester {
       this.addResult({
         name: 'Authentication Flow',
         passed: false,
-        message: `❌ Authentication flow test failed: ${error.message}`,
+        message: `❌ Authentication flow test failed: ${error instanceof Error ? error.message : String(error)}`,
         duration: Date.now() - startTime,
-        details: { error: error.message }
+        details: { error: error instanceof Error ? error.message : String(error) }
       });
     }
   }
@@ -277,9 +290,9 @@ class FedExIntegrationTester {
       this.addResult({
         name: 'Rate Request Validation',
         passed: false,
-        message: `❌ Rate request validation test failed: ${error.message}`,
+        message: `❌ Rate request validation test failed: ${error instanceof Error ? error.message : String(error)}`,
         duration: Date.now() - startTime,
-        details: { error: error.message }
+        details: { error: error instanceof Error ? error.message : String(error) }
       });
     }
   }
@@ -341,9 +354,9 @@ class FedExIntegrationTester {
       this.addResult({
         name: 'Multiple Destinations',
         passed: false,
-        message: `❌ Multiple destinations test failed: ${error.message}`,
+        message: `❌ Multiple destinations test failed: ${error instanceof Error ? error.message : String(error)}`,
         duration: Date.now() - startTime,
-        details: { error: error.message }
+        details: { error: error instanceof Error ? error.message : String(error) }
       });
     }
   }
@@ -414,9 +427,9 @@ class FedExIntegrationTester {
       this.addResult({
         name: 'Error Scenarios',
         passed: false,
-        message: `❌ Error scenarios test failed: ${error.message}`,
+        message: `❌ Error scenarios test failed: ${error instanceof Error ? error.message : String(error)}`,
         duration: Date.now() - startTime,
-        details: { error: error.message }
+        details: { error: error instanceof Error ? error.message : String(error) }
       });
     }
   }
@@ -439,7 +452,7 @@ class FedExIntegrationTester {
       
       if (response.success && response.rates) {
         let allFieldsPresent = true;
-        let missingFields: string[] = [];
+        const missingFields: string[] = [];
         
         for (const rate of response.rates) {
           const requiredFields = ['service', 'cost', 'currency', 'transitTime'];
@@ -485,9 +498,9 @@ class FedExIntegrationTester {
       this.addResult({
         name: 'Response Parsing',
         passed: false,
-        message: `❌ Response parsing test failed: ${error.message}`,
+        message: `❌ Response parsing test failed: ${error instanceof Error ? error.message : String(error)}`,
         duration: Date.now() - startTime,
-        details: { error: error.message }
+        details: { error: error instanceof Error ? error.message : String(error) }
       });
     }
   }
@@ -548,9 +561,9 @@ class FedExIntegrationTester {
       this.addResult({
         name: 'Performance and Timeout',
         passed: false,
-        message: `❌ Performance test failed: ${error.message}`,
+        message: `❌ Performance test failed: ${error instanceof Error ? error.message : String(error)}`,
         duration: Date.now() - startTime,
-        details: { error: error.message }
+        details: { error: error instanceof Error ? error.message : String(error) }
       });
     }
   }
@@ -613,14 +626,14 @@ class FedExIntegrationTester {
       this.addResult({
         name: 'Currency Handling',
         passed: false,
-        message: `❌ Currency handling test failed: ${error.message}`,
+        message: `❌ Currency handling test failed: ${error instanceof Error ? error.message : String(error)}`,
         duration: Date.now() - startTime,
-        details: { error: error.message }
+        details: { error: error instanceof Error ? error.message : String(error) }
       });
     }
   }
 
-  private async makeRequest(payload: any): Promise<any> {
+  private async makeRequest(payload: Record<string, unknown>): Promise<ApiResponse> {
     const response = await fetch(this.baseUrl, {
       method: 'POST',
       headers: {
@@ -629,7 +642,7 @@ class FedExIntegrationTester {
       body: JSON.stringify(payload)
     });
 
-    return await response.json();
+    return await response.json() as ApiResponse;
   }
 
   private addResult(result: TestResult): void {
