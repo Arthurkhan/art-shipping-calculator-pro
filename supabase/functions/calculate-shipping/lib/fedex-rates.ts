@@ -323,12 +323,28 @@ export class FedexRatesService {
           // The rate is directly on the shipmentDetail as totalNetCharge
           if ('totalNetCharge' in selectedDetail) {
             rateAmount = this.extractAmount(selectedDetail.totalNetCharge);
-            rateCurrency = selectedDetail.currency || preferredCurrency;
+            
+            // FIX: Handle currency properly - if API returns symbol, use preferredCurrency
+            if (selectedDetail.currency) {
+              // If currency is a symbol (like $, €, £), use the preferredCurrency instead
+              const currencySymbols = ['$', '€', '£', '¥', '₹', '₩', 'R$', '₱'];
+              if (currencySymbols.includes(selectedDetail.currency)) {
+                rateCurrency = preferredCurrency;
+                Logger.info('Currency was a symbol, using preferredCurrency instead', { 
+                  symbolFound: selectedDetail.currency,
+                  usingCurrency: preferredCurrency 
+                });
+              } else {
+                // Otherwise use the currency code from API
+                rateCurrency = selectedDetail.currency;
+              }
+            }
             
             Logger.info('Found rate from selected detail', { 
               rateAmount, 
               rateCurrency,
-              rateType: selectedDetail.rateType
+              rateType: selectedDetail.rateType,
+              originalCurrency: selectedDetail.currency
             });
           }
 
