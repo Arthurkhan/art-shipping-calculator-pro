@@ -10,18 +10,25 @@ const FEDEX_ENDPOINTS = {
   rates: 'https://apis.fedex.com/rate/v1/rates/quotes'
 };
 
-interface EndpointCheck {
-  endpoint: string;
-  status: 'success' | 'warning' | 'error';
-  message: string;
-  responseTime?: number;
-  details?: any;
-}
+/**
+ * @typedef {Object} EndpointCheck
+ * @property {string} endpoint
+ * @property {'success' | 'warning' | 'error'} status
+ * @property {string} message
+ * @property {number} [responseTime]
+ * @property {any} [details]
+ */
 
 class FedExEndpointVerifier {
-  private results: EndpointCheck[] = [];
+  constructor() {
+    /** @type {EndpointCheck[]} */
+    this.results = [];
+  }
 
-  async verifyAllEndpoints(): Promise<EndpointCheck[]> {
+  /**
+   * @returns {Promise<EndpointCheck[]>}
+   */
+  async verifyAllEndpoints() {
     console.log('🔍 FedEx API Endpoint Verification - Phase 4');
     console.log('='.repeat(50));
     
@@ -39,7 +46,11 @@ class FedExEndpointVerifier {
     return this.results;
   }
 
-  private async checkEndpointConnectivity(url: string, name: string): Promise<void> {
+  /**
+   * @param {string} url
+   * @param {string} name
+   */
+  async checkEndpointConnectivity(url, name) {
     console.log(`\\n📡 Testing ${name}: ${url}`);
     
     const startTime = Date.now();
@@ -116,7 +127,7 @@ class FedExEndpointVerifier {
     }
   }
 
-  private async testAuthentication(): Promise<void> {
+  async testAuthentication() {
     console.log('\\n🔐 Testing Authentication Flow');
     
     const credentials = this.getCredentialsFromEnv();
@@ -199,7 +210,10 @@ class FedExEndpointVerifier {
     }
   }
 
-  private async testRateEndpointWithAuth(accessToken: string): Promise<void> {
+  /**
+   * @param {string} accessToken
+   */
+  async testRateEndpointWithAuth(accessToken) {
     console.log('\\n📦 Testing Rate Endpoint with Authentication');
     
     const credentials = this.getCredentialsFromEnv();
@@ -314,7 +328,7 @@ class FedExEndpointVerifier {
     }
   }
 
-  private async testRateRequestStructure(): Promise<void> {
+  async testRateRequestStructure() {
     console.log('\\n🏗️ Testing Rate Request Structure');
     
     // Test the structure without authentication
@@ -369,7 +383,7 @@ class FedExEndpointVerifier {
     });
   }
 
-  private getCredentialsFromEnv() {
+  getCredentialsFromEnv() {
     return {
       accountNumber: process.env.FEDEX_ACCOUNT_NUMBER,
       clientId: process.env.FEDEX_CLIENT_ID,
@@ -377,12 +391,15 @@ class FedExEndpointVerifier {
     };
   }
 
-  private addResult(result: EndpointCheck): void {
+  /**
+   * @param {EndpointCheck} result
+   */
+  addResult(result) {
     this.results.push(result);
     console.log(`   ${result.message}`);
   }
 
-  private printSummary(): void {
+  printSummary() {
     const successful = this.results.filter(r => r.status === 'success').length;
     const warnings = this.results.filter(r => r.status === 'warning').length;
     const errors = this.results.filter(r => r.status === 'error').length;
