@@ -18,7 +18,7 @@ export enum ErrorType {
 export interface ShippingError extends Error {
   type: ErrorType;
   code?: string;
-  details?: any;
+  details?: unknown;
   timestamp: string;
   context?: string;
 }
@@ -30,7 +30,7 @@ export const createShippingError = (
   type: ErrorType,
   message: string,
   code?: string,
-  details?: any,
+  details?: unknown,
   context?: string
 ): ShippingError => {
   const error = new Error(message) as ShippingError;
@@ -91,10 +91,19 @@ const ERROR_MESSAGES: Record<string, string> = {
   'CONFIG_INVALID': 'Configuration is invalid. Please check your settings.',
 };
 
+interface ErrorLike {
+  code?: string | number;
+  status?: string | number;
+  statusCode?: string | number;
+  message?: string;
+  error?: string;
+  description?: string;
+}
+
 /**
  * Handle API errors and return user-friendly messages
  */
-export const handleApiError = (error: any): { message: string; type: ErrorType; code?: string } => {
+export const handleApiError = (error: unknown): { message: string; type: ErrorType; code?: string } => {
   // Handle string errors
   if (typeof error === 'string') {
     const message = getErrorMessage(error);
@@ -168,11 +177,12 @@ export const handleApiError = (error: any): { message: string; type: ErrorType; 
   
   // Handle objects with error properties
   if (error && typeof error === 'object') {
-    const code = error.code || error.status || error.statusCode;
-    const message = error.message || error.error || error.description || 'An error occurred';
+    const errorObj = error as ErrorLike;
+    const code = errorObj.code || errorObj.status || errorObj.statusCode;
+    const message = errorObj.message || errorObj.error || errorObj.description || 'An error occurred';
     
     return {
-      message: getErrorMessage(code) || message,
+      message: getErrorMessage(String(code)) || message,
       type: determineErrorType(code),
       code: code?.toString()
     };
@@ -231,7 +241,7 @@ const determineErrorType = (code: string | number | undefined): ErrorType => {
 /**
  * Log error with context
  */
-export const logError = (error: Error | ShippingError, context: string, additionalData?: any): void => {
+export const logError = (error: Error | ShippingError, context: string, additionalData?: Record<string, unknown>): void => {
   const timestamp = new Date().toISOString();
   const isShippingError = 'type' in error;
   
@@ -260,7 +270,7 @@ export const logError = (error: Error | ShippingError, context: string, addition
 /**
  * Format error for display
  */
-export const formatErrorForDisplay = (error: any): string => {
+export const formatErrorForDisplay = (error: unknown): string => {
   const { message } = handleApiError(error);
   return message;
 };
@@ -268,9 +278,9 @@ export const formatErrorForDisplay = (error: any): string => {
 /**
  * Check if error is retryable
  */
-export const isRetryableError = (error: any): boolean => {
-  const errorStr = error?.toString() || '';
-  const message = error?.message || '';
+export const isRetryableError = (error: unknown): boolean => {
+  const errorStr = String(error) || '';
+  const message = error instanceof Error ? error.message : '';
   
   // Network and timeout errors are typically retryable
   if (errorStr.includes('NETWORK') || errorStr.includes('TIMEOUT')) {
@@ -297,11 +307,14 @@ export const isRetryableError = (error: any): boolean => {
 /**
  * Get retry delay based on error type
  */
-export const getRetryDelay = (error: any, attemptNumber: number): number => {
+export const getRetryDelay = (error: unknown, attemptNumber: number): number => {
   const baseDelay = 1000; // 1 second
   
+  const errorStr = String(error);
+  const message = error instanceof Error ? error.message : '';
+  
   // Rate limit errors should have longer delays
-  if (error?.toString().includes('429') || error?.message?.includes('rate limit')) {
+  if (errorStr.includes('429') || message.includes('rate limit')) {
     return baseDelay * Math.pow(2, attemptNumber) * 5; // Exponential backoff with 5x multiplier
   }
   
@@ -312,7 +325,7 @@ export const getRetryDelay = (error: any, attemptNumber: number): number => {
 /**
  * Create error summary for logging/debugging
  */
-export const createErrorSummary = (error: any): string => {
+export const createErrorSummary = (error: unknown): string => {
   if (typeof error === 'string') return error;
   
   if (error instanceof Error) {
