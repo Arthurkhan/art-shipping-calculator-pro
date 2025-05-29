@@ -101,6 +101,14 @@ export const useShippingCalculator = () => {
         description: `Contacting FedEx API for rates in ${preferredCurrency}...`,
       });
 
+      console.log('🚀 Starting FedEx rate calculation with params:', {
+        collection: selectedCollection,
+        size: selectedSize,
+        origin: `${originCountry} ${originPostalCode}`,
+        destination: `${country} ${postalCode}`,
+        currency: preferredCurrency
+      });
+
       const response = await supabase.functions.invoke('calculate-shipping', {
         body: {
           collection: selectedCollection,
@@ -114,7 +122,32 @@ export const useShippingCalculator = () => {
         },
       });
 
+      // Enhanced logging of raw response
+      console.log('📦 Raw API Response:', response);
+      console.log('📊 Response Data:', response.data);
+      
+      if (response.data) {
+        console.log('✅ Response Success:', response.data.success);
+        console.log('📋 Response Rates:', response.data.rates);
+        console.log('🆔 Request ID:', response.data.requestId);
+        
+        // Log detailed rate information
+        if (response.data.rates && Array.isArray(response.data.rates)) {
+          response.data.rates.forEach((rate: any, index: number) => {
+            console.log(`📍 Rate ${index + 1}:`, {
+              service: rate.service,
+              cost: rate.cost,
+              costType: typeof rate.cost,
+              currency: rate.currency,
+              transitTime: rate.transitTime,
+              rawData: rate
+            });
+          });
+        }
+      }
+
       if (response.error) {
+        console.error('❌ API Error:', response.error);
         throw response.error;
       }
 
@@ -124,13 +157,24 @@ export const useShippingCalculator = () => {
       if (calculatedRates.length === 0) {
         const noRatesMessage = "No shipping options available for this destination.";
         setError(noRatesMessage);
+        console.warn('⚠️ No rates found in response');
         toast({
           title: "No Rates Found",
           description: noRatesMessage,
           variant: "destructive",
         });
       } else {
-        // Success feedback
+        // Success feedback with detailed logging
+        console.log(`✅ Successfully retrieved ${calculatedRates.length} rates`);
+        calculatedRates.forEach((rate: ShippingRate, index: number) => {
+          console.log(`💰 Final Rate ${index + 1}:`, {
+            service: rate.service,
+            displayCost: `${rate.currency} ${rate.cost}`,
+            rawCost: rate.cost,
+            transitTime: rate.transitTime
+          });
+        });
+        
         toast({
           title: "Rates Calculated",
           description: `Found ${calculatedRates.length} shipping options in ${preferredCurrency}.`,
@@ -139,6 +183,7 @@ export const useShippingCalculator = () => {
       
       return true;
     } catch (err) {
+      console.error('❌ Calculation Error:', err);
       logError(err as Error, 'useShippingCalculator.calculateRates', { params });
       
       const { message, type } = handleApiError(err);
