@@ -76,3 +76,50 @@ export interface PayloadParams {
   preferredCurrency: string;
   shipDateStamp: string;
 }
+
+// FedEx Rate Response Types
+export interface FedexCharge {
+  amount: string;
+  currency: string;
+}
+
+export interface FedexPackageRateDetail {
+  netCharge?: FedexCharge;
+}
+
+export interface FedexRatedPackage {
+  packageRateDetail?: FedexPackageRateDetail;
+}
+
+export interface FedexShipmentRateDetail {
+  totalNetCharge?: FedexCharge;
+}
+
+export interface FedexRatedShipmentDetail {
+  totalNetCharge?: FedexCharge;
+  shipmentRateDetail?: FedexShipmentRateDetail;
+  ratedPackages?: FedexRatedPackage[];
+}
+
+export interface FedexRateReplyDetail {
+  serviceType?: string;
+  transitTime?: string;
+  deliveryTimestamp?: string;
+  ratedShipmentDetails?: FedexRatedShipmentDetail[];
+}
+
+export interface FedexRateOutput {
+  rateReplyDetails?: FedexRateReplyDetail[];
+}
+
+export interface FedexRateResponse {
+  output?: FedexRateOutput;
+  errors?: Array<{
+    code?: string;
+    message?: string;
+  }>;
+  messages?: Array<{
+    code?: string;
+    message?: string;
+  }>;
+}
