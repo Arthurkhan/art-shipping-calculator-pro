@@ -4,7 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { FedexAuthService } from './lib/fedex-auth.ts';
 import { FedexRatesService } from './lib/fedex-rates.ts';
 import { Logger } from './lib/logger.ts';
-import { CollectionService } from './lib/collection-service.ts';
+import { getCollectionSize } from './lib/collection-service.ts'; // Fixed import - it's a function, not a class
 import type { ShippingRequest, ShippingRate, ShippingError, ErrorType } from './types/index.ts';
 
 // Complete CORS headers with all required fields
@@ -69,8 +69,8 @@ serve(async (req) => {
 
     Logger.info('Using origin address (Phase 2 defaults)', { originCountry, originPostalCode });
 
-    // Use CollectionService to get size data
-    const sizeData = await CollectionService.getCollectionSize(requestData.collection, requestData.size);
+    // Use getCollectionSize function directly
+    const sizeData = await getCollectionSize(requestData.collection, requestData.size);
 
     let rates: ShippingRate[] = [];
 
