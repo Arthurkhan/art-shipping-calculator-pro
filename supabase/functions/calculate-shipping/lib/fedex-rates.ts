@@ -8,6 +8,7 @@ import { PayloadBuilder } from './payload-builder.ts';
 import { getPreferredCurrency } from './currency-mapper.ts';
 import { ErrorType, ShippingError, RetryOptions } from '../types/index.ts';
 import type { ShippingRate, CollectionSize } from '../types/index.ts';
+import type { FedexRateResponse } from '../types/fedex-types.ts';
 
 /**
  * FedEx Rates Service
@@ -85,7 +86,7 @@ export class FedexRatesService {
           statusText: response.statusText 
         });
 
-        const responseData = await response.json();
+        const responseData = await response.json() as FedexRateResponse;
         
         // Enhanced debugging: Log full response for analysis
         Logger.info('FedEx rate response data (full for debugging)', { 
@@ -175,7 +176,7 @@ export class FedexRatesService {
    * Parse FedEx rate response into ShippingRate array
    */
   static parseRateResponse(
-    responseData: any, 
+    responseData: FedexRateResponse, 
     preferredCurrency: string, 
     userPreferredCurrency?: string
   ): ShippingRate[] {
