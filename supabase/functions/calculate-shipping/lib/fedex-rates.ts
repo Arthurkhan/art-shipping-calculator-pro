@@ -8,7 +8,11 @@ import { PayloadBuilder } from './payload-builder.ts';
 import { getPreferredCurrency } from './currency-mapper.ts';
 import { ErrorType, ShippingError, RetryOptions } from '../types/index.ts';
 import type { ShippingRate, CollectionSize } from '../types/index.ts';
-import type { FedexRateResponse } from '../types/fedex-types.ts';
+import type { 
+  FedexRateResponse, 
+  FedexChargeVariant, 
+  FedexRatedShipmentDetailExtended 
+} from '../types/fedex-types.ts';
 
 /**
  * FedEx Rates Service
@@ -175,11 +179,17 @@ export class FedexRatesService {
   /**
    * Helper function to extract amount from various possible structures
    */
-  private static extractAmount(obj: any): number | null {
+  private static extractAmount(obj: FedexChargeVariant | undefined | null): number | null {
     if (!obj) return null;
     
     // Direct amount field
     if (obj.amount !== undefined && obj.amount !== null) {
+      // Handle nested amount object
+      if (typeof obj.amount === 'object' && 'value' in obj.amount && obj.amount.value !== undefined) {
+        const value = typeof obj.amount.value === 'string' ? parseFloat(obj.amount.value) : obj.amount.value;
+        return isNaN(value) ? null : value;
+      }
+      // Handle string or number amount
       const amount = typeof obj.amount === 'string' ? parseFloat(obj.amount) : obj.amount;
       return isNaN(amount) ? null : amount;
     }
@@ -187,12 +197,6 @@ export class FedexRatesService {
     // Check for value field (some APIs use value instead of amount)
     if (obj.value !== undefined && obj.value !== null) {
       const value = typeof obj.value === 'string' ? parseFloat(obj.value) : obj.value;
-      return isNaN(value) ? null : value;
-    }
-    
-    // Check for nested amount object
-    if (obj.amount && typeof obj.amount === 'object' && obj.amount.value !== undefined) {
-      const value = typeof obj.amount.value === 'string' ? parseFloat(obj.amount.value) : obj.amount.value;
       return isNaN(value) ? null : value;
     }
     
@@ -287,14 +291,15 @@ export class FedexRatesService {
             }
 
             // Option 4: Check for totalNetFedExCharge (alternative field name)
-            if (!rateAmount && (shipmentDetail as any).totalNetFedExCharge) {
-              rateAmount = this.extractAmount((shipmentDetail as any).totalNetFedExCharge);
+            const extendedShipmentDetail = shipmentDetail as FedexRatedShipmentDetailExtended;
+            if (!rateAmount && extendedShipmentDetail.totalNetFedExCharge) {
+              rateAmount = this.extractAmount(extendedShipmentDetail.totalNetFedExCharge);
               if (rateAmount !== null) {
-                rateCurrency = (shipmentDetail as any).totalNetFedExCharge.currency || preferredCurrency;
+                rateCurrency = extendedShipmentDetail.totalNetFedExCharge.currency || preferredCurrency;
                 Logger.info('Found rate in totalNetFedExCharge', { 
                   rateAmount, 
                   rateCurrency,
-                  structure: (shipmentDetail as any).totalNetFedExCharge
+                  structure: extendedShipmentDetail.totalNetFedExCharge
                 });
               }
             }
