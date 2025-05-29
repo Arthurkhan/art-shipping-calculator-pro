@@ -26,6 +26,13 @@ const Index = () => {
   const [country, setCountry] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [activeTab, setActiveTab] = useState<'calculator' | 'config'>('calculator');
+  
+  // Shipping date state - default to tomorrow
+  const [shipDate, setShipDate] = useState<Date | undefined>(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow;
+  });
 
   // Custom hooks - Phase 2 refactoring
   const originAddress = useOriginAddress();
@@ -61,6 +68,7 @@ const Index = () => {
       originCountry: originAddress.originCountry,
       originPostalCode: originAddress.originPostalCode,
       preferredCurrency: currencySelector.preferredCurrency,
+      shipDate: shipDate?.toISOString().split('T')[0],
     },
     
     // Validation breakdown
@@ -136,6 +144,7 @@ const Index = () => {
       originCountry: originAddress.originCountry,
       originPostalCode: originAddress.originPostalCode,
       preferredCurrency: currencySelector.preferredCurrency,
+      shipDate: shipDate?.toISOString().split('T')[0], // Pass ship date as YYYY-MM-DD
       fedexConfig: fedexConfig.fedexConfig || undefined,
     });
 
@@ -358,9 +367,11 @@ const Index = () => {
                     country={country}
                     postalCode={postalCode}
                     preferredCurrency={currencySelector.preferredCurrency}
+                    shipDate={shipDate}
                     onCountryChange={setCountry}
                     onPostalCodeChange={setPostalCode}
                     onPreferredCurrencyChange={currencySelector.handlePreferredCurrencyChange}
+                    onShipDateChange={setShipDate}
                   />
 
                   {/* Parameter Preview */}
