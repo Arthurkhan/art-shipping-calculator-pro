@@ -198,48 +198,49 @@ export class FedexRatesService {
   }
 
   /**
-   * Enhanced helper function to extract amount from various possible structures
-   * Now more strict to avoid extracting from wrong fields
+   * STRICT helper function to extract amount - NO RECURSION into nested objects
+   * This prevents accidentally extracting from wrong nested fields
    */
-  private static extractAmount(obj: unknown, fieldPath: string = ''): number | null {
-    Logger.info(`Attempting to extract amount from field: ${fieldPath}`, { value: obj, type: typeof obj });
-    
-    if (!obj && obj !== 0) return null;
-    
-    // Direct numeric value (as shown in the sample response)
-    if (typeof obj === 'number') {
-      Logger.info(`Found direct numeric value at ${fieldPath}:`, { value: obj });
-      return obj;
+  private static extractAmountDirect(value: unknown): number | null {
+    // Direct numeric value
+    if (typeof value === 'number') {
+      return value;
     }
     
     // String numeric value
-    if (typeof obj === 'string') {
-      // Remove any currency symbols or formatting
-      const cleaned = obj.replace(/[^0-9.-]/g, '');
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/[^0-9.-]/g, '');
       const parsed = parseFloat(cleaned);
-      if (!isNaN(parsed)) {
-        Logger.info(`Parsed string value at ${fieldPath}:`, { original: obj, parsed });
-        return parsed;
-      }
-      return null;
+      return isNaN(parsed) ? null : parsed;
     }
     
-    // Object with amount field (as defined in our types)
-    if (typeof obj === 'object' && obj !== null) {
-      const objRecord = obj as Record<string, unknown>;
+    // For objects, only check direct amount/value properties, no recursion
+    if (typeof value === 'object' && value !== null) {
+      const obj = value as Record<string, unknown>;
       
-      // Check for direct amount field (could be string or number)
-      if ('amount' in objRecord && objRecord.amount !== undefined && objRecord.amount !== null) {
-        return this.extractAmount(objRecord.amount, `${fieldPath}.amount`);
+      // Check for amount property (but don't recurse)
+      if ('amount' in obj) {
+        const amount = obj.amount;
+        if (typeof amount === 'number') return amount;
+        if (typeof amount === 'string') {
+          const cleaned = amount.replace(/[^0-9.-]/g, '');
+          const parsed = parseFloat(cleaned);
+          return isNaN(parsed) ? null : parsed;
+        }
       }
       
-      // Check for value field
-      if ('value' in objRecord && objRecord.value !== undefined && objRecord.value !== null) {
-        return this.extractAmount(objRecord.value, `${fieldPath}.value`);
+      // Check for value property (but don't recurse)
+      if ('value' in obj) {
+        const val = obj.value;
+        if (typeof val === 'number') return val;
+        if (typeof val === 'string') {
+          const cleaned = val.replace(/[^0-9.-]/g, '');
+          const parsed = parseFloat(cleaned);
+          return isNaN(parsed) ? null : parsed;
+        }
       }
     }
     
-    Logger.warn(`Could not extract amount from ${fieldPath}`, { value: obj });
     return null;
   }
 
@@ -298,139 +299,93 @@ export class FedexRatesService {
     
     try {
       for (const rateDetail of responseData.output.rateReplyDetails) {
-        // Enhanced logging for delivery information
-        Logger.info('Processing rate detail with delivery info', {
+        // Enhanced logging for debugging
+        Logger.info('=== Processing rate detail ===', {
           serviceType: rateDetail.serviceType,
           hasRatedShipmentDetails: !!rateDetail.ratedShipmentDetails,
-          ratedShipmentDetailsCount: rateDetail.ratedShipmentDetails?.length || 0,
-          hasOperationalDetail: !!rateDetail.operationalDetail,
-          operationalDetail: rateDetail.operationalDetail,
-          hasCommit: !!rateDetail.commit,
-          commit: rateDetail.commit,
-          deliveryTimestamp: rateDetail.deliveryTimestamp,
-          transitTime: rateDetail.transitTime
+          ratedShipmentDetailsCount: rateDetail.ratedShipmentDetails?.length || 0
         });
 
         if (rateDetail.ratedShipmentDetails && rateDetail.ratedShipmentDetails.length > 0) {
-          // FIXED: More strict type handling and field extraction
-          let selectedDetail: FedexApiRatedShipmentDetail | null = null;
           let selectedRateAmount: number | null = null;
+          let selectedRateType: string | undefined = undefined;
           
-          // First, try to find a LIST rate (customer rate)
+          // Log ALL ratedShipmentDetails for debugging
+          rateDetail.ratedShipmentDetails.forEach((detail: unknown, index: number) => {
+            const detailApi = detail as FedexApiRatedShipmentDetail;
+            Logger.info(`Detail ${index} structure:`, {
+              rateType: detailApi.rateType,
+              totalNetCharge: detailApi.totalNetCharge,
+              totalNetChargeDirectExtraction: this.extractAmountDirect(detailApi.totalNetCharge),
+              hasNestedFields: Object.keys(detailApi).filter(k => typeof detailApi[k] === 'object').length > 0,
+              allKeys: Object.keys(detailApi)
+            });
+          });
+          
+          // First, try to find a LIST rate
           for (const detail of rateDetail.ratedShipmentDetails) {
-            // Use our custom type that matches actual API response
             const detailApi = detail as FedexApiRatedShipmentDetail;
             
-            Logger.info('Checking ratedShipmentDetail structure', {
-              rateType: detailApi.rateType,
-              hasTotalNetCharge: 'totalNetCharge' in detailApi,
-              totalNetChargeType: typeof detailApi.totalNetCharge,
-              totalNetChargeValue: detailApi.totalNetCharge,
-              hasTotalNetFedExCharge: 'totalNetFedExCharge' in detailApi,
-              currency: detailApi.currency
-            });
-            
             if (detailApi.rateType === 'LIST' || detailApi.rateType === 'RATED_LIST_PACKAGE') {
-              // CRITICAL: Only extract from the top-level totalNetCharge field
-              let extractedAmount: number | null = null;
+              // CRITICAL: Use strict extraction - no recursion
+              const extractedAmount = this.extractAmountDirect(detailApi.totalNetCharge);
               
-              // Try totalNetCharge first (this should be the correct field)
-              if ('totalNetCharge' in detailApi && detailApi.totalNetCharge !== undefined) {
-                extractedAmount = this.extractAmount(detailApi.totalNetCharge, 'totalNetCharge');
-              }
-              
-              // If totalNetCharge didn't work, try totalNetFedExCharge
-              if (!extractedAmount && 'totalNetFedExCharge' in detailApi && detailApi.totalNetFedExCharge !== undefined) {
-                extractedAmount = this.extractAmount(detailApi.totalNetFedExCharge, 'totalNetFedExCharge');
-                Logger.info('Using totalNetFedExCharge instead of totalNetCharge');
-              }
+              Logger.info('LIST rate extraction attempt:', {
+                serviceType: rateDetail.serviceType,
+                rateType: detailApi.rateType,
+                totalNetChargeRaw: detailApi.totalNetCharge,
+                extractedAmount: extractedAmount
+              });
               
               if (extractedAmount && extractedAmount > 0) {
-                selectedDetail = detailApi;
                 selectedRateAmount = extractedAmount;
-                Logger.info('Found LIST rate', { 
-                  rateType: detailApi.rateType,
-                  amount: extractedAmount,
-                  source: 'totalNetCharge or totalNetFedExCharge'
-                });
+                selectedRateType = detailApi.rateType;
                 break;
               }
             }
           }
           
-          // If no LIST rate found, fall back to ACCOUNT rate
-          if (!selectedDetail || !selectedRateAmount) {
-            Logger.info('No valid LIST rate found, checking ACCOUNT rates');
-            
+          // If no LIST rate found, try ACCOUNT rate
+          if (!selectedRateAmount) {
             for (const detail of rateDetail.ratedShipmentDetails) {
               const detailApi = detail as FedexApiRatedShipmentDetail;
               
-              if (detailApi.rateType === 'ACCOUNT' || !detailApi.rateType) {
-                // CRITICAL: Only extract from the top-level fields
-                let extractedAmount: number | null = null;
+              if (detailApi.rateType === 'ACCOUNT') {
+                const extractedAmount = this.extractAmountDirect(detailApi.totalNetCharge);
                 
-                if ('totalNetCharge' in detailApi && detailApi.totalNetCharge !== undefined) {
-                  extractedAmount = this.extractAmount(detailApi.totalNetCharge, 'totalNetCharge');
-                }
-                
-                if (!extractedAmount && 'totalNetFedExCharge' in detailApi && detailApi.totalNetFedExCharge !== undefined) {
-                  extractedAmount = this.extractAmount(detailApi.totalNetFedExCharge, 'totalNetFedExCharge');
-                }
+                Logger.info('ACCOUNT rate extraction attempt:', {
+                  serviceType: rateDetail.serviceType,
+                  rateType: detailApi.rateType,
+                  totalNetChargeRaw: detailApi.totalNetCharge,
+                  extractedAmount: extractedAmount
+                });
                 
                 if (extractedAmount && extractedAmount > 0) {
-                  selectedDetail = detailApi;
                   selectedRateAmount = extractedAmount;
-                  Logger.info('Using ACCOUNT rate as fallback', { 
-                    rateType: detailApi.rateType,
-                    amount: extractedAmount,
-                    source: 'totalNetCharge or totalNetFedExCharge'
-                  });
+                  selectedRateType = detailApi.rateType;
                   break;
                 }
               }
             }
           }
           
-          // If still no rate, log all details for debugging
-          if (!selectedDetail || !selectedRateAmount) {
-            Logger.error('Could not find valid rate in any ratedShipmentDetail', {
-              serviceType: rateDetail.serviceType,
-              allDetails: rateDetail.ratedShipmentDetails.map((d: unknown) => {
-                const detail = d as FedexApiRatedShipmentDetail;
-                return {
-                  rateType: detail.rateType,
-                  totalNetCharge: detail.totalNetCharge,
-                  totalNetFedExCharge: detail.totalNetFedExCharge,
-                  hasShipmentRateDetail: !!detail.shipmentRateDetail
-                };
-              })
-            });
-          }
-          
-          // Extract currency
+          // Extract currency (using first detail for currency info)
           let rateCurrency = preferredCurrency;
-          if (selectedDetail) {
-            if (selectedDetail.currency) {
-              // If currency is a symbol (like $, €, £), use the preferredCurrency instead
-              const currencySymbols = ['$', '€', '£', '¥', '₹', '₩', 'R$', '₱'];
-              if (currencySymbols.includes(selectedDetail.currency)) {
-                rateCurrency = preferredCurrency;
-                Logger.info('Currency was a symbol, using preferredCurrency instead', { 
-                  symbolFound: selectedDetail.currency,
-                  usingCurrency: preferredCurrency 
-                });
-              } else {
-                // Otherwise use the currency code from API
-                rateCurrency = selectedDetail.currency;
-              }
+          const firstDetail = rateDetail.ratedShipmentDetails[0] as FedexApiRatedShipmentDetail;
+          if (firstDetail && firstDetail.currency) {
+            // If currency is a symbol, use the preferredCurrency instead
+            const currencySymbols = ['$', '€', '£', '¥', '₹', '₩', 'R$', '₱'];
+            if (currencySymbols.includes(firstDetail.currency)) {
+              rateCurrency = preferredCurrency;
+            } else {
+              rateCurrency = firstDetail.currency;
             }
           }
 
-          // ENHANCED: Extract transit time and delivery date from all possible fields
+          // Extract transit time and delivery date
           let transitTime = 'Unknown';
           let deliveryDate = undefined;
           
-          // Check top-level fields first
           if (rateDetail.transitTime) {
             transitTime = rateDetail.transitTime;
           }
@@ -439,7 +394,6 @@ export class FedexRatesService {
             deliveryDate = this.formatDeliveryDate(rateDetail.deliveryTimestamp);
           }
           
-          // Check operationalDetail
           if (rateDetail.operationalDetail) {
             if (rateDetail.operationalDetail.transitTime) {
               transitTime = rateDetail.operationalDetail.transitTime;
@@ -447,15 +401,10 @@ export class FedexRatesService {
             if (!deliveryDate && rateDetail.operationalDetail.deliveryDate) {
               deliveryDate = this.formatDeliveryDate(rateDetail.operationalDetail.deliveryDate);
             }
-            if (!deliveryDate && rateDetail.operationalDetail.deliveryDayOfWeek) {
-              deliveryDate = rateDetail.operationalDetail.deliveryDayOfWeek;
-            }
           }
           
-          // Check commit information
           if (rateDetail.commit) {
             if (rateDetail.commit.label) {
-              // Label often contains formatted delivery info like "DELIVERED BY 10:00 AM"
               transitTime = rateDetail.commit.label;
             } else if (rateDetail.commit.transitTime) {
               transitTime = rateDetail.commit.transitTime;
@@ -464,26 +413,9 @@ export class FedexRatesService {
             if (!deliveryDate && rateDetail.commit.dateDetail) {
               if (rateDetail.commit.dateDetail.dayOfWeek) {
                 deliveryDate = rateDetail.commit.dateDetail.dayOfWeek;
-              } else if (rateDetail.commit.dateDetail.dayCxsFormat) {
-                deliveryDate = this.formatDeliveryDate(rateDetail.commit.dateDetail.dayCxsFormat);
               }
             }
-            
-            // If we have commitMessageDetails, it might contain additional info
-            if (rateDetail.commit.commitMessageDetails) {
-              Logger.info('Commit message details', { 
-                commitMessageDetails: rateDetail.commit.commitMessageDetails 
-              });
-            }
           }
-
-          Logger.info('Extracted delivery information', {
-            serviceType: rateDetail.serviceType,
-            transitTime,
-            deliveryDate,
-            rawCommit: rateDetail.commit,
-            rawOperationalDetail: rateDetail.operationalDetail
-          });
 
           // Add the rate if we found a valid amount
           if (selectedRateAmount !== null && selectedRateAmount > 0) {
@@ -495,12 +427,17 @@ export class FedexRatesService {
               deliveryDate: deliveryDate
             };
             
+            Logger.info('=== FINAL RATE ADDED ===', { 
+              service: rate.service,
+              cost: rate.cost,
+              currency: rate.currency,
+              extractedFrom: selectedRateType
+            });
+            
             rates.push(rate);
-            Logger.info('Added FedEx rate', { rate });
           } else {
-            Logger.warn('No valid rate amount found for service', {
-              serviceType: rateDetail.serviceType,
-              checkedDetails: rateDetail.ratedShipmentDetails?.length || 0
+            Logger.error('No valid rate amount found for service', {
+              serviceType: rateDetail.serviceType
             });
           }
         }
@@ -518,22 +455,14 @@ export class FedexRatesService {
     }
 
     if (rates.length === 0) {
-      Logger.warn('No rates found in FedEx response', { 
-        responseStructure: JSON.stringify(responseData, null, 2),
-        currencyInfo: {
-          requested: preferredCurrency,
-          source: userPreferredCurrency ? 'USER_SELECTED' : 'AUTO_MAPPED',
-          userInput: userPreferredCurrency || 'Not provided'
-        }
-      });
       throw new ShippingError(
         ErrorType.RATE_PARSING,
         'No shipping rates available for this destination',
-        'No shipping options available for this destination. This could be due to service availability or account restrictions.'
+        'No shipping options available for this destination.'
       );
     }
 
-    Logger.info(`Successfully parsed ${rates.length} FedEx rates`);
+    Logger.info(`Successfully parsed ${rates.length} FedEx rates`, { rates });
     return rates;
   }
 }
