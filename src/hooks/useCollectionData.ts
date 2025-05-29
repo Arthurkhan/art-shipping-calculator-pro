@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -21,7 +21,7 @@ export const useCollectionData = () => {
   const { toast } = useToast();
 
   // Load collections from database
-  const loadCollections = async () => {
+  const loadCollections = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -41,10 +41,10 @@ export const useCollectionData = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
 
   // Load sizes for selected collection
-  const loadSizes = async (collectionId: string) => {
+  const loadSizes = useCallback(async (collectionId: string) => {
     if (!collectionId) {
       setSizes([]);
       return;
@@ -71,7 +71,7 @@ export const useCollectionData = () => {
     } finally {
       setIsLoadingSizes(false);
     }
-  };
+  }, [toast]);
 
   // Handle collection selection
   const handleCollectionChange = (collectionId: string) => {
@@ -105,7 +105,7 @@ export const useCollectionData = () => {
   // Load collections on mount
   useEffect(() => {
     loadCollections();
-  }, []);
+  }, [loadCollections]);
 
   // Load sizes when collection changes
   useEffect(() => {
@@ -115,7 +115,7 @@ export const useCollectionData = () => {
       setSizes([]);
       setSelectedSize('');
     }
-  }, [selectedCollection]);
+  }, [selectedCollection, loadSizes]);
 
   return {
     // State
