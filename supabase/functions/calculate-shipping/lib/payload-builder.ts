@@ -45,6 +45,7 @@ export class PayloadBuilder {
     // 3. Only groupPackageCount should be inside requestedPackageLineItems
     // 4. Use CM/KG directly (no unit conversions)
     // 5. Add missing required fields: preferredCurrency, shipDateStamp, packagingType
+    // 6. ADD variableOptions to request transit time and delivery date
     const payload: FedexRateRequest = {
       accountNumber: {
         value: accountNumber
@@ -81,7 +82,9 @@ export class PayloadBuilder {
               units: "CM"
             }
           }
-        ]
+        ],
+        // ADD: Request transit time and commit information
+        variableOptions: ["TRANSIT_TIME"]
         // REMOVED: groupPackageCount from this level (was causing validation error)
       }
     };
@@ -101,7 +104,7 @@ export class PayloadBuilder {
           dimensional: Math.round(dimensionalWeight * 100) / 100,
           billed: Math.round(billedWeight * 100) / 100
         },
-        fixApplied: 'Implemented n8n-compliant payload structure with all required fields'
+        fixApplied: 'Implemented n8n-compliant payload structure with all required fields + TRANSIT_TIME'
       }
     });
 
