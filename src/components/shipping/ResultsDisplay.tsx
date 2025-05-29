@@ -15,6 +15,11 @@ interface ResultsDisplayProps {
   isLoading: boolean;
 }
 
+// Utility function to format numbers with comma separators
+const formatPrice = (price: number): string => {
+  return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
+
 export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
   if (isLoading) {
     return (
@@ -63,7 +68,7 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
               </div>
               <div className="text-right">
                 <div className="text-xl font-bold text-slate-800">
-                  {rate.currency} {rate.cost.toFixed(2)}
+                  {rate.currency} {formatPrice(rate.cost)}
                 </div>
                 <div className="text-sm text-slate-500">
                   {rate.currency === 'THB' ? 'Thai Baht' : 
