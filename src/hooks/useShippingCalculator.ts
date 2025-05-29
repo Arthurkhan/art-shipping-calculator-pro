@@ -20,6 +20,7 @@ export interface CalculateRatesParams {
   originCountry: string;
   originPostalCode: string;
   preferredCurrency: string;
+  shipDate?: string; // Optional ship date in YYYY-MM-DD format
   fedexConfig?: FedexConfig;
 }
 
@@ -45,6 +46,7 @@ export const useShippingCalculator = () => {
       originCountry,
       originPostalCode,
       preferredCurrency,
+      shipDate,
       fedexConfig
     } = params;
 
@@ -106,7 +108,8 @@ export const useShippingCalculator = () => {
         size: selectedSize,
         origin: `${originCountry} ${originPostalCode}`,
         destination: `${country} ${postalCode}`,
-        currency: preferredCurrency
+        currency: preferredCurrency,
+        shipDate: shipDate || 'Not specified (will use tomorrow)'
       });
 
       const response = await supabase.functions.invoke('calculate-shipping', {
@@ -118,6 +121,7 @@ export const useShippingCalculator = () => {
           originCountry,
           originPostalCode,
           preferredCurrency,
+          shipDate, // Pass ship date to backend
           fedexConfig,
         },
       });
@@ -244,6 +248,7 @@ export const useShippingCalculator = () => {
         postalCode: lastCalculationParams.originPostalCode,
       },
       currency: lastCalculationParams.preferredCurrency,
+      shipDate: lastCalculationParams.shipDate,
       ratesFound: rates.length,
       hasError: !!error,
       timestamp: new Date().toISOString(),

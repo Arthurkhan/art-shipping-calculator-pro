@@ -50,7 +50,8 @@ serve(async (req) => {
       requestData: {
         ...requestData,
         fedexConfig: requestData.fedexConfig ? '[REDACTED]' : 'Not provided',
-        preferredCurrency: requestData.preferredCurrency || 'Not provided (will auto-map)'
+        preferredCurrency: requestData.preferredCurrency || 'Not provided (will auto-map)',
+        shipDate: requestData.shipDate || 'Not provided (will use tomorrow)'
       }
     });
 
@@ -92,7 +93,7 @@ serve(async (req) => {
         // Use FedexAuthService to get access token
         const accessToken = await FedexAuthService.getAccessToken(clientId, clientSecret);
         
-        // Use FedexRatesService to get rates
+        // Use FedexRatesService to get rates with optional ship date
         const fedexRates = await FedexRatesService.getRates(
           accessToken,
           accountNumber,
@@ -101,7 +102,8 @@ serve(async (req) => {
           originPostalCode,
           requestData.country,
           requestData.postalCode,
-          requestData.preferredCurrency
+          requestData.preferredCurrency,
+          requestData.shipDate // Pass user-selected ship date (optional)
         );
         
         rates = rates.concat(fedexRates);
@@ -125,7 +127,8 @@ serve(async (req) => {
     Logger.info('Shipping calculation completed successfully', {
       totalRates: rates.length,
       requestId,
-      currencyUsed: requestData.preferredCurrency || 'auto-mapped'
+      currencyUsed: requestData.preferredCurrency || 'auto-mapped',
+      shipDateUsed: requestData.shipDate || 'auto-generated (tomorrow)'
     });
 
     return new Response(
