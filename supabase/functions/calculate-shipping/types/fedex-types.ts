@@ -108,9 +108,31 @@ export interface FedexRatedShipmentDetailExtended extends FedexRatedShipmentDeta
 }
 
 export interface FedexRatedShipmentDetail {
+  rateType?: string; // ACCOUNT, LIST, RATED_LIST_PACKAGE, etc.
   totalNetCharge?: FedexCharge;
   shipmentRateDetail?: FedexShipmentRateDetail;
   ratedPackages?: FedexRatedPackage[];
+  currency?: string;
+}
+
+// Transit time and delivery information
+export interface FedexDateDetail {
+  dayOfWeek?: string;
+  dayCxsFormat?: string;
+}
+
+export interface FedexCommit {
+  label?: string;
+  commitMessageDetails?: string;
+  dateDetail?: FedexDateDetail;
+  transitTime?: string;
+}
+
+export interface FedexOperationalDetail {
+  transitTime?: string;
+  deliveryDate?: string;
+  deliveryDayOfWeek?: string;
+  destinationServiceArea?: string;
 }
 
 export interface FedexRateReplyDetail {
@@ -118,6 +140,8 @@ export interface FedexRateReplyDetail {
   transitTime?: string;
   deliveryTimestamp?: string;
   ratedShipmentDetails?: FedexRatedShipmentDetail[];
+  operationalDetail?: FedexOperationalDetail;
+  commit?: FedexCommit;
 }
 
 export interface FedexRateOutput {
