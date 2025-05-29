@@ -247,7 +247,7 @@ export class FedexRatesService {
           // We'll use the first ratedShipmentDetail (usually ACCOUNT type)
           const shipmentDetail = rateDetail.ratedShipmentDetails[0];
           
-          Logger.info('Processing ratedShipmentDetail - FIXED location', {
+          Logger.info('Processing ratedShipmentDetail', {
             hasTotalNetCharge: 'totalNetCharge' in shipmentDetail,
             totalNetCharge: shipmentDetail.totalNetCharge,
             currency: shipmentDetail.currency,
