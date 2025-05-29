@@ -32,10 +32,9 @@ export const ShippingDetailsForm = ({
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   
-  // Set minimum date to tomorrow
+  // Set minimum date to today (allowing today and future dates)
   const minDate = new Date();
   minDate.setHours(0, 0, 0, 0);
-  minDate.setDate(minDate.getDate() + 1);
   
   return (
     <div className="space-y-3">
@@ -102,7 +101,7 @@ export const ShippingDetailsForm = ({
               />
             </PopoverContent>
           </Popover>
-          <p className="text-xs text-slate-500">Earliest ship date is tomorrow</p>
+          <p className="text-xs text-slate-500">Earliest ship date is today</p>
         </div>
 
         <div className="space-y-2">
