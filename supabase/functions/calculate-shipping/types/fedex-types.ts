@@ -83,6 +83,13 @@ export interface FedexCharge {
   currency: string;
 }
 
+// Extended charge type for parsing flexibility
+export interface FedexChargeVariant {
+  amount?: string | number | { value?: string | number };
+  value?: string | number;
+  currency?: string;
+}
+
 export interface FedexPackageRateDetail {
   netCharge?: FedexCharge;
 }
@@ -93,6 +100,11 @@ export interface FedexRatedPackage {
 
 export interface FedexShipmentRateDetail {
   totalNetCharge?: FedexCharge;
+}
+
+// Extended type to handle alternative field names
+export interface FedexRatedShipmentDetailExtended extends FedexRatedShipmentDetail {
+  totalNetFedExCharge?: FedexCharge;
 }
 
 export interface FedexRatedShipmentDetail {
