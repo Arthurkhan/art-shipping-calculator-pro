@@ -13,6 +13,10 @@ import type {
   FedexChargeVariant, 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+  FedexRatedShipmentDetail,
+>>>>>>> parent of 3b3a745 (Remove unused import FedexRatedShipmentDetailExtended)
 =======
   FedexRatedShipmentDetail,
 >>>>>>> parent of 3b3a745 (Remove unused import FedexRatedShipmentDetailExtended)
