@@ -7,6 +7,7 @@ import { CalculateButton } from "@/components/shipping/CalculateButton";
 import { ResultsDisplay } from "@/components/shipping/ResultsDisplay";
 import { FedexConfigForm } from "@/components/shipping/FedexConfigForm";
 import { ParameterPreview } from "@/components/shipping/ParameterPreview";
+import { DebugPanel } from "@/components/debug/DebugPanel";
 import { Truck, Package, Settings, Calculator, AlertTriangle, CheckCircle, Bug } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -424,6 +425,12 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      {/* Debug Panel - Non-intrusive */}
+      <DebugPanel 
+        rates={shippingCalculator.rates}
+        isCalculating={shippingCalculator.isCalculating}
+      />
     </div>
   );
 };
