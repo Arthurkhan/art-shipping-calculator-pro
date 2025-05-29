@@ -11,8 +11,7 @@ import type { ShippingRate, CollectionSize } from '../types/index.ts';
 import type { 
   FedexRateResponse, 
   FedexChargeVariant, 
-  FedexRatedShipmentDetail,
-  FedexRatedShipmentDetailExtended 
+  FedexRatedShipmentDetail
 } from '../types/fedex-types.ts';
 
 /**
