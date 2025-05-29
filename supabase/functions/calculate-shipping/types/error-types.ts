@@ -17,9 +17,9 @@ export enum ErrorType {
 export class ShippingError extends Error {
   public readonly type: ErrorType;
   public readonly userMessage: string;
-  public readonly details?: any;
+  public readonly details?: unknown;
 
-  constructor(type: ErrorType, message: string, userMessage: string, details?: any) {
+  constructor(type: ErrorType, message: string, userMessage: string, details?: unknown) {
     super(message);
     this.type = type;
     this.userMessage = userMessage;
