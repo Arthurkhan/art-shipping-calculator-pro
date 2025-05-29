@@ -214,6 +214,39 @@ export class FedexRatesService {
   }
 
   /**
+   * Format delivery date from various FedEx formats
+   */
+  private static formatDeliveryDate(dateStr: string | undefined): string | undefined {
+    if (!dateStr) return undefined;
+    
+    // Check if it's already a day of week
+    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const shortDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    
+    if (daysOfWeek.some(day => dateStr.includes(day)) || shortDays.some(day => dateStr.includes(day))) {
+      return dateStr;
+    }
+    
+    // Try to parse as date and format
+    try {
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        // Format as "Mon, Jun 2" or similar
+        const options: Intl.DateTimeFormatOptions = { 
+          weekday: 'short', 
+          month: 'short', 
+          day: 'numeric' 
+        };
+        return date.toLocaleDateString('en-US', options);
+      }
+    } catch (e) {
+      Logger.warn('Failed to parse delivery date', { dateStr });
+    }
+    
+    return dateStr;
+  }
+
+  /**
    * Parse FedEx rate response into ShippingRate array
    */
   static parseRateResponse(
@@ -235,13 +268,17 @@ export class FedexRatesService {
     
     try {
       for (const rateDetail of responseData.output.rateReplyDetails) {
-        // Log each rate detail for debugging
-        Logger.info('Processing rate detail', {
+        // Enhanced logging for delivery information
+        Logger.info('Processing rate detail with delivery info', {
           serviceType: rateDetail.serviceType,
           hasRatedShipmentDetails: !!rateDetail.ratedShipmentDetails,
           ratedShipmentDetailsCount: rateDetail.ratedShipmentDetails?.length || 0,
           hasOperationalDetail: !!rateDetail.operationalDetail,
-          hasCommit: !!rateDetail.commit
+          operationalDetail: rateDetail.operationalDetail,
+          hasCommit: !!rateDetail.commit,
+          commit: rateDetail.commit,
+          deliveryTimestamp: rateDetail.deliveryTimestamp,
+          transitTime: rateDetail.transitTime
         });
 
         if (rateDetail.ratedShipmentDetails && rateDetail.ratedShipmentDetails.length > 0) {
@@ -287,24 +324,64 @@ export class FedexRatesService {
             });
           }
 
-          // FIXED: Extract transit time from the correct fields
+          // ENHANCED: Extract transit time and delivery date from all possible fields
           let transitTime = 'Unknown';
           let deliveryDate = undefined;
           
-          if (rateDetail.operationalDetail) {
-            transitTime = rateDetail.operationalDetail.transitTime || transitTime;
-            deliveryDate = rateDetail.operationalDetail.deliveryDate || 
-                          rateDetail.operationalDetail.deliveryDayOfWeek;
+          // Check top-level fields first
+          if (rateDetail.transitTime) {
+            transitTime = rateDetail.transitTime;
           }
           
-          if (rateDetail.commit) {
-            transitTime = rateDetail.commit.label || 
-                         rateDetail.commit.transitTime || 
-                         transitTime;
-            if (!deliveryDate && rateDetail.commit.dateDetail) {
-              deliveryDate = rateDetail.commit.dateDetail.dayOfWeek;
+          if (rateDetail.deliveryTimestamp) {
+            deliveryDate = this.formatDeliveryDate(rateDetail.deliveryTimestamp);
+          }
+          
+          // Check operationalDetail
+          if (rateDetail.operationalDetail) {
+            if (rateDetail.operationalDetail.transitTime) {
+              transitTime = rateDetail.operationalDetail.transitTime;
+            }
+            if (!deliveryDate && rateDetail.operationalDetail.deliveryDate) {
+              deliveryDate = this.formatDeliveryDate(rateDetail.operationalDetail.deliveryDate);
+            }
+            if (!deliveryDate && rateDetail.operationalDetail.deliveryDayOfWeek) {
+              deliveryDate = rateDetail.operationalDetail.deliveryDayOfWeek;
             }
           }
+          
+          // Check commit information
+          if (rateDetail.commit) {
+            if (rateDetail.commit.label) {
+              // Label often contains formatted delivery info like "DELIVERED BY 10:00 AM"
+              transitTime = rateDetail.commit.label;
+            } else if (rateDetail.commit.transitTime) {
+              transitTime = rateDetail.commit.transitTime;
+            }
+            
+            if (!deliveryDate && rateDetail.commit.dateDetail) {
+              if (rateDetail.commit.dateDetail.dayOfWeek) {
+                deliveryDate = rateDetail.commit.dateDetail.dayOfWeek;
+              } else if (rateDetail.commit.dateDetail.dayCxsFormat) {
+                deliveryDate = this.formatDeliveryDate(rateDetail.commit.dateDetail.dayCxsFormat);
+              }
+            }
+            
+            // If we have commitMessageDetails, it might contain additional info
+            if (rateDetail.commit.commitMessageDetails) {
+              Logger.info('Commit message details', { 
+                commitMessageDetails: rateDetail.commit.commitMessageDetails 
+              });
+            }
+          }
+
+          Logger.info('Extracted delivery information', {
+            serviceType: rateDetail.serviceType,
+            transitTime,
+            deliveryDate,
+            rawCommit: rateDetail.commit,
+            rawOperationalDetail: rateDetail.operationalDetail
+          });
 
           // Add the rate if we found a valid amount
           if (rateAmount !== null && rateAmount > 0) {

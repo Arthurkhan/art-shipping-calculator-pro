@@ -1,6 +1,5 @@
-
 import { Card } from "@/components/ui/card";
-import { Clock, DollarSign, Truck } from "lucide-react";
+import { Clock, Truck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface ShippingRate {
@@ -63,11 +62,15 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
                 </div>
               </div>
               <div className="text-right">
-                <div className="flex items-center text-xl font-bold text-slate-800">
-                  <DollarSign className="w-5 h-5" />
-                  {rate.cost.toFixed(2)}
+                <div className="text-xl font-bold text-slate-800">
+                  {rate.currency} {rate.cost.toFixed(2)}
                 </div>
-                <div className="text-sm text-slate-500">{rate.currency}</div>
+                <div className="text-sm text-slate-500">
+                  {rate.currency === 'THB' ? 'Thai Baht' : 
+                   rate.currency === 'USD' ? 'US Dollar' : 
+                   rate.currency === 'SGD' ? 'Singapore Dollar' : 
+                   rate.currency}
+                </div>
               </div>
             </div>
           </Card>
