@@ -52,6 +52,27 @@ After investigating the codebase, the issue was identified in the `FedexRatesSer
   - More flexible amount extraction using the helper method
   - Better null handling throughout the parsing process
 
+### 4. TypeScript Lint Fixes (Third & Fourth Commits)
+- **File**: `supabase/functions/calculate-shipping/types/fedex-types.ts`
+  - Added proper type definitions:
+    ```typescript
+    export interface FedexChargeVariant {
+      amount?: string | number | { value?: string | number };
+      value?: string | number;
+      currency?: string;
+    }
+    
+    export interface FedexRatedShipmentDetailExtended extends FedexRatedShipmentDetail {
+      totalNetFedExCharge?: FedexCharge;
+    }
+    ```
+
+- **File**: `supabase/functions/calculate-shipping/lib/fedex-rates.ts`
+  - Replaced all `any` types with proper TypeScript interfaces
+  - Updated `extractAmount()` to accept `FedexChargeVariant | undefined | null`
+  - Cast shipment detail to `FedexRatedShipmentDetailExtended` when accessing `totalNetFedExCharge`
+  - Added proper imports for the new types
+
 ## Technical Details
 The FedEx API can return amount values in various formats:
 1. As strings (e.g., "123.45")
@@ -67,6 +88,7 @@ The original code wasn't handling these variations properly, causing `parseFloat
 3. Check that the rates match expected FedEx pricing
 4. Monitor the logs to ensure the parsing is working correctly
 5. Test with various package sizes and weights
+6. Run `npm run lint` to ensure no TypeScript errors
 
 ## Success Criteria
 - ✅ Rates should now display actual values instead of 0
@@ -74,6 +96,7 @@ The original code wasn't handling these variations properly, causing `parseFloat
 - ✅ Currency should be correctly displayed
 - ✅ No parsing errors in the logs
 - ✅ Handles various FedEx response formats
+- ✅ No TypeScript lint errors
 
 ## Next Steps
 1. Monitor the application to ensure rates are being calculated correctly
@@ -87,3 +110,4 @@ The original code wasn't handling these variations properly, causing `parseFloat
 - No changes to the API interface or payload structure
 - Enhanced logging will help diagnose any future issues
 - The `extractAmount()` helper method makes the code more maintainable and can be reused for other rate parsing scenarios
+- All TypeScript types are properly defined, improving code quality and maintainability
