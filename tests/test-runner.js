@@ -8,21 +8,22 @@
 import { FedExIntegrationTester } from './fedex-integration.test.js';
 import { getTestConfig, validateFedexCredentials } from './test-config.js';
 
-interface TestRunnerOptions {
-  environment?: 'local' | 'staging' | 'production';
-  suiteFilter?: string;
-  verbose?: boolean;
-  credentials?: {
-    accountNumber: string;
-    clientId: string; 
-    clientSecret: string;
-  };
-}
+/**
+ * @typedef {Object} TestRunnerOptions
+ * @property {'local' | 'staging' | 'production'} [environment]
+ * @property {string} [suiteFilter]
+ * @property {boolean} [verbose]
+ * @property {Object} [credentials]
+ * @property {string} [credentials.accountNumber]
+ * @property {string} [credentials.clientId]
+ * @property {string} [credentials.clientSecret]
+ */
 
 class TestRunner {
-  private options: TestRunnerOptions;
-
-  constructor(options: TestRunnerOptions = {}) {
+  /**
+   * @param {TestRunnerOptions} options
+   */
+  constructor(options = {}) {
     this.options = {
       environment: 'local',
       verbose: false,
@@ -30,7 +31,7 @@ class TestRunner {
     };
   }
 
-  async run(): Promise<void> {
+  async run() {
     console.log('🚀 FedEx Integration Test Runner - Phase 4');
     console.log('================================================');
 
@@ -86,7 +87,10 @@ class TestRunner {
     }
   }
 
-  private async generateTestReport(results: any[]): Promise<void> {
+  /**
+   * @param {Array} results
+   */
+  async generateTestReport(results) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const reportFilename = `test-report-${this.options.environment}-${timestamp}.json`;
 
@@ -122,7 +126,8 @@ class TestRunner {
 // CLI interface
 async function main() {
   const args = process.argv.slice(2);
-  const options: TestRunnerOptions = {};
+  /** @type {TestRunnerOptions} */
+  const options = {};
 
   // Parse command line arguments
   for (let i = 0; i < args.length; i++) {
@@ -131,7 +136,7 @@ async function main() {
     switch (arg) {
       case '--environment':
       case '-e':
-        options.environment = args[++i] as 'local' | 'staging' | 'production';
+        options.environment = args[++i];
         break;
       case '--verbose':
       case '-v':
@@ -162,8 +167,7 @@ async function main() {
 }
 
 function printHelp() {
-  console.log(`
-FedEx Integration Test Runner - Phase 4
+  console.log(`\nFedEx Integration Test Runner - Phase 4
 
 Usage: node test-runner.js [options]
 
