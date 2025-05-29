@@ -41,55 +41,55 @@ export const ParameterPreview = ({
   // Load size data when parameters change
   useEffect(() => {
     if (collection && size && isVisible) {
+      const loadCollectionName = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('collections')
+            .select('name')
+            .eq('id', collection)
+            .single();
+
+          if (error) throw error;
+          setCollectionName(data?.name || 'Unknown Collection');
+        } catch (err) {
+          console.error('Error loading collection name:', err);
+          setCollectionName('Unknown Collection');
+        }
+      };
+
+      const loadSizeData = async () => {
+        setLoading(true);
+        setError("");
+        try {
+          const { data, error } = await supabase
+            .from('collection_sizes')
+            .select('weight_kg, height_cm, length_cm, width_cm')
+            .eq('collection_id', collection)
+            .eq('size', size)
+            .single();
+
+          if (error) throw error;
+          
+          if (!data) {
+            setError(`No size data found for ${size}`);
+            setSizeData(null);
+            return;
+          }
+
+          setSizeData(data);
+        } catch (err) {
+          console.error('Error loading size data:', err);
+          setError('Failed to load size data');
+          setSizeData(null);
+        } finally {
+          setLoading(false);
+        }
+      };
+
       loadSizeData();
       loadCollectionName();
     }
   }, [collection, size, isVisible]);
-
-  const loadCollectionName = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('collections')
-        .select('name')
-        .eq('id', collection)
-        .single();
-
-      if (error) throw error;
-      setCollectionName(data?.name || 'Unknown Collection');
-    } catch (err) {
-      console.error('Error loading collection name:', err);
-      setCollectionName('Unknown Collection');
-    }
-  };
-
-  const loadSizeData = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const { data, error } = await supabase
-        .from('collection_sizes')
-        .select('weight_kg, height_cm, length_cm, width_cm')
-        .eq('collection_id', collection)
-        .eq('size', size)
-        .single();
-
-      if (error) throw error;
-      
-      if (!data) {
-        setError(`No size data found for ${size}`);
-        setSizeData(null);
-        return;
-      }
-
-      setSizeData(data);
-    } catch (err) {
-      console.error('Error loading size data:', err);
-      setError('Failed to load size data');
-      setSizeData(null);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Calculate dimensional weight (DIM weight)
   const calculateDimensionalWeight = () => {
