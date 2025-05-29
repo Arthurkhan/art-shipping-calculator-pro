@@ -10,6 +10,7 @@ export interface ShippingRequest {
   originCountry: string;
   originPostalCode: string;
   preferredCurrency?: string; // User-selected currency (optional, defaults to auto-mapping)
+  shipDate?: string; // User-selected ship date in YYYY-MM-DD format (optional, defaults to tomorrow)
   fedexConfig?: {
     accountNumber: string;
     clientId: string;
