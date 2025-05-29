@@ -27,11 +27,11 @@ const Index = () => {
   const [postalCode, setPostalCode] = useState("");
   const [activeTab, setActiveTab] = useState<'calculator' | 'config'>('calculator');
   
-  // Shipping date state - default to tomorrow
+  // Shipping date state - default to today
   const [shipDate, setShipDate] = useState<Date | undefined>(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
   });
 
   // Custom hooks - Phase 2 refactoring
@@ -387,6 +387,7 @@ const Index = () => {
                         originPostalCode={originAddress.originPostalCode}
                         preferredCurrency={currencySelector.preferredCurrency}
                         isVisible={true}
+                        shipDate={shipDate}
                       />
                     </div>
                   )}
