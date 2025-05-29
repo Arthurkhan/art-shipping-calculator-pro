@@ -1,33 +1,47 @@
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Bug, Copy, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import type { ShippingRate } from '@/types/shipping';
+
+interface DebugMessage {
+  timestamp: string;
+  message: string;
+  data: unknown[];
+}
 
 interface DebugPanelProps {
-  rates: any[];
+  rates: ShippingRate[];
   isCalculating: boolean;
-  lastResponse?: any;
+  lastResponse?: {
+    success: boolean;
+    rates?: ShippingRate[];
+    error?: string;
+    requestId?: string;
+  };
 }
 
 export const DebugPanel = ({ rates, isCalculating, lastResponse }: DebugPanelProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const [copiedSection, setCopiedSection] = useState('');
-  const [debugData, setDebugData] = useState<any>({});
+  const [debugData, setDebugData] = useState<Record<string, unknown>>({});
 
   // Listen for debug messages from the console
   useEffect(() => {
     // Override console.log temporarily to capture debug data
     const originalLog = console.log;
-    const debugCapture: any[] = [];
+    const debugCapture: DebugMessage[] = [];
     
-    console.log = function(...args) {
+    console.log = function(...args: unknown[]) {
       originalLog.apply(console, args);
       
       // Capture specific debug patterns
-      if (args[0]?.includes?.('FedEx') || args[0]?.includes?.('rate') || args[0]?.includes?.('response')) {
+      const firstArg = args[0];
+      if (typeof firstArg === 'string' && 
+          (firstArg.includes('FedEx') || firstArg.includes('rate') || firstArg.includes('response'))) {
         debugCapture.push({
           timestamp: new Date().toISOString(),
-          message: args[0],
+          message: firstArg,
           data: args.slice(1)
         });
       }
@@ -39,13 +53,13 @@ export const DebugPanel = ({ rates, isCalculating, lastResponse }: DebugPanelPro
     };
   }, []);
 
-  const copyToClipboard = (data: any, section: string) => {
+  const copyToClipboard = (data: unknown, section: string) => {
     navigator.clipboard.writeText(JSON.stringify(data, null, 2));
     setCopiedSection(section);
     setTimeout(() => setCopiedSection(''), 2000);
   };
 
-  const formatCurrency = (amount: any, currency: string) => {
+  const formatCurrency = (amount: string | number | undefined, currency: string) => {
     if (typeof amount === 'number') return `${currency} ${amount.toFixed(2)}`;
     if (typeof amount === 'string') return `${currency} ${parseFloat(amount).toFixed(2)}`;
     return `${currency} 0.00`;
