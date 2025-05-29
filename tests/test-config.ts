@@ -281,8 +281,14 @@ export function getTestConfig(environment: 'local' | 'staging' | 'production' = 
   return config;
 }
 
+interface FedexConfig {
+  accountNumber?: string;
+  clientId?: string;
+  clientSecret?: string;
+}
+
 // Credential validation helper
-export function validateFedexCredentials(fedexConfig: any): boolean {
+export function validateFedexCredentials(fedexConfig: FedexConfig): boolean {
   return !!(
     fedexConfig?.accountNumber && 
     fedexConfig?.clientId && 
