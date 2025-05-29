@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Info, Package, Calculator, Globe, MapPin } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { format } from "date-fns";
 
 interface CollectionSize {
   weight_kg: number;
@@ -21,6 +22,7 @@ interface ParameterPreviewProps {
   originPostalCode: string;
   preferredCurrency: string;
   isVisible: boolean;
+  shipDate?: Date;
 }
 
 export const ParameterPreview = ({
@@ -31,7 +33,8 @@ export const ParameterPreview = ({
   originCountry,
   originPostalCode,
   preferredCurrency,
-  isVisible
+  isVisible,
+  shipDate
 }: ParameterPreviewProps) => {
   const [sizeData, setSizeData] = useState<CollectionSize | null>(null);
   const [collectionName, setCollectionName] = useState<string>("");
@@ -106,11 +109,13 @@ export const ParameterPreview = ({
     return Math.max(sizeData.weight_kg, dimWeight);
   };
 
-  // Get current ship date (tomorrow)
-  const getShipDate = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
+  // Format ship date
+  const getFormattedShipDate = () => {
+    if (!shipDate) {
+      const today = new Date();
+      return today.toISOString().split('T')[0];
+    }
+    return shipDate.toISOString().split('T')[0];
   };
 
   if (!isVisible) return null;
@@ -181,7 +186,7 @@ export const ParameterPreview = ({
                 <span className="font-medium">To:</span> {country} {postalCode}
               </div>
               <div className="text-sm">
-                <span className="font-medium">Ship Date:</span> {getShipDate()}
+                <span className="font-medium">Ship Date:</span> {getFormattedShipDate()}
               </div>
             </div>
           </div>
@@ -217,7 +222,7 @@ export const ParameterPreview = ({
             </div>
             <div className="pl-6 space-y-1">
               <div className="text-sm">
-                <span className="font-medium">Actual Weight:</span> {sizeData.weight_kg} kg
+                <span className="font-medium">Net Weight:</span> {sizeData.weight_kg} kg
               </div>
               <div className="text-sm">
                 <span className="font-medium">Dimensional Weight:</span> {calculateDimensionalWeight()} kg
@@ -229,7 +234,7 @@ export const ParameterPreview = ({
                 </Badge>
               </div>
               <div className="text-xs text-slate-600 mt-1">
-                (Higher of actual or dimensional weight)
+                (Higher of net or dimensional weight)
               </div>
             </div>
           </div>
@@ -241,8 +246,8 @@ export const ParameterPreview = ({
             <MapPin className="w-4 h-4 mr-2 text-indigo-600" />
             FedEx API Parameters
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-6">
-            <div className="space-y-1">
+          <div className="space-y-2 pl-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="text-sm">
                 <span className="font-medium">Preferred Currency:</span>{" "}
                 <Badge variant="outline" className="bg-green-100 text-green-800">
@@ -250,37 +255,20 @@ export const ParameterPreview = ({
                 </Badge>
               </div>
               <div className="text-sm">
-                <span className="font-medium">Pickup Type:</span> DROPOFF_AT_FEDEX_LOCATION
-              </div>
-            </div>
-            <div className="space-y-1">
-              <div className="text-sm">
                 <span className="font-medium">Packaging Type:</span> YOUR_PACKAGING
+              </div>
+              <div className="text-sm">
+                <span className="font-medium">Pickup Type:</span> DROPOFF_AT_FEDEX_LOCATION
               </div>
               <div className="text-sm">
                 <span className="font-medium">Rate Request Types:</span> LIST, ACCOUNT, INCENTIVE
               </div>
-            </div>
-            <div className="space-y-1">
               <div className="text-sm">
                 <span className="font-medium">Group Package Count:</span> 1
               </div>
               <div className="text-sm">
                 <span className="font-medium">Weight Units:</span> KG
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Enhanced Currency Info */}
-        <div className="bg-green-50 rounded-lg p-3 border border-green-200">
-          <div className="text-sm font-medium text-green-800 mb-1">
-            💰 Currency Selection: User-Controlled
-          </div>
-          <div className="text-xs text-green-700">
-            <div>Selected: <strong>{preferredCurrency}</strong> (manually chosen)</div>
-            <div className="mt-1 text-green-600">
-              Note: You can test different currencies to see which ones FedEx supports for your route.
             </div>
           </div>
         </div>
@@ -292,7 +280,7 @@ export const ParameterPreview = ({
             <div>Collection ID: {collection}</div>
             <div>Volume: {(sizeData.length_cm * sizeData.width_cm * sizeData.height_cm).toLocaleString()} cm³</div>
             <div>DIM Factor: 5000 (FedEx standard for CM/KG)</div>
-            <div>Ship Date: {getShipDate()} (Tomorrow)</div>
+            <div>Ship Date: {getFormattedShipDate()}</div>
             <div>Currency Source: User-selected (not auto-mapped)</div>
           </div>
         </div>
