@@ -111,19 +111,32 @@ export class PayloadBuilder {
   /**
    * Validate payload structure matches requirements
    */
-  static validatePayloadStructure(payload: any): boolean {
+  static validatePayloadStructure(payload: unknown): boolean {
     try {
+      if (!payload || typeof payload !== 'object') return false;
+      
+      const typedPayload = payload as Record<string, unknown>;
+      
       // Check required top-level fields
-      if (!payload.accountNumber?.value) return false;
-      if (!payload.requestedShipment) return false;
-
-      const shipment = payload.requestedShipment;
+      if (!typedPayload.accountNumber || typeof typedPayload.accountNumber !== 'object') return false;
+      const accountNumber = typedPayload.accountNumber as Record<string, unknown>;
+      if (!accountNumber.value) return false;
+      
+      if (!typedPayload.requestedShipment || typeof typedPayload.requestedShipment !== 'object') return false;
+      const shipment = typedPayload.requestedShipment as Record<string, unknown>;
       
       // Check required shipment fields
-      if (!shipment.shipper?.address?.postalCode) return false;
-      if (!shipment.shipper?.address?.countryCode) return false;
-      if (!shipment.recipient?.address?.postalCode) return false;
-      if (!shipment.recipient?.address?.countryCode) return false;
+      const shipper = shipment.shipper as Record<string, unknown> | undefined;
+      const recipient = shipment.recipient as Record<string, unknown> | undefined;
+      
+      if (!shipper?.address || typeof shipper.address !== 'object') return false;
+      const shipperAddress = shipper.address as Record<string, unknown>;
+      if (!shipperAddress.postalCode || !shipperAddress.countryCode) return false;
+      
+      if (!recipient?.address || typeof recipient.address !== 'object') return false;
+      const recipientAddress = recipient.address as Record<string, unknown>;
+      if (!recipientAddress.postalCode || !recipientAddress.countryCode) return false;
+      
       if (!shipment.preferredCurrency) return false;
       if (!shipment.shipDateStamp) return false;
       if (!shipment.pickupType) return false;
@@ -132,19 +145,26 @@ export class PayloadBuilder {
       if (!Array.isArray(shipment.requestedPackageLineItems)) return false;
       
       // Check package line items
-      const packageItems = shipment.requestedPackageLineItems;
+      const packageItems = shipment.requestedPackageLineItems as unknown[];
       if (packageItems.length === 0) return false;
       
       for (const item of packageItems) {
-        if (typeof item.groupPackageCount !== 'number') return false;
-        if (!item.weight?.units || !item.weight?.value) return false;
-        if (!item.dimensions?.length || !item.dimensions?.width || 
-            !item.dimensions?.height || !item.dimensions?.units) return false;
+        if (!item || typeof item !== 'object') return false;
+        const typedItem = item as Record<string, unknown>;
+        
+        if (typeof typedItem.groupPackageCount !== 'number') return false;
+        
+        const weight = typedItem.weight as Record<string, unknown> | undefined;
+        if (!weight?.units || !weight?.value) return false;
+        
+        const dimensions = typedItem.dimensions as Record<string, unknown> | undefined;
+        if (!dimensions?.length || !dimensions?.width || 
+            !dimensions?.height || !dimensions?.units) return false;
       }
       
       return true;
     } catch (error) {
-      Logger.error('Payload validation failed', { error: error.message });
+      Logger.error('Payload validation failed', { error: error instanceof Error ? error.message : String(error) });
       return false;
     }
   }
