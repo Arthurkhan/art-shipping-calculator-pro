@@ -179,7 +179,7 @@ export class FedexRatesService {
   /**
    * Helper function to extract amount from various possible structures
    */
-  private static extractAmount(obj: any): number | null {
+  private static extractAmount(obj: FedexChargeVariant | string | number | undefined | null): number | null {
     if (!obj) return null;
     
     // Direct numeric value
