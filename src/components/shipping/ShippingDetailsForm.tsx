@@ -1,4 +1,4 @@
-import { MapPin, Globe, DollarSign, Calendar } from "lucide-react";
+import { MapPin, Globe, DollarSign, Calendar, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -135,7 +135,15 @@ export const ShippingDetailsForm = ({
               <SelectItem value="MXN">MXN - Mexican Peso</SelectItem>
             </SelectContent>
           </Select>
-          <p className="text-xs text-slate-500">Rate currency</p>
+          <div className="space-y-1">
+            <p className="text-xs text-slate-500">Rate currency</p>
+            <div className="flex items-start gap-1.5 p-2 bg-amber-50 border border-amber-200 rounded-md">
+              <Info className="w-3 h-3 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700">
+                Note: The displayed currency may differ from your selection if your FedEx account has a preferred currency assigned.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

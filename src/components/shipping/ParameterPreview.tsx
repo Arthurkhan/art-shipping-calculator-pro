@@ -109,13 +109,14 @@ export const ParameterPreview = ({
     return Math.max(sizeData.weight_kg, dimWeight);
   };
 
-  // Format ship date
+  // Format ship date - Fixed to show the actual selected date
   const getFormattedShipDate = () => {
     if (!shipDate) {
       const today = new Date();
-      return today.toISOString().split('T')[0];
+      return format(today, 'yyyy-MM-dd');
     }
-    return shipDate.toISOString().split('T')[0];
+    // Format the date properly without timezone issues
+    return format(shipDate, 'yyyy-MM-dd');
   };
 
   if (!isVisible) return null;
