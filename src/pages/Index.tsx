@@ -387,6 +387,7 @@ const Index = () => {
                         originPostalCode={originAddress.originPostalCode}
                         preferredCurrency={currencySelector.preferredCurrency}
                         isVisible={true}
+                        shipDate={shipDate}
                       />
                     </div>
                   )}
