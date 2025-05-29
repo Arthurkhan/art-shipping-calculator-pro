@@ -31,6 +31,9 @@ interface FedexApiRatedShipmentDetail {
  * FedEx Rates Service
  */
 export class FedexRatesService {
+  // Store raw response for debugging
+  static lastRawResponse: unknown = null;
+
   /**
    * Get FedEx shipping rates with enhanced error handling
    */
@@ -110,6 +113,9 @@ export class FedexRatesService {
         });
 
         const responseData = await response.json() as FedexRateResponse;
+        
+        // DEBUGGING: Store raw response for debugging
+        this.lastRawResponse = responseData;
         
         // Enhanced debugging: Log full response for analysis
         Logger.info('FedEx rate response data (full for debugging)', { 
@@ -464,5 +470,12 @@ export class FedexRatesService {
 
     Logger.info(`Successfully parsed ${rates.length} FedEx rates`, { rates });
     return rates;
+  }
+
+  /**
+   * Get the last raw FedEx response for debugging
+   */
+  static getLastRawResponse(): unknown {
+    return this.lastRawResponse;
   }
 }

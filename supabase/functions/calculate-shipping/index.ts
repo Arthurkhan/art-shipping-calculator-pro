@@ -74,6 +74,7 @@ serve(async (req) => {
     const sizeData = await getCollectionSize(requestData.collection, requestData.size);
 
     let rates: ShippingRate[] = [];
+    let rawFedexResponse = null; // Store raw response for debugging
 
     // Calculate FedEx rates if config is provided
     if (requestData.fedexConfig) {
@@ -106,6 +107,9 @@ serve(async (req) => {
           requestData.shipDate // Pass user-selected ship date (optional)
         );
         
+        // DEBUGGING: Get the raw FedEx response
+        rawFedexResponse = FedexRatesService.getLastRawResponse();
+        
         rates = rates.concat(fedexRates);
         Logger.info(`Added ${fedexRates.length} FedEx rates`);
       } catch (error) {
@@ -135,7 +139,11 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         rates,
-        requestId
+        requestId,
+        // DEBUGGING: Include raw FedEx response temporarily
+        _debug: {
+          rawFedexResponse: rawFedexResponse
+        }
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

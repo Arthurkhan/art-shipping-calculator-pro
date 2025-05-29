@@ -135,6 +135,18 @@ export const useShippingCalculator = () => {
         console.log('📋 Response Rates:', response.data.rates);
         console.log('🆔 Request ID:', response.data.requestId);
         
+        // LOG RAW FEDEX RESPONSE FOR DEBUGGING
+        if (response.data._debug?.rawFedexResponse) {
+          console.log('🚨🚨🚨 RAW FEDEX API RESPONSE - COPY THIS! 🚨🚨🚨');
+          console.log(JSON.stringify(response.data._debug.rawFedexResponse, null, 2));
+          console.log('🚨🚨🚨 END OF RAW FEDEX RESPONSE 🚨🚨🚨');
+          
+          // Call the debug handler if it exists
+          if ((window as any).__debugResponseHandler) {
+            (window as any).__debugResponseHandler(response.data);
+          }
+        }
+        
         // Log detailed rate information
         if (response.data.rates && Array.isArray(response.data.rates)) {
           response.data.rates.forEach((rate: ShippingRate, index: number) => {
