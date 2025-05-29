@@ -133,7 +133,7 @@ export const useShippingCalculator = () => {
         
         // Log detailed rate information
         if (response.data.rates && Array.isArray(response.data.rates)) {
-          response.data.rates.forEach((rate: any, index: number) => {
+          response.data.rates.forEach((rate: ShippingRate, index: number) => {
             console.log(`📍 Rate ${index + 1}:`, {
               service: rate.service,
               cost: rate.cost,
