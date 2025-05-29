@@ -29,7 +29,8 @@ export class FedexRatesService {
     originPostalCode: string,
     destinationCountry: string,
     destinationPostalCode: string,
-    userPreferredCurrency?: string
+    userPreferredCurrency?: string,
+    userShipDate?: string // Optional user-selected ship date
   ): Promise<ShippingRate[]> {
     const operationName = 'FedEx Rate Request';
     const retryOptions: RetryOptions = {
@@ -41,8 +42,13 @@ export class FedexRatesService {
     return retryWithBackoff(async () => {
       Logger.info('Requesting FedEx shipping rates');
 
-      // Get current date for shipDateStamp - as required by roadmap
-      const shipDateStamp = PayloadBuilder.generateShipDateStamp();
+      // Use user-provided ship date or generate tomorrow's date
+      const shipDateStamp = userShipDate || PayloadBuilder.generateShipDateStamp();
+      
+      Logger.info('Using ship date', { 
+        shipDate: shipDateStamp,
+        source: userShipDate ? 'User selected' : 'Auto-generated (tomorrow)'
+      });
 
       // Use user-provided currency or fall back to auto-mapping
       const preferredCurrency = getPreferredCurrency(userPreferredCurrency, destinationCountry);
@@ -122,7 +128,9 @@ export class FedexRatesService {
                 accountNumber: { value: '[REDACTED]' }
               },
               currencyUsed: preferredCurrency,
-              currencySource: userPreferredCurrency ? 'USER_SELECTED' : 'AUTO_MAPPED'
+              currencySource: userPreferredCurrency ? 'USER_SELECTED' : 'AUTO_MAPPED',
+              shipDateUsed: shipDateStamp,
+              shipDateSource: userShipDate ? 'USER_SELECTED' : 'AUTO_GENERATED'
             });
             
             throw new ShippingError(
