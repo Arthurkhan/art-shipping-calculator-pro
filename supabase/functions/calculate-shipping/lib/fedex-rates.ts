@@ -14,6 +14,19 @@ import type {
   FedexRatedShipmentDetail
 } from '../types/fedex-types.ts';
 
+// Type for the actual API response structure (differs from our TypeScript types)
+interface FedexApiRatedShipmentDetail {
+  rateType?: string;
+  totalNetCharge?: number | { amount?: number | string; currency?: string };
+  totalNetFedExCharge?: number | { amount?: number | string; currency?: string };
+  shipmentRateDetail?: {
+    totalNetCharge?: number | { amount?: number | string; currency?: string };
+    [key: string]: unknown;
+  };
+  currency?: string;
+  [key: string]: unknown;
+}
+
 /**
  * FedEx Rates Service
  */
@@ -186,13 +199,16 @@ export class FedexRatesService {
 
   /**
    * Enhanced helper function to extract amount from various possible structures
-   * Handles both direct numeric values and object structures
+   * Now more strict to avoid extracting from wrong fields
    */
-  private static extractAmount(obj: any): number | null {
+  private static extractAmount(obj: unknown, fieldPath: string = ''): number | null {
+    Logger.info(`Attempting to extract amount from field: ${fieldPath}`, { value: obj, type: typeof obj });
+    
     if (!obj && obj !== 0) return null;
     
     // Direct numeric value (as shown in the sample response)
     if (typeof obj === 'number') {
+      Logger.info(`Found direct numeric value at ${fieldPath}:`, { value: obj });
       return obj;
     }
     
@@ -201,29 +217,29 @@ export class FedexRatesService {
       // Remove any currency symbols or formatting
       const cleaned = obj.replace(/[^0-9.-]/g, '');
       const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? null : parsed;
+      if (!isNaN(parsed)) {
+        Logger.info(`Parsed string value at ${fieldPath}:`, { original: obj, parsed });
+        return parsed;
+      }
+      return null;
     }
     
     // Object with amount field (as defined in our types)
-    if (typeof obj === 'object') {
+    if (typeof obj === 'object' && obj !== null) {
+      const objRecord = obj as Record<string, unknown>;
+      
       // Check for direct amount field (could be string or number)
-      if ('amount' in obj && obj.amount !== undefined && obj.amount !== null) {
-        return this.extractAmount(obj.amount);
+      if ('amount' in objRecord && objRecord.amount !== undefined && objRecord.amount !== null) {
+        return this.extractAmount(objRecord.amount, `${fieldPath}.amount`);
       }
       
       // Check for value field
-      if ('value' in obj && obj.value !== undefined && obj.value !== null) {
-        return this.extractAmount(obj.value);
-      }
-      
-      // Check for nested structure like {amount: {value: 123}}
-      if ('amount' in obj && typeof obj.amount === 'object' && obj.amount !== null) {
-        if ('value' in obj.amount) {
-          return this.extractAmount(obj.amount.value);
-        }
+      if ('value' in objRecord && objRecord.value !== undefined && objRecord.value !== null) {
+        return this.extractAmount(objRecord.value, `${fieldPath}.value`);
       }
     }
     
+    Logger.warn(`Could not extract amount from ${fieldPath}`, { value: obj });
     return null;
   }
 
@@ -296,46 +312,46 @@ export class FedexRatesService {
         });
 
         if (rateDetail.ratedShipmentDetails && rateDetail.ratedShipmentDetails.length > 0) {
-          // FIXED: Check all ratedShipmentDetails and prioritize LIST rates
-          let selectedDetail: any = null;
+          // FIXED: More strict type handling and field extraction
+          let selectedDetail: FedexApiRatedShipmentDetail | null = null;
           let selectedRateAmount: number | null = null;
           
           // First, try to find a LIST rate (customer rate)
           for (const detail of rateDetail.ratedShipmentDetails) {
-            // Cast to any to handle both possible structures
-            const detailAny = detail as any;
+            // Use our custom type that matches actual API response
+            const detailApi = detail as FedexApiRatedShipmentDetail;
             
             Logger.info('Checking ratedShipmentDetail structure', {
-              rateType: detailAny.rateType,
-              hasTotalNetCharge: 'totalNetCharge' in detailAny,
-              totalNetChargeType: typeof detailAny.totalNetCharge,
-              totalNetChargeValue: detailAny.totalNetCharge,
-              hasShipmentRateDetail: 'shipmentRateDetail' in detailAny,
-              currency: detailAny.currency
+              rateType: detailApi.rateType,
+              hasTotalNetCharge: 'totalNetCharge' in detailApi,
+              totalNetChargeType: typeof detailApi.totalNetCharge,
+              totalNetChargeValue: detailApi.totalNetCharge,
+              hasTotalNetFedExCharge: 'totalNetFedExCharge' in detailApi,
+              currency: detailApi.currency
             });
             
-            if (detailAny.rateType === 'LIST' || detailAny.rateType === 'RATED_LIST_PACKAGE') {
-              // Try to extract rate from multiple possible locations
-              let extractedAmount = this.extractAmount(detailAny.totalNetCharge);
+            if (detailApi.rateType === 'LIST' || detailApi.rateType === 'RATED_LIST_PACKAGE') {
+              // CRITICAL: Only extract from the top-level totalNetCharge field
+              let extractedAmount: number | null = null;
               
-              // If totalNetCharge extraction failed, try other fields
-              if (!extractedAmount && detailAny.totalNetFedExCharge) {
-                extractedAmount = this.extractAmount(detailAny.totalNetFedExCharge);
+              // Try totalNetCharge first (this should be the correct field)
+              if ('totalNetCharge' in detailApi && detailApi.totalNetCharge !== undefined) {
+                extractedAmount = this.extractAmount(detailApi.totalNetCharge, 'totalNetCharge');
+              }
+              
+              // If totalNetCharge didn't work, try totalNetFedExCharge
+              if (!extractedAmount && 'totalNetFedExCharge' in detailApi && detailApi.totalNetFedExCharge !== undefined) {
+                extractedAmount = this.extractAmount(detailApi.totalNetFedExCharge, 'totalNetFedExCharge');
                 Logger.info('Using totalNetFedExCharge instead of totalNetCharge');
               }
               
-              // If still no amount, try shipmentRateDetail.totalNetCharge
-              if (!extractedAmount && detailAny.shipmentRateDetail?.totalNetCharge) {
-                extractedAmount = this.extractAmount(detailAny.shipmentRateDetail.totalNetCharge);
-                Logger.info('Using shipmentRateDetail.totalNetCharge');
-              }
-              
               if (extractedAmount && extractedAmount > 0) {
-                selectedDetail = detailAny;
+                selectedDetail = detailApi;
                 selectedRateAmount = extractedAmount;
                 Logger.info('Found LIST rate', { 
-                  rateType: detailAny.rateType,
-                  amount: extractedAmount 
+                  rateType: detailApi.rateType,
+                  amount: extractedAmount,
+                  source: 'totalNetCharge or totalNetFedExCharge'
                 });
                 break;
               }
@@ -347,26 +363,27 @@ export class FedexRatesService {
             Logger.info('No valid LIST rate found, checking ACCOUNT rates');
             
             for (const detail of rateDetail.ratedShipmentDetails) {
-              const detailAny = detail as any;
+              const detailApi = detail as FedexApiRatedShipmentDetail;
               
-              if (detailAny.rateType === 'ACCOUNT' || !detailAny.rateType) {
-                // Try to extract rate from multiple possible locations
-                let extractedAmount = this.extractAmount(detailAny.totalNetCharge);
+              if (detailApi.rateType === 'ACCOUNT' || !detailApi.rateType) {
+                // CRITICAL: Only extract from the top-level fields
+                let extractedAmount: number | null = null;
                 
-                if (!extractedAmount && detailAny.totalNetFedExCharge) {
-                  extractedAmount = this.extractAmount(detailAny.totalNetFedExCharge);
+                if ('totalNetCharge' in detailApi && detailApi.totalNetCharge !== undefined) {
+                  extractedAmount = this.extractAmount(detailApi.totalNetCharge, 'totalNetCharge');
                 }
                 
-                if (!extractedAmount && detailAny.shipmentRateDetail?.totalNetCharge) {
-                  extractedAmount = this.extractAmount(detailAny.shipmentRateDetail.totalNetCharge);
+                if (!extractedAmount && 'totalNetFedExCharge' in detailApi && detailApi.totalNetFedExCharge !== undefined) {
+                  extractedAmount = this.extractAmount(detailApi.totalNetFedExCharge, 'totalNetFedExCharge');
                 }
                 
                 if (extractedAmount && extractedAmount > 0) {
-                  selectedDetail = detailAny;
+                  selectedDetail = detailApi;
                   selectedRateAmount = extractedAmount;
                   Logger.info('Using ACCOUNT rate as fallback', { 
-                    rateType: detailAny.rateType,
-                    amount: extractedAmount 
+                    rateType: detailApi.rateType,
+                    amount: extractedAmount,
+                    source: 'totalNetCharge or totalNetFedExCharge'
                   });
                   break;
                 }
@@ -374,21 +391,20 @@ export class FedexRatesService {
             }
           }
           
-          // If still no rate, try the first detail as last resort
+          // If still no rate, log all details for debugging
           if (!selectedDetail || !selectedRateAmount) {
-            const firstDetail = rateDetail.ratedShipmentDetails[0] as any;
-            const extractedAmount = this.extractAmount(firstDetail.totalNetCharge) ||
-                                   this.extractAmount(firstDetail.totalNetFedExCharge) ||
-                                   this.extractAmount(firstDetail.shipmentRateDetail?.totalNetCharge);
-            
-            if (extractedAmount && extractedAmount > 0) {
-              selectedDetail = firstDetail;
-              selectedRateAmount = extractedAmount;
-              Logger.info('Using first detail as last resort', { 
-                rateType: firstDetail.rateType,
-                amount: extractedAmount 
-              });
-            }
+            Logger.error('Could not find valid rate in any ratedShipmentDetail', {
+              serviceType: rateDetail.serviceType,
+              allDetails: rateDetail.ratedShipmentDetails.map((d: unknown) => {
+                const detail = d as FedexApiRatedShipmentDetail;
+                return {
+                  rateType: detail.rateType,
+                  totalNetCharge: detail.totalNetCharge,
+                  totalNetFedExCharge: detail.totalNetFedExCharge,
+                  hasShipmentRateDetail: !!detail.shipmentRateDetail
+                };
+              })
+            });
           }
           
           // Extract currency
