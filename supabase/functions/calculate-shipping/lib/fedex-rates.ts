@@ -11,6 +11,7 @@ import type { ShippingRate, CollectionSize } from '../types/index.ts';
 import type { 
   FedexRateResponse, 
   FedexChargeVariant, 
+  FedexRatedShipmentDetail,
   FedexRatedShipmentDetailExtended 
 } from '../types/fedex-types.ts';
 
@@ -239,35 +240,71 @@ export class FedexRatesService {
         Logger.info('Processing rate detail', {
           serviceType: rateDetail.serviceType,
           hasRatedShipmentDetails: !!rateDetail.ratedShipmentDetails,
-          ratedShipmentDetailsCount: rateDetail.ratedShipmentDetails?.length || 0
+          ratedShipmentDetailsCount: rateDetail.ratedShipmentDetails?.length || 0,
+          hasOperationalDetail: !!rateDetail.operationalDetail,
+          hasCommit: !!rateDetail.commit
         });
 
         if (rateDetail.ratedShipmentDetails && rateDetail.ratedShipmentDetails.length > 0) {
-          // FIXED: The totalNetCharge is directly on the ratedShipmentDetail object
-          // We'll use the first ratedShipmentDetail (usually ACCOUNT type)
-          const shipmentDetail = rateDetail.ratedShipmentDetails[0];
+          // FIXED: Check all ratedShipmentDetails and prioritize LIST rates
+          let selectedDetail: FedexRatedShipmentDetail | null = null;
           
-          Logger.info('Processing ratedShipmentDetail', {
-            hasTotalNetCharge: 'totalNetCharge' in shipmentDetail,
-            totalNetCharge: shipmentDetail.totalNetCharge,
-            currency: shipmentDetail.currency,
-            rateType: shipmentDetail.rateType
-          });
-
-          // Extract rate from the correct location
+          // First, try to find a LIST rate (customer rate)
+          for (const detail of rateDetail.ratedShipmentDetails) {
+            Logger.info('Checking ratedShipmentDetail', {
+              rateType: detail.rateType,
+              hasTotalNetCharge: 'totalNetCharge' in detail,
+              totalNetCharge: detail.totalNetCharge,
+              currency: detail.currency
+            });
+            
+            if (detail.rateType === 'LIST' || detail.rateType === 'RATED_LIST_PACKAGE') {
+              selectedDetail = detail;
+              break;
+            }
+          }
+          
+          // If no LIST rate found, fall back to the first detail (usually ACCOUNT)
+          if (!selectedDetail) {
+            selectedDetail = rateDetail.ratedShipmentDetails[0];
+            Logger.info('No LIST rate found, using first detail', {
+              rateType: selectedDetail.rateType
+            });
+          }
+          
+          // Extract rate from the selected detail
           let rateAmount: number | null = null;
           let rateCurrency = preferredCurrency;
 
           // The rate is directly on the shipmentDetail as totalNetCharge
-          if ('totalNetCharge' in shipmentDetail) {
-            rateAmount = this.extractAmount(shipmentDetail.totalNetCharge);
-            rateCurrency = shipmentDetail.currency || preferredCurrency;
+          if ('totalNetCharge' in selectedDetail) {
+            rateAmount = this.extractAmount(selectedDetail.totalNetCharge);
+            rateCurrency = selectedDetail.currency || preferredCurrency;
             
-            Logger.info('Found rate at correct location', { 
+            Logger.info('Found rate from selected detail', { 
               rateAmount, 
               rateCurrency,
-              rateType: shipmentDetail.rateType
+              rateType: selectedDetail.rateType
             });
+          }
+
+          // FIXED: Extract transit time from the correct fields
+          let transitTime = 'Unknown';
+          let deliveryDate = undefined;
+          
+          if (rateDetail.operationalDetail) {
+            transitTime = rateDetail.operationalDetail.transitTime || transitTime;
+            deliveryDate = rateDetail.operationalDetail.deliveryDate || 
+                          rateDetail.operationalDetail.deliveryDayOfWeek;
+          }
+          
+          if (rateDetail.commit) {
+            transitTime = rateDetail.commit.label || 
+                         rateDetail.commit.transitTime || 
+                         transitTime;
+            if (!deliveryDate && rateDetail.commit.dateDetail) {
+              deliveryDate = rateDetail.commit.dateDetail.dayOfWeek;
+            }
           }
 
           // Add the rate if we found a valid amount
@@ -276,11 +313,8 @@ export class FedexRatesService {
               service: rateDetail.serviceType || 'Unknown Service',
               cost: rateAmount,
               currency: rateCurrency,
-              transitTime: rateDetail.operationalDetail?.transitTime || 
-                           rateDetail.commit?.transitTime || 
-                           'Unknown',
-              deliveryDate: rateDetail.operationalDetail?.deliveryDate || 
-                           rateDetail.commit?.dateDetail?.dayOfWeek
+              transitTime: transitTime,
+              deliveryDate: deliveryDate
             };
             
             rates.push(rate);
@@ -288,7 +322,8 @@ export class FedexRatesService {
           } else {
             Logger.warn('No valid rate amount found', {
               serviceType: rateDetail.serviceType,
-              shipmentDetail: JSON.stringify(shipmentDetail, null, 2)
+              selectedDetailRateType: selectedDetail.rateType,
+              shipmentDetail: JSON.stringify(selectedDetail, null, 2)
             });
           }
         }
