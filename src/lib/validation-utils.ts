@@ -94,7 +94,7 @@ export const validatePhoneNumber = (phone: string): boolean => {
   if (!phone) return false;
   
   // Remove common phone number characters
-  const cleaned = phone.replace(/[\s\-\(\)\+]/g, '');
+  const cleaned = phone.replace(/[\s\-()+]/g, '');
   
   // Check if it's all digits and has reasonable length (7-15 digits)
   return /^\d{7,15}$/.test(cleaned);
@@ -129,7 +129,7 @@ export const validateWeight = (value: string | number, maxWeight: number = 999):
  */
 export const sanitizeInput = (input: string): string => {
   if (!input) return '';
-  return input.trim().replace(/[<>'\"]/g, '');
+  return input.trim().replace(/[<>'"]/g, '');
 };
 
 /**
@@ -177,10 +177,14 @@ export interface FieldValidationResult extends ValidationResult {
   field?: string;
 }
 
+type ValidationRule = (value: unknown) => boolean;
+type FieldRules = Record<string, ValidationRule>;
+type FieldValues = Record<string, unknown>;
+
 /**
  * Validate multiple fields at once
  */
-export const validateFields = (fields: { [key: string]: any }, rules: { [key: string]: (value: any) => boolean }): FieldValidationResult[] => {
+export const validateFields = (fields: FieldValues, rules: FieldRules): FieldValidationResult[] => {
   const results: FieldValidationResult[] = [];
   
   for (const [field, validator] of Object.entries(rules)) {
