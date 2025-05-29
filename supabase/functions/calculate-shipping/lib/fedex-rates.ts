@@ -11,6 +11,14 @@ import type { ShippingRate, CollectionSize } from '../types/index.ts';
 import type { 
   FedexRateResponse, 
   FedexChargeVariant, 
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+  FedexRatedShipmentDetail,
+>>>>>>> parent of 3b3a745 (Remove unused import FedexRatedShipmentDetailExtended)
+=======
+  FedexRatedShipmentDetail,
+>>>>>>> parent of 3b3a745 (Remove unused import FedexRatedShipmentDetailExtended)
   FedexRatedShipmentDetailExtended 
 } from '../types/fedex-types.ts';
 
