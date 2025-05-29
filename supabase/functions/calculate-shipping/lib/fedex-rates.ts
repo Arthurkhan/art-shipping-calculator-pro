@@ -198,52 +198,86 @@ export class FedexRatesService {
         Logger.info('Processing rate detail', {
           serviceType: rateDetail.serviceType,
           hasRatedShipmentDetails: !!rateDetail.ratedShipmentDetails,
-          ratedShipmentDetailsCount: rateDetail.ratedShipmentDetails?.length || 0,
-          // Log the full structure to understand it better
-          rateDetailStructure: JSON.stringify(rateDetail, null, 2)
+          ratedShipmentDetailsCount: rateDetail.ratedShipmentDetails?.length || 0
         });
 
         if (rateDetail.ratedShipmentDetails && rateDetail.ratedShipmentDetails.length > 0) {
           // Try multiple possible locations for the rate information
           for (const shipmentDetail of rateDetail.ratedShipmentDetails) {
-            Logger.info('Processing shipment detail', {
+            Logger.info('Processing shipment detail - checking all possible rate locations', {
               hasShipmentRateDetail: !!shipmentDetail.shipmentRateDetail,
               hasTotalNetCharge: !!shipmentDetail.totalNetCharge,
               hasRatedPackages: !!shipmentDetail.ratedPackages,
-              shipmentDetailKeys: Object.keys(shipmentDetail),
-              // Log the actual values if they exist
-              totalNetCharge: shipmentDetail.totalNetCharge,
-              shipmentRateDetail: shipmentDetail.shipmentRateDetail
+              shipmentDetailKeys: Object.keys(shipmentDetail)
             });
 
             // Try different possible locations for the rate
             let rateAmount = 0;
             let rateCurrency = preferredCurrency;
+            let rateFound = false;
 
-            // Option 1: totalNetCharge (original location)
-            if (shipmentDetail.totalNetCharge?.amount) {
-              rateAmount = parseFloat(shipmentDetail.totalNetCharge.amount);
-              rateCurrency = shipmentDetail.totalNetCharge.currency || preferredCurrency;
-              Logger.info('Found rate in totalNetCharge', { rateAmount, rateCurrency });
+            // Option 1: totalNetCharge at shipment detail level
+            if (shipmentDetail.totalNetCharge) {
+              const charge = shipmentDetail.totalNetCharge;
+              if (charge.amount !== undefined && charge.amount !== null) {
+                rateAmount = typeof charge.amount === 'string' ? parseFloat(charge.amount) : charge.amount;
+                rateCurrency = charge.currency || preferredCurrency;
+                rateFound = true;
+                Logger.info('Found rate in totalNetCharge', { 
+                  rateAmount, 
+                  rateCurrency,
+                  originalAmount: charge.amount,
+                  amountType: typeof charge.amount
+                });
+              }
             }
+            
             // Option 2: shipmentRateDetail.totalNetCharge
-            else if (shipmentDetail.shipmentRateDetail?.totalNetCharge?.amount) {
-              rateAmount = parseFloat(shipmentDetail.shipmentRateDetail.totalNetCharge.amount);
-              rateCurrency = shipmentDetail.shipmentRateDetail.totalNetCharge.currency || preferredCurrency;
-              Logger.info('Found rate in shipmentRateDetail.totalNetCharge', { rateAmount, rateCurrency });
+            if (!rateFound && shipmentDetail.shipmentRateDetail?.totalNetCharge) {
+              const charge = shipmentDetail.shipmentRateDetail.totalNetCharge;
+              if (charge.amount !== undefined && charge.amount !== null) {
+                rateAmount = typeof charge.amount === 'string' ? parseFloat(charge.amount) : charge.amount;
+                rateCurrency = charge.currency || preferredCurrency;
+                rateFound = true;
+                Logger.info('Found rate in shipmentRateDetail.totalNetCharge', { 
+                  rateAmount, 
+                  rateCurrency,
+                  originalAmount: charge.amount,
+                  amountType: typeof charge.amount
+                });
+              }
             }
+            
             // Option 3: Check ratedPackages for rates
-            else if (shipmentDetail.ratedPackages?.length > 0) {
-              const packageRate = shipmentDetail.ratedPackages[0];
-              if (packageRate.packageRateDetail?.netCharge?.amount) {
-                rateAmount = parseFloat(packageRate.packageRateDetail.netCharge.amount);
-                rateCurrency = packageRate.packageRateDetail.netCharge.currency || preferredCurrency;
-                Logger.info('Found rate in ratedPackages', { rateAmount, rateCurrency });
+            if (!rateFound && shipmentDetail.ratedPackages && shipmentDetail.ratedPackages.length > 0) {
+              for (const pkg of shipmentDetail.ratedPackages) {
+                if (pkg.packageRateDetail?.netCharge) {
+                  const charge = pkg.packageRateDetail.netCharge;
+                  if (charge.amount !== undefined && charge.amount !== null) {
+                    rateAmount = typeof charge.amount === 'string' ? parseFloat(charge.amount) : charge.amount;
+                    rateCurrency = charge.currency || preferredCurrency;
+                    rateFound = true;
+                    Logger.info('Found rate in ratedPackages', { 
+                      rateAmount, 
+                      rateCurrency,
+                      originalAmount: charge.amount,
+                      amountType: typeof charge.amount
+                    });
+                    break;
+                  }
+                }
               }
             }
 
-            // Only add the rate if we found a valid amount
-            if (rateAmount > 0 || shipmentDetail.totalNetCharge || shipmentDetail.shipmentRateDetail) {
+            // Log the full shipment detail structure if no rate found
+            if (!rateFound) {
+              Logger.warn('No rate found in expected locations, logging full structure', {
+                shipmentDetail: JSON.stringify(shipmentDetail, null, 2)
+              });
+            }
+
+            // Only add the rate if we found a valid amount or if we have the structure
+            if (rateFound && !isNaN(rateAmount)) {
               const rate: ShippingRate = {
                 service: rateDetail.serviceType || 'Unknown Service',
                 cost: rateAmount,
@@ -272,8 +306,8 @@ export class FedexRatesService {
     }
 
     if (rates.length === 0) {
-      Logger.warn('No rates found in FedEx response - Enhanced debugging with currency info', { 
-        responseData,
+      Logger.warn('No rates found in FedEx response - Enhanced debugging', { 
+        responseStructure: JSON.stringify(responseData, null, 2),
         currencyInfo: {
           requested: preferredCurrency,
           source: userPreferredCurrency ? 'USER_SELECTED' : 'AUTO_MAPPED',
@@ -285,13 +319,14 @@ export class FedexRatesService {
           'Package dimensions exceed limits',
           'Account restrictions for destination country',
           'Currency conversion not available for selected route',
-          'Rate information in unexpected response structure'
+          'Rate information in unexpected response structure',
+          'Amount field might be in a different format or location'
         ]
       });
       throw new ShippingError(
         ErrorType.RATE_PARSING,
         'No shipping rates available for this destination',
-        'No shipping options available for this destination.'
+        'No shipping options available for this destination. This could be due to service availability or account restrictions.'
       );
     }
 
