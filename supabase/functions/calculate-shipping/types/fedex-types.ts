@@ -51,6 +51,7 @@ export interface FedexRequestedShipment {
   packagingType: string;
   rateRequestType: string[];
   requestedPackageLineItems: FedexPackageLineItem[];
+  variableOptions?: string[]; // Added to request transit time information
 }
 
 export interface FedexRateRequest {
