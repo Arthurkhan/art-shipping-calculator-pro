@@ -39,14 +39,15 @@ export const ShippingDetailsForm = ({
   return (
     <div className="space-y-3">
       <div className="border-b border-slate-200 pb-2">
-        <h3 className="text-base font-semibold text-slate-800">Shipping Details</h3>
+        <h3 className="text-sm sm:text-base font-semibold text-slate-800">Shipping Details</h3>
         <p className="text-xs text-slate-600">Destination and shipping date information</p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        {/* Country Code */}
         <div className="space-y-2">
-          <Label htmlFor="country" className="text-sm font-medium">
-            <Globe className="w-4 h-4 inline mr-1" />
+          <Label htmlFor="country" className="text-sm font-medium flex items-center">
+            <Globe className="w-4 h-4 mr-1" />
             Country Code
           </Label>
           <Input
@@ -54,15 +55,18 @@ export const ShippingDetailsForm = ({
             placeholder="e.g., US, FR, ID"
             value={country}
             onChange={(e) => onCountryChange(e.target.value.toUpperCase())}
-            className="h-10"
+            className="h-12 sm:h-10 text-base sm:text-sm"
             maxLength={2}
+            inputMode="text"
+            autoCapitalize="characters"
           />
           <p className="text-xs text-slate-500">2-letter country code</p>
         </div>
 
+        {/* Postal Code */}
         <div className="space-y-2">
-          <Label htmlFor="postalCode" className="text-sm font-medium">
-            <MapPin className="w-4 h-4 inline mr-1" />
+          <Label htmlFor="postalCode" className="text-sm font-medium flex items-center">
+            <MapPin className="w-4 h-4 mr-1" />
             Postal Code
           </Label>
           <Input
@@ -70,14 +74,16 @@ export const ShippingDetailsForm = ({
             placeholder="e.g., 10001, 75001"
             value={postalCode}
             onChange={(e) => onPostalCodeChange(e.target.value)}
-            className="h-10"
+            className="h-12 sm:h-10 text-base sm:text-sm"
+            inputMode="numeric"
           />
           <p className="text-xs text-slate-500">Destination postal code</p>
         </div>
 
+        {/* Ship Date */}
         <div className="space-y-2">
-          <Label htmlFor="shipDate" className="text-sm font-medium">
-            <Calendar className="w-4 h-4 inline mr-1" />
+          <Label htmlFor="shipDate" className="text-sm font-medium flex items-center">
+            <Calendar className="w-4 h-4 mr-1" />
             Ship Date
           </Label>
           <Popover>
@@ -85,35 +91,41 @@ export const ShippingDetailsForm = ({
               <Button
                 id="shipDate"
                 variant="outline"
-                className="w-full h-10 justify-start text-left font-normal"
+                className="w-full h-12 sm:h-10 justify-start text-left font-normal text-base sm:text-sm"
               >
                 <Calendar className="mr-2 h-4 w-4" />
                 {shipDate ? format(shipDate, "PPP") : "Select ship date"}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent 
+              className="w-auto p-0" 
+              align="start"
+              sideOffset={5}
+            >
               <CalendarComponent
                 mode="single"
                 selected={shipDate}
                 onSelect={onShipDateChange}
                 disabled={(date) => date < minDate}
                 initialFocus
+                className="rounded-md border"
               />
             </PopoverContent>
           </Popover>
           <p className="text-xs text-slate-500">Earliest ship date is today</p>
         </div>
 
+        {/* Currency Selection */}
         <div className="space-y-2">
-          <Label htmlFor="currency" className="text-sm font-medium">
-            <DollarSign className="w-4 h-4 inline mr-1" />
+          <Label htmlFor="currency" className="text-sm font-medium flex items-center">
+            <DollarSign className="w-4 h-4 mr-1" />
             Preferred Currency
           </Label>
           <Select value={preferredCurrency} onValueChange={onPreferredCurrencyChange}>
-            <SelectTrigger id="currency" className="h-10">
+            <SelectTrigger id="currency" className="h-12 sm:h-10 text-base sm:text-sm">
               <SelectValue placeholder="Select currency" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-[300px]">
               <SelectItem value="USD">USD - US Dollar</SelectItem>
               <SelectItem value="EUR">EUR - Euro</SelectItem>
               <SelectItem value="GBP">GBP - British Pound</SelectItem>
@@ -137,13 +149,17 @@ export const ShippingDetailsForm = ({
           </Select>
           <div className="space-y-1">
             <p className="text-xs text-slate-500">Rate currency</p>
-            <div className="flex items-start gap-1.5 p-2 bg-amber-50 border border-amber-200 rounded-md">
-              <Info className="w-3 h-3 text-amber-600 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-700">
-                Note: The displayed currency may differ from your selection if your FedEx account has a preferred currency assigned.
-              </p>
-            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Currency Notice - Full width on mobile */}
+      <div className="mt-3 sm:mt-4">
+        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+          <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+          <p className="text-xs sm:text-sm text-amber-700">
+            Note: The displayed currency may differ from your selection if your FedEx account has a preferred currency assigned.
+          </p>
         </div>
       </div>
     </div>
