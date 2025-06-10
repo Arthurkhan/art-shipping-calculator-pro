@@ -10,57 +10,61 @@ Adding support for FedEx last-minute rates and fixing the issue where our app sh
 2. **No last-minute rates**: FedEx website shows special "LAST-MINUTE RATE" options that are significantly cheaper
 3. **Rate selection logic**: We might not be selecting the best available rate from the response
 
-## Changes Required
+## Changes Implemented
 
 ### 1. Backend Changes (supabase/functions/calculate-shipping/)
 
-#### lib/fedex-rates.ts
+#### lib/fedex-rates.ts ✅
 - **Modified**: parseRateResponse() method to:
-  - Parse INCENTIVE rates in addition to LIST and ACCOUNT
+  - Parse all rate types including INCENTIVE rates
   - Look for all available rate types in the response
   - Select the lowest rate when multiple options are available
-  - Add support for identifying last-minute rates
+  - Identify last-minute rates based on rate type
+  - Return both primary and alternative rates when available
 
-#### lib/payload-builder.ts
-- **No changes needed**: Already requesting ["LIST", "ACCOUNT", "INCENTIVE"] rates
-
-#### types/fedex-types.ts
-- **Modified**: Add new rate type constants and interfaces for last-minute rates
+#### types/shipping-types.ts ✅
+- **Modified**: Added new fields to ShippingRate interface:
+  - `rateType?: string` - The FedEx rate type (LIST, ACCOUNT, INCENTIVE, etc.)
+  - `isLastMinute?: boolean` - Flag indicating if this is a last-minute rate
+  - `isAlternative?: boolean` - Flag for alternative rates
 
 ### 2. Frontend Changes
 
-#### src/components/shipping/ShippingRateCard.tsx
-- **Modified**: Display last-minute rates with special styling/badge
+#### src/components/shipping/ResultsDisplay.tsx ✅
+- **Modified**: Updated to display last-minute rates with special styling
+- Added grouping of rates by service type
 - Show both regular and last-minute rates when available
+- Display savings amount and percentage for last-minute rates
+- Added special orange-themed styling for last-minute rates
+- Added badges and icons to highlight special offers
 
-#### src/types/shipping.ts
-- **Modified**: Add fields for rate type and last-minute flag
+## Key Improvements
 
-## Implementation Details
+1. **Better Rate Selection**: Now selects the lowest available rate from all rate types (LIST, ACCOUNT, INCENTIVE)
+2. **Last-Minute Rate Support**: Identifies and displays last-minute rates with special styling
+3. **Alternative Rates**: Shows both regular and last-minute rates when available
+4. **Improved UI**: Clear visual distinction between regular and last-minute rates
 
-### Rate Parsing Logic Changes
-- Check for all rate types: LIST, ACCOUNT, INCENTIVE, RATED_ACCOUNT, etc.
-- When multiple rates exist for a service, select the lowest one
-- Mark rates as "last-minute" based on rate type or special indicators
-
-### Display Changes
-- Show both regular and last-minute rates similar to FedEx website
-- Add visual indicators for last-minute rates (badges, different styling)
-- Display savings percentage when last-minute rates are available
-
-## Testing Plan
+## Testing Recommendations
 1. Test with same origin/destination as FedEx website (Thailand → Indonesia)
 2. Compare rates between our app and FedEx website
 3. Verify all rate types are being parsed correctly
-4. Ensure last-minute rates are displayed properly
+4. Ensure last-minute rates are displayed properly when available
 
 ## Success Criteria
-- [ ] Rates match FedEx website more closely (within reasonable margin)
-- [ ] Last-minute rates are displayed when available
-- [ ] All rate types (LIST, ACCOUNT, INCENTIVE) are parsed
-- [ ] UI clearly shows regular vs last-minute rates
+- [x] Parse all rate types (LIST, ACCOUNT, INCENTIVE)
+- [x] Support last-minute rates in backend
+- [x] Display last-minute rates with special styling
+- [x] Show savings information for last-minute rates
+- [ ] Rates match FedEx website more closely (pending testing)
+
+## Notes
+- The rate difference issue should be resolved by now selecting the best (lowest) available rate
+- Last-minute rates are identified by rate type containing "INCENTIVE" or special indicators
+- Frontend now groups rates by service and shows alternatives when available
 
 ## Next Steps
-1. Deploy backend changes
+1. Deploy changes to production
 2. Test with production FedEx account
 3. Monitor rate accuracy compared to FedEx website
+4. Consider adding a toggle to show/hide last-minute rates if needed
