@@ -58,7 +58,11 @@ serve(async (req) => {
     });
 
     // Validate required fields
-    if (!requestData.collection || (!requestData.size && !requestData.overrideData) || !requestData.country || !requestData.postalCode) {
+    // When override data is provided, we don't need collection/size
+    const needsCollectionAndSize = !requestData.overrideData;
+    
+    if ((needsCollectionAndSize && (!requestData.collection || !requestData.size)) || 
+        !requestData.country || !requestData.postalCode) {
       throw {
         type: 'VALIDATION',
         message: 'Missing required fields',
