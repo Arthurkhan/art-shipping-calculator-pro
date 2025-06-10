@@ -289,7 +289,7 @@ export class FedexRatesService {
 
   /**
    * Parse FedEx rate response into ShippingRate array
-   * UPDATED: Returns BOTH account rate and last-minute rate when available
+   * UPDATED: Returns BOTH LIST and ACCOUNT rates for proper display
    */
   static parseRateResponse(
     responseData: FedexRateResponse, 
@@ -348,115 +348,127 @@ export class FedexRatesService {
             validRates: validRates.map(r => ({ rateType: r.rateType, amount: r.amount }))
           });
           
-          // Find the ACCOUNT rate (primary rate)
-          const accountRate = validRates.find(r => r.rateType === 'ACCOUNT' || r.rateType === 'RATED_ACCOUNT');
+          // Find the LIST rate
+          const listRate = validRates.find(r => r.rateType === 'LIST' || r.rateType === 'RATED_LIST_PACKAGE');
           
-          // Find the INCENTIVE/LAST-MINUTE rate
-          const lastMinuteRate = validRates.find(r => 
+          // Find the ACCOUNT rate
+          const accountRate = validRates.find(r => 
+            r.rateType === 'ACCOUNT' || 
+            r.rateType === 'RATED_ACCOUNT' ||
             r.rateType === 'INCENTIVE' || 
-            r.rateType === 'RATED_INCENTIVE' ||
-            r.rateType?.toLowerCase().includes('last') ||
-            r.rateType?.toLowerCase().includes('minute')
+            r.rateType === 'RATED_INCENTIVE'
           );
           
-          // If no account rate, find the LIST rate as fallback
-          const primaryRate = accountRate || validRates.find(r => r.rateType === 'LIST' || r.rateType === 'RATED_LIST_PACKAGE') || validRates[0];
+          // Extract common fields for this service
+          let rateCurrency = preferredCurrency;
+          const firstDetail = rateDetail.ratedShipmentDetails[0] as FedexApiRatedShipmentDetail;
+          if (firstDetail && firstDetail.currency) {
+            // If currency is a symbol, use the preferredCurrency instead
+            const currencySymbols = ['$', '€', '£', '¥', '₹', '₩', 'R$', '₱'];
+            if (currencySymbols.includes(firstDetail.currency)) {
+              rateCurrency = preferredCurrency;
+            } else {
+              rateCurrency = firstDetail.currency;
+            }
+          }
+
+          // Extract transit time and delivery date
+          let transitTime = 'Unknown';
+          let deliveryDate = undefined;
           
-          if (primaryRate) {
-            // Extract currency (using first detail for currency info)
-            let rateCurrency = preferredCurrency;
-            const firstDetail = rateDetail.ratedShipmentDetails[0] as FedexApiRatedShipmentDetail;
-            if (firstDetail && firstDetail.currency) {
-              // If currency is a symbol, use the preferredCurrency instead
-              const currencySymbols = ['$', '€', '£', '¥', '₹', '₩', 'R$', '₱'];
-              if (currencySymbols.includes(firstDetail.currency)) {
-                rateCurrency = preferredCurrency;
-              } else {
-                rateCurrency = firstDetail.currency;
+          if (rateDetail.transitTime) {
+            transitTime = rateDetail.transitTime;
+          }
+          
+          if (rateDetail.deliveryTimestamp) {
+            deliveryDate = this.formatDeliveryDate(rateDetail.deliveryTimestamp);
+          }
+          
+          if (rateDetail.operationalDetail) {
+            if (rateDetail.operationalDetail.transitTime) {
+              transitTime = rateDetail.operationalDetail.transitTime;
+            }
+            if (!deliveryDate && rateDetail.operationalDetail.deliveryDate) {
+              deliveryDate = this.formatDeliveryDate(rateDetail.operationalDetail.deliveryDate);
+            }
+          }
+          
+          if (rateDetail.commit) {
+            if (rateDetail.commit.label) {
+              transitTime = rateDetail.commit.label;
+            } else if (rateDetail.commit.transitTime) {
+              transitTime = rateDetail.commit.transitTime;
+            }
+            
+            if (!deliveryDate && rateDetail.commit.dateDetail) {
+              if (rateDetail.commit.dateDetail.dayOfWeek) {
+                deliveryDate = rateDetail.commit.dateDetail.dayOfWeek;
               }
             }
+          }
 
-            // Extract transit time and delivery date
-            let transitTime = 'Unknown';
-            let deliveryDate = undefined;
-            
-            if (rateDetail.transitTime) {
-              transitTime = rateDetail.transitTime;
-            }
-            
-            if (rateDetail.deliveryTimestamp) {
-              deliveryDate = this.formatDeliveryDate(rateDetail.deliveryTimestamp);
-            }
-            
-            if (rateDetail.operationalDetail) {
-              if (rateDetail.operationalDetail.transitTime) {
-                transitTime = rateDetail.operationalDetail.transitTime;
-              }
-              if (!deliveryDate && rateDetail.operationalDetail.deliveryDate) {
-                deliveryDate = this.formatDeliveryDate(rateDetail.operationalDetail.deliveryDate);
-              }
-            }
-            
-            if (rateDetail.commit) {
-              if (rateDetail.commit.label) {
-                transitTime = rateDetail.commit.label;
-              } else if (rateDetail.commit.transitTime) {
-                transitTime = rateDetail.commit.transitTime;
-              }
-              
-              if (!deliveryDate && rateDetail.commit.dateDetail) {
-                if (rateDetail.commit.dateDetail.dayOfWeek) {
-                  deliveryDate = rateDetail.commit.dateDetail.dayOfWeek;
-                }
-              }
-            }
-
-            // Add the primary rate (ACCOUNT or LIST)
+          // Add the LIST rate (if available)
+          if (listRate) {
             const rate: ShippingRate = {
               service: rateDetail.serviceType || 'Unknown Service',
-              cost: primaryRate.amount,
+              cost: listRate.amount,
               currency: rateCurrency,
               transitTime: transitTime,
               deliveryDate: deliveryDate,
-              rateType: primaryRate.rateType,
-              isLastMinute: false
+              rateType: 'LIST'
             };
             
-            Logger.info('=== PRIMARY RATE ADDED ===', { 
+            Logger.info('=== LIST RATE ADDED ===', { 
               service: rate.service,
               cost: rate.cost,
               currency: rate.currency,
-              rateType: rate.rateType,
-              extractedFrom: primaryRate.rateType
+              rateType: rate.rateType
             });
             
             rates.push(rate);
+          }
+          
+          // Add the ACCOUNT rate (if available)
+          if (accountRate) {
+            const rate: ShippingRate = {
+              service: rateDetail.serviceType || 'Unknown Service',
+              cost: accountRate.amount,
+              currency: rateCurrency,
+              transitTime: transitTime,
+              deliveryDate: deliveryDate,
+              rateType: 'ACCOUNT'
+            };
             
-            // If there's a last-minute rate that's different from the primary rate, add it
-            if (lastMinuteRate && lastMinuteRate.rateType !== primaryRate.rateType) {
-              const alternativeRate: ShippingRate = {
-                service: rateDetail.serviceType || 'Unknown Service',
-                cost: lastMinuteRate.amount,
-                currency: rateCurrency,
-                transitTime: transitTime,
-                deliveryDate: deliveryDate,
-                rateType: lastMinuteRate.rateType,
-                isLastMinute: true,
-                isAlternative: true
-              };
-              
-              Logger.info('=== LAST-MINUTE RATE ADDED ===', { 
-                service: alternativeRate.service,
-                cost: alternativeRate.cost,
-                rateType: alternativeRate.rateType
-              });
-              
-              rates.push(alternativeRate);
-            }
-          } else {
-            Logger.error('No valid rate amount found for service', {
-              serviceType: rateDetail.serviceType
+            Logger.info('=== ACCOUNT RATE ADDED ===', { 
+              service: rate.service,
+              cost: rate.cost,
+              currency: rate.currency,
+              rateType: rate.rateType
             });
+            
+            rates.push(rate);
+          }
+          
+          // If we have neither LIST nor ACCOUNT, add whatever we have as a fallback
+          if (!listRate && !accountRate && validRates.length > 0) {
+            const fallbackRate = validRates[0];
+            const rate: ShippingRate = {
+              service: rateDetail.serviceType || 'Unknown Service',
+              cost: fallbackRate.amount,
+              currency: rateCurrency,
+              transitTime: transitTime,
+              deliveryDate: deliveryDate,
+              rateType: fallbackRate.rateType
+            };
+            
+            Logger.info('=== FALLBACK RATE ADDED ===', { 
+              service: rate.service,
+              cost: rate.cost,
+              currency: rate.currency,
+              rateType: rate.rateType
+            });
+            
+            rates.push(rate);
           }
         }
       }
