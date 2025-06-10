@@ -116,11 +116,11 @@ const BoxRow = ({
         </div>
       )}
 
-      {/* Single row with all fields */}
-      <div className="grid grid-cols-5 gap-2">
+      {/* Responsive grid layout - stacked on mobile, grid on larger screens */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         {/* Quantity */}
         <div>
-          <Label htmlFor={`quantity-${box.id}`} className="text-xs">Quantity</Label>
+          <Label htmlFor={`quantity-${box.id}`} className="text-xs sm:text-sm">Quantity</Label>
           <Input
             id={`quantity-${box.id}`}
             type="number"
@@ -130,13 +130,14 @@ const BoxRow = ({
             min="1"
             step="1"
             disabled={!isEnabled}
-            className="h-9"
+            className="h-10 sm:h-9 text-base sm:text-sm"
+            inputMode="numeric"
           />
         </div>
 
         {/* Length */}
         <div>
-          <Label htmlFor={`length-${box.id}`} className="text-xs">Length (cm)</Label>
+          <Label htmlFor={`length-${box.id}`} className="text-xs sm:text-sm">Length (cm)</Label>
           <Input
             id={`length-${box.id}`}
             type="number"
@@ -146,13 +147,14 @@ const BoxRow = ({
             min="0.1"
             step="0.1"
             disabled={!isEnabled}
-            className="h-9"
+            className="h-10 sm:h-9 text-base sm:text-sm"
+            inputMode="decimal"
           />
         </div>
 
         {/* Width */}
         <div>
-          <Label htmlFor={`width-${box.id}`} className="text-xs">Width (cm)</Label>
+          <Label htmlFor={`width-${box.id}`} className="text-xs sm:text-sm">Width (cm)</Label>
           <Input
             id={`width-${box.id}`}
             type="number"
@@ -162,13 +164,14 @@ const BoxRow = ({
             min="0.1"
             step="0.1"
             disabled={!isEnabled}
-            className="h-9"
+            className="h-10 sm:h-9 text-base sm:text-sm"
+            inputMode="decimal"
           />
         </div>
 
         {/* Height */}
         <div>
-          <Label htmlFor={`height-${box.id}`} className="text-xs">Height (cm)</Label>
+          <Label htmlFor={`height-${box.id}`} className="text-xs sm:text-sm">Height (cm)</Label>
           <Input
             id={`height-${box.id}`}
             type="number"
@@ -178,13 +181,14 @@ const BoxRow = ({
             min="0.1"
             step="0.1"
             disabled={!isEnabled}
-            className="h-9"
+            className="h-10 sm:h-9 text-base sm:text-sm"
+            inputMode="decimal"
           />
         </div>
 
         {/* Weight */}
         <div>
-          <Label htmlFor={`weight-${box.id}`} className="text-xs">Weight (kg)</Label>
+          <Label htmlFor={`weight-${box.id}`} className="text-xs sm:text-sm">Weight (kg)</Label>
           <Input
             id={`weight-${box.id}`}
             type="number"
@@ -194,19 +198,22 @@ const BoxRow = ({
             min="0.1"
             step="0.1"
             disabled={!isEnabled}
-            className="h-9"
+            className="h-10 sm:h-9 text-base sm:text-sm"
+            inputMode="decimal"
           />
         </div>
       </div>
 
-      {/* Weight calculations per box */}
+      {/* Weight calculations per box - responsive text */}
       {isEnabled && (
-        <div className="text-xs text-slate-600 pl-2">
-          <span>Actual: {box.weight} kg</span>
-          <span className="mx-2">•</span>
-          <span>Dimensional: {dimensionalWeight.toFixed(2)} kg</span>
-          <span className="mx-2">•</span>
-          <span>Billed: <span className="font-medium">{billedWeight.toFixed(2)} kg</span> × {box.quantity} {box.quantity > 1 ? 'boxes' : 'box'}</span>
+        <div className="text-xs sm:text-sm text-slate-600 pl-2 space-y-1 sm:space-y-0">
+          <span className="block sm:inline">Actual: {box.weight} kg</span>
+          <span className="hidden sm:inline mx-2">•</span>
+          <span className="block sm:inline">Dimensional: {dimensionalWeight.toFixed(2)} kg</span>
+          <span className="hidden sm:inline mx-2">•</span>
+          <span className="block sm:inline">
+            Billed: <span className="font-medium">{billedWeight.toFixed(2)} kg</span> × {box.quantity} {box.quantity > 1 ? 'boxes' : 'box'}
+          </span>
         </div>
       )}
     </div>
@@ -241,12 +248,12 @@ export const OverrideForm = ({
   return (
     <Card className={`border-purple-200 ${isEnabled ? 'bg-purple-50/50' : 'bg-slate-50/50'}`}>
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg flex items-center text-purple-900">
-          <Package className="w-5 h-5 mr-2" />
+        <CardTitle className="text-base sm:text-lg flex items-center text-purple-900">
+          <Package className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           Custom Shipping Parameters
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 px-3 sm:px-6">
         {/* Box configurations */}
         <div className="space-y-4">
           {overrideSettings.boxes.map((box, index) => (
@@ -274,18 +281,18 @@ export const OverrideForm = ({
             onClick={onAddBox}
             variant="outline"
             size="sm"
-            className="w-full"
+            className="w-full h-10 sm:h-9"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Row
           </Button>
         )}
 
-        {/* Shipment Summary */}
+        {/* Shipment Summary - responsive grid */}
         {isEnabled && shipmentStats && overrideSettings.boxes.length > 1 && (
           <div className="bg-white rounded-lg p-3 space-y-2">
             <div className="text-sm font-medium text-slate-700">Shipment Summary</div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm">
               <div>
                 <span className="text-slate-600">Total Boxes:</span>{" "}
                 <span className="font-medium">{shipmentStats.totalBoxes}</span>
@@ -300,7 +307,7 @@ export const OverrideForm = ({
               </div>
               <div>
                 <span className="text-slate-600">Total Billed Weight:</span>{" "}
-                <Badge variant="outline" className="ml-1 bg-purple-100 text-purple-800">
+                <Badge variant="outline" className="ml-1 bg-purple-100 text-purple-800 text-xs">
                   {shipmentStats.totalBilledWeight.toFixed(2)} kg
                 </Badge>
               </div>
@@ -312,7 +319,7 @@ export const OverrideForm = ({
         {validationErrors.length > 0 && isEnabled && (
           <Alert variant="destructive">
             <AlertDescription>
-              <ul className="list-disc list-inside text-sm">
+              <ul className="list-disc list-inside text-xs sm:text-sm">
                 {validationErrors.map((error, index) => (
                   <li key={index}>{error}</li>
                 ))}
@@ -328,7 +335,7 @@ export const OverrideForm = ({
               onClick={onReset}
               variant="outline"
               size="sm"
-              className="w-full"
+              className="w-full h-10 sm:h-9"
             >
               <RotateCcw className="w-4 h-4 mr-2" />
               Reset to Defaults
