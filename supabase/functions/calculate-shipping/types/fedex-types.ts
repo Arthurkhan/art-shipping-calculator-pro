@@ -76,6 +76,7 @@ export interface PayloadParams {
   destinationPostalCode: string;
   preferredCurrency: string;
   shipDateStamp: string;
+  quantity?: number; // Optional quantity parameter for multiple boxes
 }
 
 // FedEx Rate Response Types
