@@ -5,7 +5,7 @@ import { FedexAuthService } from './lib/fedex-auth.ts';
 import { FedexRatesService } from './lib/fedex-rates.ts';
 import { Logger } from './lib/logger.ts';
 import { getCollectionSize } from './lib/collection-service.ts'; // Fixed import - it's a function, not a class
-import type { ShippingRequest, ShippingRate, ShippingError, ErrorType } from './types/index.ts';
+import type { ShippingRequest, ShippingRate, ShippingError, ErrorType, CollectionSize } from './types/index.ts';
 
 // Complete CORS headers with all required fields
 const corsHeaders = {
@@ -51,12 +51,14 @@ serve(async (req) => {
         ...requestData,
         fedexConfig: requestData.fedexConfig ? '[REDACTED]' : 'Not provided',
         preferredCurrency: requestData.preferredCurrency || 'Not provided (will auto-map)',
-        shipDate: requestData.shipDate || 'Not provided (will use tomorrow)'
+        shipDate: requestData.shipDate || 'Not provided (will use tomorrow)',
+        overrideData: requestData.overrideData || 'Not provided',
+        hasOverride: !!requestData.overrideData
       }
     });
 
     // Validate required fields
-    if (!requestData.collection || !requestData.size || !requestData.country || !requestData.postalCode) {
+    if (!requestData.collection || (!requestData.size && !requestData.overrideData) || !requestData.country || !requestData.postalCode) {
       throw {
         type: 'VALIDATION',
         message: 'Missing required fields',
@@ -70,8 +72,34 @@ serve(async (req) => {
 
     Logger.info('Using origin address (Phase 2 defaults)', { originCountry, originPostalCode });
 
-    // Use getCollectionSize function directly
-    const sizeData = await getCollectionSize(requestData.collection, requestData.size);
+    // Get size data - either from override or database
+    let sizeData: CollectionSize;
+    let quantity = 1; // Default quantity
+
+    if (requestData.overrideData) {
+      // Use override data if provided
+      Logger.info('Using override data for dimensions and weight', { 
+        overrideData: requestData.overrideData 
+      });
+      
+      sizeData = {
+        weight_kg: requestData.overrideData.weight_kg,
+        height_cm: requestData.overrideData.height_cm,
+        length_cm: requestData.overrideData.length_cm,
+        width_cm: requestData.overrideData.width_cm
+      };
+      
+      quantity = requestData.overrideData.quantity || 1;
+    } else {
+      // Use getCollectionSize function directly
+      sizeData = await getCollectionSize(requestData.collection, requestData.size);
+    }
+
+    Logger.info('Size data determined', { 
+      sizeData,
+      quantity,
+      source: requestData.overrideData ? 'override' : 'database'
+    });
 
     let rates: ShippingRate[] = [];
     let rawFedexResponse = null; // Store raw response for debugging
@@ -94,7 +122,7 @@ serve(async (req) => {
         // Use FedexAuthService to get access token
         const accessToken = await FedexAuthService.getAccessToken(clientId, clientSecret);
         
-        // Use FedexRatesService to get rates with optional ship date
+        // Use FedexRatesService to get rates with optional ship date and quantity
         const fedexRates = await FedexRatesService.getRates(
           accessToken,
           accountNumber,
@@ -104,7 +132,8 @@ serve(async (req) => {
           requestData.country,
           requestData.postalCode,
           requestData.preferredCurrency,
-          requestData.shipDate // Pass user-selected ship date (optional)
+          requestData.shipDate, // Pass user-selected ship date (optional)
+          quantity // Pass quantity for multiple boxes
         );
         
         // DEBUGGING: Get the raw FedEx response
@@ -132,7 +161,9 @@ serve(async (req) => {
       totalRates: rates.length,
       requestId,
       currencyUsed: requestData.preferredCurrency || 'auto-mapped',
-      shipDateUsed: requestData.shipDate || 'auto-generated (tomorrow)'
+      shipDateUsed: requestData.shipDate || 'auto-generated (tomorrow)',
+      usingOverride: !!requestData.overrideData,
+      quantity
     });
 
     return new Response(
@@ -142,7 +173,8 @@ serve(async (req) => {
         requestId,
         // DEBUGGING: Include raw FedEx response temporarily
         _debug: {
-          rawFedexResponse: rawFedexResponse
+          rawFedexResponse: rawFedexResponse,
+          usingOverride: !!requestData.overrideData
         }
       }),
       {
