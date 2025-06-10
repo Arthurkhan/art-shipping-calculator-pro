@@ -24,19 +24,30 @@ const formatPrice = (price: number): string => {
   return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 };
 
-// Group rates by service type
-const groupRatesByService = (rates: ShippingRate[]): Map<string, ShippingRate[]> => {
-  const grouped = new Map<string, ShippingRate[]>();
+// Group rates by service type and separate regular from last-minute
+const organizeRates = (rates: ShippingRate[]): Map<string, { regular?: ShippingRate, lastMinute?: ShippingRate }> => {
+  const organized = new Map<string, { regular?: ShippingRate, lastMinute?: ShippingRate }>();
   
   rates.forEach(rate => {
     const service = rate.service;
-    if (!grouped.has(service)) {
-      grouped.set(service, []);
+    if (!organized.has(service)) {
+      organized.set(service, {});
     }
-    grouped.get(service)!.push(rate);
+    
+    const serviceRates = organized.get(service)!;
+    
+    // Separate regular and last-minute rates
+    if (rate.isLastMinute || rate.rateType === 'INCENTIVE' || rate.rateType === 'RATED_INCENTIVE') {
+      serviceRates.lastMinute = rate;
+    } else {
+      // If we don't have a regular rate yet, or this is a better regular rate
+      if (!serviceRates.regular || rate.cost < serviceRates.regular.cost) {
+        serviceRates.regular = rate;
+      }
+    }
   });
   
-  return grouped;
+  return organized;
 };
 
 export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
@@ -65,8 +76,8 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
     return null;
   }
 
-  // Group rates by service to show regular and last-minute rates together
-  const groupedRates = groupRatesByService(rates);
+  // Organize rates by service type
+  const organizedRates = organizeRates(rates);
 
   return (
     <div className="space-y-4">
@@ -75,79 +86,71 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
         Available Shipping Options
       </h3>
       <div className="space-y-4">
-        {Array.from(groupedRates.entries()).map(([service, serviceRates]) => {
-          // Sort rates: primary rates first, then alternatives
-          const sortedRates = serviceRates.sort((a, b) => {
-            if (a.isAlternative && !b.isAlternative) return 1;
-            if (!a.isAlternative && b.isAlternative) return -1;
-            return a.cost - b.cost;
-          });
+        {Array.from(organizedRates.entries()).map(([service, serviceRates]) => {
+          const { regular, lastMinute } = serviceRates;
           
-          const primaryRate = sortedRates.find(r => !r.isAlternative) || sortedRates[0];
-          const lastMinuteRate = sortedRates.find(r => r.isLastMinute && r !== primaryRate);
+          // Skip if no regular rate (shouldn't happen, but just in case)
+          if (!regular) return null;
           
           return (
             <div key={service} className="space-y-2">
-              {/* Primary Rate */}
+              {/* Regular/Account Rate */}
               <Card className="p-4 hover:shadow-md transition-shadow border-slate-200">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-medium text-slate-800 break-words">{primaryRate.service}</h4>
-                      {primaryRate.isLastMinute && (
-                        <Badge variant="destructive" className="flex items-center gap-1">
-                          <Zap className="w-3 h-3" />
-                          Last Minute
+                      <h4 className="font-medium text-slate-800 break-words">{regular.service}</h4>
+                      {regular.rateType && (
+                        <Badge variant="secondary" className="text-xs">
+                          {regular.rateType === 'ACCOUNT' ? 'Account Rate' : regular.rateType}
                         </Badge>
                       )}
                     </div>
                     <div className="flex items-center text-sm text-slate-600">
                       <Clock className="w-4 h-4 mr-1 flex-shrink-0" />
                       <span className="break-words">
-                        {primaryRate.transitTime}
-                        {primaryRate.deliveryDate && (
-                          <span className="ml-2">• Delivery: {primaryRate.deliveryDate}</span>
+                        {regular.transitTime}
+                        {regular.deliveryDate && (
+                          <span className="ml-2">• Delivery: {regular.deliveryDate}</span>
                         )}
                       </span>
                     </div>
                   </div>
                   <div className="sm:text-right">
                     <div className="text-xl font-bold text-slate-800">
-                      {primaryRate.currency} {formatPrice(primaryRate.cost)}
+                      {regular.currency} {formatPrice(regular.cost)}
                     </div>
                     <div className="text-sm text-slate-500">
-                      {primaryRate.currency === 'THB' ? 'Thai Baht' : 
-                       primaryRate.currency === 'USD' ? 'US Dollar' : 
-                       primaryRate.currency === 'SGD' ? 'Singapore Dollar' : 
-                       primaryRate.currency}
+                      {regular.currency === 'THB' ? 'Thai Baht' : 
+                       regular.currency === 'USD' ? 'US Dollar' : 
+                       regular.currency === 'SGD' ? 'Singapore Dollar' : 
+                       regular.currency}
                     </div>
                   </div>
                 </div>
               </Card>
               
-              {/* Last Minute Alternative Rate (if available and different) */}
-              {lastMinuteRate && (
+              {/* Last Minute Rate (if available and different from regular) */}
+              {lastMinute && lastMinute.cost !== regular.cost && (
                 <Card className="p-4 hover:shadow-md transition-shadow border-orange-200 bg-orange-50/50 ml-4">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2">
-                        <Tag className="w-4 h-4 text-orange-600" />
-                        <span className="font-medium text-slate-700">Last-Minute Rate</span>
+                        <Zap className="w-4 h-4 text-orange-600" />
+                        <span className="font-medium text-slate-700">Last minute rate</span>
                         <Badge variant="outline" className="flex items-center gap-1 border-orange-600 text-orange-700">
-                          <Zap className="w-3 h-3" />
+                          <Tag className="w-3 h-3" />
                           Special Offer
                         </Badge>
                       </div>
                       <div className="text-sm text-slate-600">
-                        Save {primaryRate.currency} {formatPrice(primaryRate.cost - lastMinuteRate.cost)} ({Math.round((1 - lastMinuteRate.cost / primaryRate.cost) * 100)}% off)
+                        Save {regular.currency} {formatPrice(regular.cost - lastMinute.cost)} ({Math.round((1 - lastMinute.cost / regular.cost) * 100)}% off)
                       </div>
                     </div>
                     <div className="sm:text-right">
-                      <div className="text-xl font-bold text-orange-700 line-through text-sm">
-                        {lastMinuteRate.currency} {formatPrice(primaryRate.cost)}
-                      </div>
-                      <div className="text-2xl font-bold text-orange-700">
-                        {lastMinuteRate.currency} {formatPrice(lastMinuteRate.cost)}
+                      <div className="text-xl font-bold text-orange-700 flex flex-col items-end">
+                        <span className="text-sm line-through text-slate-500">{lastMinute.currency} {formatPrice(regular.cost)}</span>
+                        <span className="text-2xl">{lastMinute.currency} {formatPrice(lastMinute.cost)}</span>
                       </div>
                     </div>
                   </div>
