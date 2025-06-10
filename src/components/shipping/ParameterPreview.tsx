@@ -196,7 +196,7 @@ export const ParameterPreview = ({
         <CardContent className="p-4">
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-blue-700">Loading parameters...</span>
+            <span className="ml-2 text-blue-700 text-sm">Loading parameters...</span>
           </div>
         </CardContent>
       </Card>
@@ -207,7 +207,7 @@ export const ParameterPreview = ({
     return (
       <Alert className="border-red-200 bg-red-50">
         <Info className="h-4 w-4 text-red-600" />
-        <AlertDescription className="text-red-800">
+        <AlertDescription className="text-red-800 text-sm">
           {error || 'No size data available'}
         </AlertDescription>
       </Alert>
@@ -218,54 +218,54 @@ export const ParameterPreview = ({
 
   return (
     <Card className={`border-blue-200 ${isOverrideEnabled ? 'bg-gradient-to-r from-purple-50/50 to-indigo-50/50' : 'bg-gradient-to-r from-blue-50/50 to-indigo-50/50'}`}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center justify-between">
+      <CardHeader className="pb-3 px-3 sm:px-6">
+        <CardTitle className="text-base sm:text-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center text-blue-900">
-            <Info className="w-5 h-5 mr-2" />
+            <Info className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
             Shipping Parameters Preview
           </div>
           {isOverrideEnabled && (
-            <Badge variant="default" className="bg-purple-100 text-purple-800 border-purple-200">
+            <Badge variant="default" className="bg-purple-100 text-purple-800 border-purple-200 text-xs sm:text-sm w-fit">
               <Edit3 className="w-3 h-3 mr-1" />
               Override Active
             </Badge>
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 px-3 sm:px-6">
         {/* Collection & Size Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <div className="flex items-center text-sm font-medium text-slate-700">
+            <div className="flex items-center text-xs sm:text-sm font-medium text-slate-700">
               <Package className="w-4 h-4 mr-2 text-blue-600" />
               Collection & Size
             </div>
             <div className="pl-6 space-y-1">
-              <div className="text-sm">
+              <div className="text-xs sm:text-sm">
                 <span className="font-medium">Collection:</span> {collectionName}
               </div>
-              <div className="text-sm">
+              <div className="text-xs sm:text-sm">
                 <span className="font-medium">Size:</span> {isOverrideEnabled ? 'Custom' : size}
               </div>
-              <div className="text-sm">
+              <div className="text-xs sm:text-sm">
                 <span className="font-medium">Number of boxes:</span> {shipmentStats?.totalBoxes || (sizeData ? 1 : 0)}
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center text-sm font-medium text-slate-700">
+            <div className="flex items-center text-xs sm:text-sm font-medium text-slate-700">
               <Globe className="w-4 h-4 mr-2 text-green-600" />
               Shipping Route
             </div>
             <div className="pl-6 space-y-1">
-              <div className="text-sm">
+              <div className="text-xs sm:text-sm">
                 <span className="font-medium">From:</span> {originCountry} {originPostalCode}
               </div>
-              <div className="text-sm">
+              <div className="text-xs sm:text-sm">
                 <span className="font-medium">To:</span> {country} {postalCode}
               </div>
-              <div className="text-sm">
+              <div className="text-xs sm:text-sm">
                 <span className="font-medium">Ship Date:</span> {getFormattedShipDate()}
               </div>
             </div>
@@ -275,11 +275,11 @@ export const ParameterPreview = ({
         {/* Box Configurations for Override Mode */}
         {isOverrideEnabled && overrideData?.box_configurations && (
           <div className="space-y-2">
-            <div className="flex items-center text-sm font-medium text-slate-700">
+            <div className="flex items-center text-xs sm:text-sm font-medium text-slate-700">
               <Calculator className="w-4 h-4 mr-2 text-purple-600" />
               Box Configurations
             </div>
-            <div className="pl-6 space-y-3">
+            <div className="pl-6 space-y-3 mobile-scroll-container">
               {overrideData.box_configurations.map((config, index) => {
                 const dimWeight = calculateDimensionalWeight(
                   config.dimensions.length,
@@ -295,13 +295,15 @@ export const ParameterPreview = ({
 
                 return (
                   <div key={index} className="bg-white/50 rounded-lg p-3 space-y-1">
-                    <div className="text-sm font-medium text-slate-700">
+                    <div className="text-xs sm:text-sm font-medium text-slate-700">
                       Configuration {index + 1}: {config.quantity} {config.quantity > 1 ? 'boxes' : 'box'}
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm">
                       <div>
                         <span className="text-slate-600">Dimensions:</span>{' '}
-                        {config.dimensions.length} × {config.dimensions.width} × {config.dimensions.height} cm
+                        <span className="block sm:inline">
+                          {config.dimensions.length} × {config.dimensions.width} × {config.dimensions.height} cm
+                        </span>
                       </div>
                       <div>
                         <span className="text-slate-600">Net Weight:</span> {config.weight} kg
@@ -311,7 +313,7 @@ export const ParameterPreview = ({
                       </div>
                       <div>
                         <span className="text-slate-600">Billed Weight:</span>{' '}
-                        <Badge variant="outline" className="ml-1 bg-purple-100 text-purple-800">
+                        <Badge variant="outline" className="ml-1 bg-purple-100 text-purple-800 text-xs">
                           {billedWeight} kg
                         </Badge>
                       </div>
@@ -327,18 +329,18 @@ export const ParameterPreview = ({
         {!isOverrideEnabled && sizeData && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <div className="flex items-center text-sm font-medium text-slate-700">
+              <div className="flex items-center text-xs sm:text-sm font-medium text-slate-700">
                 <Calculator className="w-4 h-4 mr-2 text-purple-600" />
                 Dimensions (CM)
               </div>
               <div className="pl-6 space-y-1">
-                <div className="text-sm">
+                <div className="text-xs sm:text-sm">
                   <span className="font-medium">Length:</span> {sizeData.length_cm} cm
                 </div>
-                <div className="text-sm">
+                <div className="text-xs sm:text-sm">
                   <span className="font-medium">Width:</span> {sizeData.width_cm} cm
                 </div>
-                <div className="text-sm">
+                <div className="text-xs sm:text-sm">
                   <span className="font-medium">Height:</span> {sizeData.height_cm} cm
                 </div>
                 <div className="text-xs text-slate-600 mt-1">
@@ -348,21 +350,21 @@ export const ParameterPreview = ({
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center text-sm font-medium text-slate-700">
+              <div className="flex items-center text-xs sm:text-sm font-medium text-slate-700">
                 <Package className="w-4 h-4 mr-2 text-orange-600" />
                 Weight Calculation
               </div>
               <div className="pl-6 space-y-1">
-                <div className="text-sm">
+                <div className="text-xs sm:text-sm">
                   <span className="font-medium">Net Weight:</span> {sizeData.weight_kg} kg
                 </div>
-                <div className="text-sm">
+                <div className="text-xs sm:text-sm">
                   <span className="font-medium">Dimensional Weight:</span>{' '}
                   {calculateDimensionalWeight(sizeData.length_cm, sizeData.width_cm, sizeData.height_cm)} kg
                 </div>
-                <div className="text-sm">
+                <div className="text-xs sm:text-sm">
                   <span className="font-medium">Billed Weight:</span>{" "}
-                  <Badge variant="outline" className="ml-1 bg-blue-100 text-blue-800">
+                  <Badge variant="outline" className="ml-1 bg-blue-100 text-blue-800 text-xs">
                     {getBilledWeight(sizeData.weight_kg, sizeData.length_cm, sizeData.width_cm, sizeData.height_cm)} kg
                   </Badge>
                 </div>
@@ -374,20 +376,20 @@ export const ParameterPreview = ({
         {/* Shipment Summary for Override Mode */}
         {isOverrideEnabled && shipmentStats && (
           <div className="border-t pt-3">
-            <div className="flex items-center text-sm font-medium text-slate-700 mb-2">
+            <div className="flex items-center text-xs sm:text-sm font-medium text-slate-700 mb-2">
               <Package className="w-4 h-4 mr-2 text-orange-600" />
               Shipment Summary
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-6">
-              <div className="text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pl-6">
+              <div className="text-xs sm:text-sm">
                 <span className="font-medium">Total Boxes:</span> {shipmentStats.totalBoxes}
               </div>
-              <div className="text-sm">
+              <div className="text-xs sm:text-sm">
                 <span className="font-medium">Total Weight:</span> {shipmentStats.totalWeight.toFixed(2)} kg
               </div>
-              <div className="text-sm">
+              <div className="text-xs sm:text-sm">
                 <span className="font-medium">Total Billed Weight:</span>{' '}
-                <Badge variant="outline" className="ml-1 bg-purple-100 text-purple-800">
+                <Badge variant="outline" className="ml-1 bg-purple-100 text-purple-800 text-xs">
                   {shipmentStats.totalBilledWeight.toFixed(2)} kg
                 </Badge>
               </div>
@@ -397,41 +399,41 @@ export const ParameterPreview = ({
 
         {/* FedEx API Parameters */}
         <div className="border-t pt-4">
-          <div className="flex items-center text-sm font-medium text-slate-700 mb-3">
+          <div className="flex items-center text-xs sm:text-sm font-medium text-slate-700 mb-3">
             <MapPin className="w-4 h-4 mr-2 text-indigo-600" />
             FedEx API Parameters
           </div>
           <div className="space-y-2 pl-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm">
+              <div>
                 <span className="font-medium">Preferred Currency:</span>{" "}
-                <Badge variant="outline" className="bg-green-100 text-green-800">
+                <Badge variant="outline" className="bg-green-100 text-green-800 text-xs">
                   {preferredCurrency}
                 </Badge>
               </div>
-              <div className="text-sm">
+              <div>
                 <span className="font-medium">Packaging Type:</span> YOUR_PACKAGING
               </div>
-              <div className="text-sm">
+              <div>
                 <span className="font-medium">Pickup Type:</span> DROPOFF_AT_FEDEX_LOCATION
               </div>
-              <div className="text-sm">
+              <div>
                 <span className="font-medium">Rate Request Types:</span> LIST, ACCOUNT, INCENTIVE
               </div>
-              <div className="text-sm">
+              <div>
                 <span className="font-medium">Group Package Count:</span> {shipmentStats?.totalBoxes || 1}
               </div>
-              <div className="text-sm">
+              <div>
                 <span className="font-medium">Weight Units:</span> KG
               </div>
             </div>
           </div>
         </div>
 
-        {/* Debug Info */}
-        <div className="bg-slate-100 rounded-lg p-3 mt-4">
-          <div className="text-xs text-slate-600">
-            <div className="font-medium mb-1">Debug Information:</div>
+        {/* Debug Info - Collapsible on mobile */}
+        <details className="bg-slate-100 rounded-lg p-3 mt-4">
+          <summary className="text-xs text-slate-600 font-medium cursor-pointer">Debug Information</summary>
+          <div className="text-xs text-slate-600 mt-2 space-y-1">
             <div>Collection ID: {collection}</div>
             {!isOverrideEnabled && sizeData && (
               <>
@@ -449,7 +451,7 @@ export const ParameterPreview = ({
             <div>Currency Source: User-selected (not auto-mapped)</div>
             {isOverrideEnabled && <div className="text-purple-600 font-medium mt-1">Using Override Values</div>}
           </div>
-        </div>
+        </details>
       </CardContent>
     </Card>
   );
