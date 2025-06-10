@@ -5,13 +5,13 @@
 **Feature**: Fix Parameter Preview for Custom Shipping Parameters
 
 ## Summary
-Fixed issues where the Shipping Parameters Preview was not correctly displaying custom box configurations when override mode is active. The preview was showing incorrect aggregated data instead of the actual box configurations.
+Fixed issues where the Shipping Parameters Preview was not correctly displaying custom box configurations when override mode is active. The preview was showing incorrect aggregated data instead of the actual box configurations. Also fixed the FedEx API payload generation to properly handle multiple box configurations.
 
 ## Problems Identified
 1. ParameterPreview shows average weight (4.5kg) instead of total weight (18kg) when multiple boxes are configured
 2. Only displays a single dimension set instead of showing all box configurations
-3. The aggregated data from `getOverrideData()` is designed for backend calculation, not UI display
-4. The 400 Bad Request error suggests the backend might not be receiving the correct data format
+3. The aggregated data from `getOverrideData()` was using average weight which could cause FedEx API validation errors
+4. The 400 Bad Request error was likely due to sending invalid weight/dimension combinations
 
 ## Changes Made
 
@@ -28,7 +28,16 @@ Fixed issues where the Shipping Parameters Preview was not correctly displaying 
     - Total shipment summary (total boxes, total weight, total billed weight)
   - Updated FedEx API parameters to show correct group package count
 
-### 2. Backend Already Supports Multi-Box
+### 2. Fixed Override Data Generation
+- **File**: `src/hooks/useOverrideSettings.ts`
+- **Changes**:
+  - Modified `getOverrideData()` to use the largest box dimensions with total quantity
+  - This ensures FedEx API receives valid data (uniform packages with groupPackageCount)
+  - For single box configuration: sends exact dimensions and weight
+  - For multiple configurations: uses the box with highest billed weight as the reference
+  - Still includes detailed `box_configurations` array for UI display
+
+### 3. Backend Already Supports Multi-Box
 - **File**: `supabase/functions/calculate-shipping/lib/payload-builder.ts`
 - **Status**: Already properly configured to handle quantity parameter
 - The backend correctly uses the quantity in `groupPackageCount` field
@@ -46,6 +55,11 @@ Fixed issues where the Shipping Parameters Preview was not correctly displaying 
   - Total number of boxes
   - Total actual weight
   - Total billed weight
+
+### Override Data Fix
+- Changed from using average weight (18kg / 4 boxes = 4.5kg) to using the largest box's weight
+- This aligns with FedEx API expectations for uniform packages
+- Ensures shipping costs are not underestimated
 
 ### Visual Improvements
 - Box configurations displayed in card-like containers
@@ -66,11 +80,15 @@ Fixed issues where the Shipping Parameters Preview was not correctly displaying 
   - Total shipment weight (18kg) instead of average (4.5kg)
   - Total billed weight (19.54kg) matching the custom parameters form
   - Correct number of total boxes (4)
+- FedEx API now receives valid data:
+  - Largest box dimensions (40x31x28cm) with weight (6kg)
+  - Total quantity of 4 boxes
+  - This should resolve the 400 Bad Request errors
 
 ## Next Steps
-- Monitor for any 400 Bad Request errors to ensure backend is receiving data correctly
-- Consider adding validation to ensure at least one box configuration exists
-- May need to update the results display to show which rates apply to which box configurations
+- Monitor to ensure 400 Bad Request errors are resolved
+- Consider supporting true multi-package shipments if FedEx API allows different box sizes
+- May need to update the results display to show per-box rates if applicable
 
 ## Screenshots Reference
 - Before: Preview showed 4.5kg (average) with single dimension set
