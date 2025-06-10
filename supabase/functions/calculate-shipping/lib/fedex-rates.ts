@@ -289,7 +289,7 @@ export class FedexRatesService {
 
   /**
    * Parse FedEx rate response into ShippingRate array
-   * UPDATED: Now checks for all rate types and selects the best (lowest) rate
+   * UPDATED: Returns BOTH account rate and last-minute rate when available
    */
   static parseRateResponse(
     responseData: FedexRateResponse, 
@@ -319,7 +319,7 @@ export class FedexRatesService {
 
         if (rateDetail.ratedShipmentDetails && rateDetail.ratedShipmentDetails.length > 0) {
           // Collect all valid rates for this service
-          const validRates: Array<{amount: number, rateType: string, isLastMinute: boolean}> = [];
+          const validRates: Array<{amount: number, rateType: string, detail: FedexApiRatedShipmentDetail}> = [];
           
           // Log ALL ratedShipmentDetails for debugging
           rateDetail.ratedShipmentDetails.forEach((detail: unknown, index: number) => {
@@ -335,35 +335,34 @@ export class FedexRatesService {
             // Extract amount from this detail
             const extractedAmount = this.extractAmountDirect(detailApi.totalNetCharge);
             if (extractedAmount && extractedAmount > 0 && detailApi.rateType) {
-              // Check if this is a last-minute rate based on rate type
-              const isLastMinute = detailApi.rateType?.toLowerCase().includes('last') || 
-                                 detailApi.rateType?.toLowerCase().includes('minute') ||
-                                 detailApi.rateType === 'INCENTIVE' ||
-                                 detailApi.rateType === 'RATED_INCENTIVE';
-              
               validRates.push({
                 amount: extractedAmount,
                 rateType: detailApi.rateType,
-                isLastMinute: isLastMinute
+                detail: detailApi
               });
             }
           });
           
-          // Sort rates by amount (lowest first)
-          validRates.sort((a, b) => a.amount - b.amount);
-          
           Logger.info('All valid rates for service', {
             serviceType: rateDetail.serviceType,
-            validRates: validRates
+            validRates: validRates.map(r => ({ rateType: r.rateType, amount: r.amount }))
           });
           
-          // Select the best (lowest) rate as the primary rate
-          const bestRate = validRates[0];
+          // Find the ACCOUNT rate (primary rate)
+          const accountRate = validRates.find(r => r.rateType === 'ACCOUNT' || r.rateType === 'RATED_ACCOUNT');
           
-          // Check if there's a last-minute rate that's different from the best rate
-          const lastMinuteRate = validRates.find(r => r.isLastMinute && r.amount !== bestRate?.amount);
+          // Find the INCENTIVE/LAST-MINUTE rate
+          const lastMinuteRate = validRates.find(r => 
+            r.rateType === 'INCENTIVE' || 
+            r.rateType === 'RATED_INCENTIVE' ||
+            r.rateType?.toLowerCase().includes('last') ||
+            r.rateType?.toLowerCase().includes('minute')
+          );
           
-          if (bestRate) {
+          // If no account rate, find the LIST rate as fallback
+          const primaryRate = accountRate || validRates.find(r => r.rateType === 'LIST' || r.rateType === 'RATED_LIST_PACKAGE') || validRates[0];
+          
+          if (primaryRate) {
             // Extract currency (using first detail for currency info)
             let rateCurrency = preferredCurrency;
             const firstDetail = rateDetail.ratedShipmentDetails[0] as FedexApiRatedShipmentDetail;
@@ -412,30 +411,29 @@ export class FedexRatesService {
               }
             }
 
-            // Add the primary rate
+            // Add the primary rate (ACCOUNT or LIST)
             const rate: ShippingRate = {
               service: rateDetail.serviceType || 'Unknown Service',
-              cost: bestRate.amount,
+              cost: primaryRate.amount,
               currency: rateCurrency,
               transitTime: transitTime,
               deliveryDate: deliveryDate,
-              rateType: bestRate.rateType,
-              isLastMinute: bestRate.isLastMinute
+              rateType: primaryRate.rateType,
+              isLastMinute: false
             };
             
-            Logger.info('=== FINAL RATE ADDED ===', { 
+            Logger.info('=== PRIMARY RATE ADDED ===', { 
               service: rate.service,
               cost: rate.cost,
               currency: rate.currency,
               rateType: rate.rateType,
-              isLastMinute: rate.isLastMinute,
-              extractedFrom: bestRate.rateType
+              extractedFrom: primaryRate.rateType
             });
             
             rates.push(rate);
             
-            // If there's a different last-minute rate, add it as an alternative
-            if (lastMinuteRate && lastMinuteRate.amount !== bestRate.amount) {
+            // If there's a last-minute rate that's different from the primary rate, add it
+            if (lastMinuteRate && lastMinuteRate.rateType !== primaryRate.rateType) {
               const alternativeRate: ShippingRate = {
                 service: rateDetail.serviceType || 'Unknown Service',
                 cost: lastMinuteRate.amount,
@@ -447,7 +445,7 @@ export class FedexRatesService {
                 isAlternative: true
               };
               
-              Logger.info('=== ALTERNATIVE LAST-MINUTE RATE ADDED ===', { 
+              Logger.info('=== LAST-MINUTE RATE ADDED ===', { 
                 service: alternativeRate.service,
                 cost: alternativeRate.cost,
                 rateType: alternativeRate.rateType
