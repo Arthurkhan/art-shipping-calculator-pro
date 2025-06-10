@@ -36,6 +36,7 @@ export class FedexRatesService {
 
   /**
    * Get FedEx shipping rates with enhanced error handling
+   * Updated to support quantity parameter for multiple boxes
    */
   static async getRates(
     accessToken: string,
@@ -46,7 +47,8 @@ export class FedexRatesService {
     destinationCountry: string,
     destinationPostalCode: string,
     userPreferredCurrency?: string,
-    userShipDate?: string // Optional user-selected ship date
+    userShipDate?: string, // Optional user-selected ship date
+    quantity: number = 1 // Optional quantity for multiple boxes
   ): Promise<ShippingRate[]> {
     const operationName = 'FedEx Rate Request';
     const retryOptions: RetryOptions = {
@@ -56,7 +58,7 @@ export class FedexRatesService {
     };
 
     return retryWithBackoff(async () => {
-      Logger.info('Requesting FedEx shipping rates');
+      Logger.info('Requesting FedEx shipping rates', { quantity });
 
       // Use user-provided ship date or generate tomorrow's date
       const shipDateStamp = userShipDate || PayloadBuilder.generateShipDateStamp();
@@ -78,7 +80,8 @@ export class FedexRatesService {
         destinationCountry,
         destinationPostalCode,
         preferredCurrency,
-        shipDateStamp
+        shipDateStamp,
+        quantity // Pass quantity to payload builder
       });
 
       // Validate payload structure
@@ -149,7 +152,8 @@ export class FedexRatesService {
               currencyUsed: preferredCurrency,
               currencySource: userPreferredCurrency ? 'USER_SELECTED' : 'AUTO_MAPPED',
               shipDateUsed: shipDateStamp,
-              shipDateSource: userShipDate ? 'USER_SELECTED' : 'AUTO_GENERATED'
+              shipDateSource: userShipDate ? 'USER_SELECTED' : 'AUTO_GENERATED',
+              quantity
             });
             
             throw new ShippingError(
