@@ -58,15 +58,31 @@ serve(async (req) => {
     });
 
     // Validate required fields
-    // When override data is provided, we don't need collection/size
-    const needsCollectionAndSize = !requestData.overrideData;
+    // FIX: When override data is provided, we don't need collection/size
+    // Also handle empty strings as missing values
+    const hasOverrideData = requestData.overrideData && 
+                           typeof requestData.overrideData === 'object' &&
+                           'weight_kg' in requestData.overrideData;
     
-    if ((needsCollectionAndSize && (!requestData.collection || !requestData.size)) || 
-        !requestData.country || !requestData.postalCode) {
+    const hasValidCollectionAndSize = requestData.collection && 
+                                     requestData.collection.trim() !== '' &&
+                                     requestData.size && 
+                                     requestData.size.trim() !== '';
+    
+    // We need either override data OR collection/size, not both
+    if (!hasOverrideData && !hasValidCollectionAndSize) {
       throw {
         type: 'VALIDATION',
-        message: 'Missing required fields',
-        userMessage: 'Please fill in all required shipping information.'
+        message: 'Missing required fields: Either provide collection/size or override data',
+        userMessage: 'Please select a collection and size, or use custom dimensions.'
+      };
+    }
+    
+    if (!requestData.country || !requestData.postalCode) {
+      throw {
+        type: 'VALIDATION',
+        message: 'Missing required destination fields',
+        userMessage: 'Please provide destination country and postal code.'
       };
     }
 
@@ -80,7 +96,7 @@ serve(async (req) => {
     let sizeData: CollectionSize;
     let quantity = 1; // Default quantity
 
-    if (requestData.overrideData) {
+    if (hasOverrideData) {
       // Use override data if provided
       Logger.info('Using override data for dimensions and weight', { 
         overrideData: requestData.overrideData 
@@ -93,7 +109,15 @@ serve(async (req) => {
         width_cm: requestData.overrideData.width_cm
       };
       
-      quantity = requestData.overrideData.quantity || 1;
+      // Store quantity for logging but ALWAYS use 1 for FedEx API
+      const userQuantity = requestData.overrideData.quantity || 1;
+      quantity = 1; // ALWAYS use 1 for single shipment pricing
+      
+      Logger.info('FIX: Using quantity=1 for single shipment pricing', { 
+        userRequestedQuantity: userQuantity,
+        fedexApiQuantity: quantity,
+        note: 'Always calculating rates for single shipment to match FedEx website pricing'
+      });
     } else {
       // Use getCollectionSize function directly
       sizeData = await getCollectionSize(requestData.collection, requestData.size);
@@ -102,7 +126,7 @@ serve(async (req) => {
     Logger.info('Size data determined', { 
       sizeData,
       quantity,
-      source: requestData.overrideData ? 'override' : 'database'
+      source: hasOverrideData ? 'override' : 'database'
     });
 
     let rates: ShippingRate[] = [];
@@ -137,7 +161,7 @@ serve(async (req) => {
           requestData.postalCode,
           requestData.preferredCurrency,
           requestData.shipDate, // Pass user-selected ship date (optional)
-          quantity // Pass quantity for multiple boxes
+          quantity // Pass quantity for multiple boxes (now always 1)
         );
         
         // DEBUGGING: Get the raw FedEx response
@@ -166,7 +190,7 @@ serve(async (req) => {
       requestId,
       currencyUsed: requestData.preferredCurrency || 'auto-mapped',
       shipDateUsed: requestData.shipDate || 'auto-generated (tomorrow)',
-      usingOverride: !!requestData.overrideData,
+      usingOverride: hasOverrideData,
       quantity
     });
 
@@ -178,7 +202,8 @@ serve(async (req) => {
         // DEBUGGING: Include raw FedEx response temporarily
         _debug: {
           rawFedexResponse: rawFedexResponse,
-          usingOverride: !!requestData.overrideData
+          usingOverride: hasOverrideData,
+          fedexQuantityUsed: quantity
         }
       }),
       {
