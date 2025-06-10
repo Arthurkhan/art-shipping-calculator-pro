@@ -19,6 +19,15 @@ interface OverrideData {
   length_cm: number;
   width_cm: number;
   quantity: number;
+  box_configurations?: Array<{
+    dimensions: {
+      length: number;
+      width: number;
+      height: number;
+    };
+    weight: number;
+    quantity: number;
+  }>;
 }
 
 interface ParameterPreviewProps {
@@ -52,10 +61,6 @@ export const ParameterPreview = ({
   const [collectionName, setCollectionName] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
-
-  // Use override data if enabled and available, otherwise use database data
-  const displayData = isOverrideEnabled && overrideData ? overrideData : sizeData;
-  const quantity = isOverrideEnabled && overrideData ? overrideData.quantity : 1;
 
   // Load size data when parameters change
   useEffect(() => {
@@ -128,28 +133,58 @@ export const ParameterPreview = ({
     }
   }, [collection, size, isVisible, isOverrideEnabled]);
 
-  // Calculate dimensional weight (DIM weight)
-  const calculateDimensionalWeight = () => {
-    if (!displayData) return 0;
+  // Calculate dimensional weight (DIM weight) for a single box
+  const calculateDimensionalWeight = (length: number, width: number, height: number) => {
     // FedEx DIM factor: 5000 for cm/kg
-    const volumetricWeight = (displayData.length_cm * displayData.width_cm * displayData.height_cm) / 5000;
+    const volumetricWeight = (length * width * height) / 5000;
     return Math.round(volumetricWeight * 100) / 100; // Round to 2 decimal places
   };
 
-  // Get billed weight (higher of actual weight or dimensional weight)
-  const getBilledWeight = () => {
-    if (!displayData) return 0;
-    const dimWeight = calculateDimensionalWeight();
-    return Math.max(displayData.weight_kg, dimWeight);
+  // Get billed weight for a single box
+  const getBilledWeight = (actualWeight: number, length: number, width: number, height: number) => {
+    const dimWeight = calculateDimensionalWeight(length, width, height);
+    return Math.max(actualWeight, dimWeight);
   };
 
-  // Format ship date - Fixed to show the actual selected date
+  // Calculate total shipment stats when using box configurations
+  const getShipmentStats = () => {
+    if (!overrideData?.box_configurations) {
+      return null;
+    }
+
+    let totalBoxes = 0;
+    let totalWeight = 0;
+    let totalBilledWeight = 0;
+
+    overrideData.box_configurations.forEach(config => {
+      const boxCount = config.quantity;
+      const boxWeight = config.weight;
+      const billedWeight = getBilledWeight(
+        boxWeight,
+        config.dimensions.length,
+        config.dimensions.width,
+        config.dimensions.height
+      );
+
+      totalBoxes += boxCount;
+      totalWeight += boxWeight * boxCount;
+      totalBilledWeight += billedWeight * boxCount;
+    });
+
+    return {
+      totalBoxes,
+      totalWeight,
+      totalBilledWeight,
+      configurations: overrideData.box_configurations.length
+    };
+  };
+
+  // Format ship date
   const getFormattedShipDate = () => {
     if (!shipDate) {
       const today = new Date();
       return format(today, 'yyyy-MM-dd');
     }
-    // Format the date properly without timezone issues
     return format(shipDate, 'yyyy-MM-dd');
   };
 
@@ -168,7 +203,7 @@ export const ParameterPreview = ({
     );
   }
 
-  if ((error || !displayData) && !isOverrideEnabled) {
+  if ((error || (!sizeData && !isOverrideEnabled)) && !overrideData) {
     return (
       <Alert className="border-red-200 bg-red-50">
         <Info className="h-4 w-4 text-red-600" />
@@ -179,7 +214,7 @@ export const ParameterPreview = ({
     );
   }
 
-  if (!displayData) return null;
+  const shipmentStats = isOverrideEnabled ? getShipmentStats() : null;
 
   return (
     <Card className={`border-blue-200 ${isOverrideEnabled ? 'bg-gradient-to-r from-purple-50/50 to-indigo-50/50' : 'bg-gradient-to-r from-blue-50/50 to-indigo-50/50'}`}>
@@ -213,7 +248,7 @@ export const ParameterPreview = ({
                 <span className="font-medium">Size:</span> {isOverrideEnabled ? 'Custom' : size}
               </div>
               <div className="text-sm">
-                <span className="font-medium">Number of boxes:</span> {quantity}
+                <span className="font-medium">Number of boxes:</span> {shipmentStats?.totalBoxes || (sizeData ? 1 : 0)}
               </div>
             </div>
           </div>
@@ -237,53 +272,128 @@ export const ParameterPreview = ({
           </div>
         </div>
 
-        {/* Dimensions & Weight */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Box Configurations for Override Mode */}
+        {isOverrideEnabled && overrideData?.box_configurations && (
           <div className="space-y-2">
             <div className="flex items-center text-sm font-medium text-slate-700">
               <Calculator className="w-4 h-4 mr-2 text-purple-600" />
-              Dimensions (CM) {isOverrideEnabled && <Badge variant="outline" className="ml-2 text-xs">Custom</Badge>}
+              Box Configurations
             </div>
-            <div className="pl-6 space-y-1">
-              <div className="text-sm">
-                <span className="font-medium">Length:</span> {displayData.length_cm} cm
+            <div className="pl-6 space-y-3">
+              {overrideData.box_configurations.map((config, index) => {
+                const dimWeight = calculateDimensionalWeight(
+                  config.dimensions.length,
+                  config.dimensions.width,
+                  config.dimensions.height
+                );
+                const billedWeight = getBilledWeight(
+                  config.weight,
+                  config.dimensions.length,
+                  config.dimensions.width,
+                  config.dimensions.height
+                );
+
+                return (
+                  <div key={index} className="bg-white/50 rounded-lg p-3 space-y-1">
+                    <div className="text-sm font-medium text-slate-700">
+                      Configuration {index + 1}: {config.quantity} {config.quantity > 1 ? 'boxes' : 'box'}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-slate-600">Dimensions:</span>{' '}
+                        {config.dimensions.length} × {config.dimensions.width} × {config.dimensions.height} cm
+                      </div>
+                      <div>
+                        <span className="text-slate-600">Net Weight:</span> {config.weight} kg
+                      </div>
+                      <div>
+                        <span className="text-slate-600">Dimensional Weight:</span> {dimWeight} kg
+                      </div>
+                      <div>
+                        <span className="text-slate-600">Billed Weight:</span>{' '}
+                        <Badge variant="outline" className="ml-1 bg-purple-100 text-purple-800">
+                          {billedWeight} kg
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Standard Dimensions & Weight (non-override mode) */}
+        {!isOverrideEnabled && sizeData && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center text-sm font-medium text-slate-700">
+                <Calculator className="w-4 h-4 mr-2 text-purple-600" />
+                Dimensions (CM)
               </div>
-              <div className="text-sm">
-                <span className="font-medium">Width:</span> {displayData.width_cm} cm
+              <div className="pl-6 space-y-1">
+                <div className="text-sm">
+                  <span className="font-medium">Length:</span> {sizeData.length_cm} cm
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Width:</span> {sizeData.width_cm} cm
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Height:</span> {sizeData.height_cm} cm
+                </div>
+                <div className="text-xs text-slate-600 mt-1">
+                  Total: {sizeData.length_cm} × {sizeData.width_cm} × {sizeData.height_cm} cm
+                </div>
               </div>
-              <div className="text-sm">
-                <span className="font-medium">Height:</span> {displayData.height_cm} cm
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center text-sm font-medium text-slate-700">
+                <Package className="w-4 h-4 mr-2 text-orange-600" />
+                Weight Calculation
               </div>
-              <div className="text-xs text-slate-600 mt-1">
-                Total: {displayData.length_cm} × {displayData.width_cm} × {displayData.height_cm} cm
+              <div className="pl-6 space-y-1">
+                <div className="text-sm">
+                  <span className="font-medium">Net Weight:</span> {sizeData.weight_kg} kg
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Dimensional Weight:</span>{' '}
+                  {calculateDimensionalWeight(sizeData.length_cm, sizeData.width_cm, sizeData.height_cm)} kg
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Billed Weight:</span>{" "}
+                  <Badge variant="outline" className="ml-1 bg-blue-100 text-blue-800">
+                    {getBilledWeight(sizeData.weight_kg, sizeData.length_cm, sizeData.width_cm, sizeData.height_cm)} kg
+                  </Badge>
+                </div>
               </div>
             </div>
           </div>
+        )}
 
-          <div className="space-y-2">
-            <div className="flex items-center text-sm font-medium text-slate-700">
+        {/* Shipment Summary for Override Mode */}
+        {isOverrideEnabled && shipmentStats && (
+          <div className="border-t pt-3">
+            <div className="flex items-center text-sm font-medium text-slate-700 mb-2">
               <Package className="w-4 h-4 mr-2 text-orange-600" />
-              Weight Calculation {isOverrideEnabled && <Badge variant="outline" className="ml-2 text-xs">Custom</Badge>}
+              Shipment Summary
             </div>
-            <div className="pl-6 space-y-1">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-6">
               <div className="text-sm">
-                <span className="font-medium">Net Weight:</span> {displayData.weight_kg} kg
+                <span className="font-medium">Total Boxes:</span> {shipmentStats.totalBoxes}
               </div>
               <div className="text-sm">
-                <span className="font-medium">Dimensional Weight:</span> {calculateDimensionalWeight()} kg
+                <span className="font-medium">Total Weight:</span> {shipmentStats.totalWeight.toFixed(2)} kg
               </div>
               <div className="text-sm">
-                <span className="font-medium">Billed Weight:</span>{" "}
-                <Badge variant="outline" className={`ml-1 ${isOverrideEnabled ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
-                  {getBilledWeight()} kg
+                <span className="font-medium">Total Billed Weight:</span>{' '}
+                <Badge variant="outline" className="ml-1 bg-purple-100 text-purple-800">
+                  {shipmentStats.totalBilledWeight.toFixed(2)} kg
                 </Badge>
               </div>
-              <div className="text-xs text-slate-600 mt-1">
-                (Higher of net or dimensional weight) × {quantity} box{quantity > 1 ? 'es' : ''}
-              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* FedEx API Parameters */}
         <div className="border-t pt-4">
@@ -309,7 +419,7 @@ export const ParameterPreview = ({
                 <span className="font-medium">Rate Request Types:</span> LIST, ACCOUNT, INCENTIVE
               </div>
               <div className="text-sm">
-                <span className="font-medium">Group Package Count:</span> {quantity}
+                <span className="font-medium">Group Package Count:</span> {shipmentStats?.totalBoxes || 1}
               </div>
               <div className="text-sm">
                 <span className="font-medium">Weight Units:</span> KG
@@ -323,7 +433,17 @@ export const ParameterPreview = ({
           <div className="text-xs text-slate-600">
             <div className="font-medium mb-1">Debug Information:</div>
             <div>Collection ID: {collection}</div>
-            <div>Volume: {(displayData.length_cm * displayData.width_cm * displayData.height_cm).toLocaleString()} cm³</div>
+            {!isOverrideEnabled && sizeData && (
+              <>
+                <div>Volume: {(sizeData.length_cm * sizeData.width_cm * sizeData.height_cm).toLocaleString()} cm³</div>
+              </>
+            )}
+            {isOverrideEnabled && shipmentStats && (
+              <>
+                <div>Box Configurations: {shipmentStats.configurations}</div>
+                <div>Total Volume: Multiple configurations</div>
+              </>
+            )}
             <div>DIM Factor: 5000 (FedEx standard for CM/KG)</div>
             <div>Ship Date: {getFormattedShipDate()}</div>
             <div>Currency Source: User-selected (not auto-mapped)</div>
