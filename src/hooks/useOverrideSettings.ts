@@ -13,6 +13,9 @@ export interface BoxConfiguration {
   quantity: number;
 }
 
+// Type for box configuration from storage (may not have id)
+type StoredBoxConfiguration = Partial<BoxConfiguration> & Omit<BoxConfiguration, 'id'>;
+
 // Types for override settings
 export interface OverrideSettings {
   enabled: boolean;
@@ -58,7 +61,7 @@ export const useOverrideSettings = () => {
         const parsed = JSON.parse(stored);
         // Ensure boxes have IDs
         if (parsed.boxes && Array.isArray(parsed.boxes)) {
-          parsed.boxes = parsed.boxes.map((box: any) => ({
+          parsed.boxes = parsed.boxes.map((box: StoredBoxConfiguration) => ({
             ...box,
             id: box.id || crypto.randomUUID(),
           }));
