@@ -13,7 +13,7 @@ export class PayloadBuilder {
   /**
    * Build FedEx rate request payload matching n8n workflow structure EXACTLY
    * CRITICAL FIX: This implements the exact structure from the working n8n workflow
-   * Updated to support quantity parameter for multiple boxes
+   * Updated to always use groupPackageCount = 1 for single shipment pricing
    */
   static buildRateRequest(params: PayloadParams): FedexRateRequest {
     const {
@@ -38,7 +38,9 @@ export class PayloadBuilder {
       billedWeight: Math.round(billedWeight * 100) / 100,
       dimensions: `${sizeData.length_cm}x${sizeData.width_cm}x${sizeData.height_cm} cm`,
       volume: sizeData.length_cm * sizeData.width_cm * sizeData.height_cm,
-      quantity: quantity
+      userRequestedQuantity: quantity,
+      fedexApiQuantity: 1,
+      note: 'ALWAYS using groupPackageCount=1 for single shipment pricing'
     });
 
     // CRITICAL FIX: Construct payload EXACTLY matching n8n workflow structure
@@ -49,7 +51,7 @@ export class PayloadBuilder {
     // 4. Use CM/KG directly (no unit conversions)
     // 5. Add missing required fields: preferredCurrency, shipDateStamp, packagingType
     // 6. ADD variableOptions to request transit time and delivery date
-    // 7. Support quantity parameter for multiple boxes
+    // 7. CRITICAL FIX: Always use groupPackageCount = 1 for single shipment pricing
     const payload: FedexRateRequest = {
       accountNumber: {
         value: accountNumber
@@ -74,7 +76,11 @@ export class PayloadBuilder {
         rateRequestType: ["LIST", "ACCOUNT", "INCENTIVE"], // Fixed array format from roadmap
         requestedPackageLineItems: [
           {
-            groupPackageCount: quantity, // Use the quantity parameter here
+            // CRITICAL FIX: Always use 1 for single shipment pricing
+            // This ensures we get the rate for ONE shipment, not multiple
+            // If user wants to ship 10 boxes, they still get the rate for shipping 1 box
+            // They can multiply the rate by quantity in the UI if needed
+            groupPackageCount: 1, // ALWAYS 1 for single shipment
             weight: {
               units: "KG", // Use KG directly (no conversion)
               value: sizeData.weight_kg
@@ -94,7 +100,7 @@ export class PayloadBuilder {
     };
 
     // Enhanced debugging: Log full payload details (sanitized)
-    Logger.info('Built FedEx rate request - FIXED payload structure to match n8n exactly', { 
+    Logger.info('Built FedEx rate request - SINGLE SHIPMENT pricing enforced', { 
       payload: {
         ...payload,
         accountNumber: { value: '[REDACTED]' }
@@ -108,9 +114,10 @@ export class PayloadBuilder {
           dimensional: Math.round(dimensionalWeight * 100) / 100,
           billed: Math.round(billedWeight * 100) / 100
         },
-        quantity: quantity,
-        totalWeight: Math.round(billedWeight * quantity * 100) / 100,
-        fixApplied: 'Implemented n8n-compliant payload structure with all required fields + TRANSIT_TIME + quantity support'
+        userRequestedQuantity: quantity,
+        fedexApiQuantity: 1,
+        pricingNote: 'Rate is for ONE package/shipment. Multiply by quantity if shipping multiple.',
+        fixApplied: 'Enforced single shipment pricing (groupPackageCount=1)'
       }
     });
 
