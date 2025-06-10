@@ -31,6 +31,9 @@ export interface ShippingRate {
   currency: string;
   transitTime: string;
   deliveryDate?: string;
+  rateType?: string; // e.g., 'LIST', 'ACCOUNT', 'INCENTIVE'
+  isLastMinute?: boolean; // Flag for last-minute rates
+  isAlternative?: boolean; // Flag for alternative rates (e.g., when showing both regular and last-minute)
 }
 
 export interface CollectionSize {
