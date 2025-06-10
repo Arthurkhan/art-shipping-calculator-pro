@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Info, Package, Calculator, Globe, MapPin } from "lucide-react";
+import { Info, Package, Calculator, Globe, MapPin, Edit3 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format } from "date-fns";
 
@@ -11,6 +11,14 @@ interface CollectionSize {
   height_cm: number;
   length_cm: number;
   width_cm: number;
+}
+
+interface OverrideData {
+  weight_kg: number;
+  height_cm: number;
+  length_cm: number;
+  width_cm: number;
+  quantity: number;
 }
 
 interface ParameterPreviewProps {
@@ -23,6 +31,8 @@ interface ParameterPreviewProps {
   preferredCurrency: string;
   isVisible: boolean;
   shipDate?: Date;
+  overrideData?: OverrideData | null;
+  isOverrideEnabled?: boolean;
 }
 
 export const ParameterPreview = ({
@@ -34,16 +44,22 @@ export const ParameterPreview = ({
   originPostalCode,
   preferredCurrency,
   isVisible,
-  shipDate
+  shipDate,
+  overrideData,
+  isOverrideEnabled = false
 }: ParameterPreviewProps) => {
   const [sizeData, setSizeData] = useState<CollectionSize | null>(null);
   const [collectionName, setCollectionName] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
+  // Use override data if enabled and available, otherwise use database data
+  const displayData = isOverrideEnabled && overrideData ? overrideData : sizeData;
+  const quantity = isOverrideEnabled && overrideData ? overrideData.quantity : 1;
+
   // Load size data when parameters change
   useEffect(() => {
-    if (collection && size && isVisible) {
+    if (collection && size && isVisible && !isOverrideEnabled) {
       const loadCollectionName = async () => {
         try {
           const { data, error } = await supabase
@@ -91,22 +107,40 @@ export const ParameterPreview = ({
 
       loadSizeData();
       loadCollectionName();
+    } else if (collection && isVisible && isOverrideEnabled) {
+      // Still load collection name even in override mode
+      const loadCollectionName = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('collections')
+            .select('name')
+            .eq('id', collection)
+            .single();
+
+          if (error) throw error;
+          setCollectionName(data?.name || 'Unknown Collection');
+        } catch (err) {
+          console.error('Error loading collection name:', err);
+          setCollectionName('Unknown Collection');
+        }
+      };
+      loadCollectionName();
     }
-  }, [collection, size, isVisible]);
+  }, [collection, size, isVisible, isOverrideEnabled]);
 
   // Calculate dimensional weight (DIM weight)
   const calculateDimensionalWeight = () => {
-    if (!sizeData) return 0;
+    if (!displayData) return 0;
     // FedEx DIM factor: 5000 for cm/kg
-    const volumetricWeight = (sizeData.length_cm * sizeData.width_cm * sizeData.height_cm) / 5000;
+    const volumetricWeight = (displayData.length_cm * displayData.width_cm * displayData.height_cm) / 5000;
     return Math.round(volumetricWeight * 100) / 100; // Round to 2 decimal places
   };
 
   // Get billed weight (higher of actual weight or dimensional weight)
   const getBilledWeight = () => {
-    if (!sizeData) return 0;
+    if (!displayData) return 0;
     const dimWeight = calculateDimensionalWeight();
-    return Math.max(sizeData.weight_kg, dimWeight);
+    return Math.max(displayData.weight_kg, dimWeight);
   };
 
   // Format ship date - Fixed to show the actual selected date
@@ -121,7 +155,7 @@ export const ParameterPreview = ({
 
   if (!isVisible) return null;
 
-  if (loading) {
+  if (loading && !isOverrideEnabled) {
     return (
       <Card className="border-blue-200 bg-blue-50/50">
         <CardContent className="p-4">
@@ -134,7 +168,7 @@ export const ParameterPreview = ({
     );
   }
 
-  if (error || !sizeData) {
+  if ((error || !displayData) && !isOverrideEnabled) {
     return (
       <Alert className="border-red-200 bg-red-50">
         <Info className="h-4 w-4 text-red-600" />
@@ -145,12 +179,22 @@ export const ParameterPreview = ({
     );
   }
 
+  if (!displayData) return null;
+
   return (
-    <Card className="border-blue-200 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
+    <Card className={`border-blue-200 ${isOverrideEnabled ? 'bg-gradient-to-r from-purple-50/50 to-indigo-50/50' : 'bg-gradient-to-r from-blue-50/50 to-indigo-50/50'}`}>
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center text-blue-900">
-          <Info className="w-5 h-5 mr-2" />
-          Shipping Parameters Preview
+        <CardTitle className="text-lg flex items-center justify-between">
+          <div className="flex items-center text-blue-900">
+            <Info className="w-5 h-5 mr-2" />
+            Shipping Parameters Preview
+          </div>
+          {isOverrideEnabled && (
+            <Badge variant="default" className="bg-purple-100 text-purple-800 border-purple-200">
+              <Edit3 className="w-3 h-3 mr-1" />
+              Override Active
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -166,10 +210,10 @@ export const ParameterPreview = ({
                 <span className="font-medium">Collection:</span> {collectionName}
               </div>
               <div className="text-sm">
-                <span className="font-medium">Size:</span> {size}
+                <span className="font-medium">Size:</span> {isOverrideEnabled ? 'Custom' : size}
               </div>
               <div className="text-sm">
-                <span className="font-medium">Number of boxes:</span> 1
+                <span className="font-medium">Number of boxes:</span> {quantity}
               </div>
             </div>
           </div>
@@ -198,20 +242,20 @@ export const ParameterPreview = ({
           <div className="space-y-2">
             <div className="flex items-center text-sm font-medium text-slate-700">
               <Calculator className="w-4 h-4 mr-2 text-purple-600" />
-              Dimensions (CM)
+              Dimensions (CM) {isOverrideEnabled && <Badge variant="outline" className="ml-2 text-xs">Custom</Badge>}
             </div>
             <div className="pl-6 space-y-1">
               <div className="text-sm">
-                <span className="font-medium">Length:</span> {sizeData.length_cm} cm
+                <span className="font-medium">Length:</span> {displayData.length_cm} cm
               </div>
               <div className="text-sm">
-                <span className="font-medium">Width:</span> {sizeData.width_cm} cm
+                <span className="font-medium">Width:</span> {displayData.width_cm} cm
               </div>
               <div className="text-sm">
-                <span className="font-medium">Height:</span> {sizeData.height_cm} cm
+                <span className="font-medium">Height:</span> {displayData.height_cm} cm
               </div>
               <div className="text-xs text-slate-600 mt-1">
-                Total: {sizeData.length_cm} × {sizeData.width_cm} × {sizeData.height_cm} cm
+                Total: {displayData.length_cm} × {displayData.width_cm} × {displayData.height_cm} cm
               </div>
             </div>
           </div>
@@ -219,23 +263,23 @@ export const ParameterPreview = ({
           <div className="space-y-2">
             <div className="flex items-center text-sm font-medium text-slate-700">
               <Package className="w-4 h-4 mr-2 text-orange-600" />
-              Weight Calculation
+              Weight Calculation {isOverrideEnabled && <Badge variant="outline" className="ml-2 text-xs">Custom</Badge>}
             </div>
             <div className="pl-6 space-y-1">
               <div className="text-sm">
-                <span className="font-medium">Net Weight:</span> {sizeData.weight_kg} kg
+                <span className="font-medium">Net Weight:</span> {displayData.weight_kg} kg
               </div>
               <div className="text-sm">
                 <span className="font-medium">Dimensional Weight:</span> {calculateDimensionalWeight()} kg
               </div>
               <div className="text-sm">
                 <span className="font-medium">Billed Weight:</span>{" "}
-                <Badge variant="outline" className="ml-1 bg-blue-100 text-blue-800">
+                <Badge variant="outline" className={`ml-1 ${isOverrideEnabled ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
                   {getBilledWeight()} kg
                 </Badge>
               </div>
               <div className="text-xs text-slate-600 mt-1">
-                (Higher of net or dimensional weight)
+                (Higher of net or dimensional weight) × {quantity} box{quantity > 1 ? 'es' : ''}
               </div>
             </div>
           </div>
@@ -265,7 +309,7 @@ export const ParameterPreview = ({
                 <span className="font-medium">Rate Request Types:</span> LIST, ACCOUNT, INCENTIVE
               </div>
               <div className="text-sm">
-                <span className="font-medium">Group Package Count:</span> 1
+                <span className="font-medium">Group Package Count:</span> {quantity}
               </div>
               <div className="text-sm">
                 <span className="font-medium">Weight Units:</span> KG
@@ -279,10 +323,11 @@ export const ParameterPreview = ({
           <div className="text-xs text-slate-600">
             <div className="font-medium mb-1">Debug Information:</div>
             <div>Collection ID: {collection}</div>
-            <div>Volume: {(sizeData.length_cm * sizeData.width_cm * sizeData.height_cm).toLocaleString()} cm³</div>
+            <div>Volume: {(displayData.length_cm * displayData.width_cm * displayData.height_cm).toLocaleString()} cm³</div>
             <div>DIM Factor: 5000 (FedEx standard for CM/KG)</div>
             <div>Ship Date: {getFormattedShipDate()}</div>
             <div>Currency Source: User-selected (not auto-mapped)</div>
+            {isOverrideEnabled && <div className="text-purple-600 font-medium mt-1">Using Override Values</div>}
           </div>
         </div>
       </CardContent>
