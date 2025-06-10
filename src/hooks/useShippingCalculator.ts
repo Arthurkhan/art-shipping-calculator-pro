@@ -4,6 +4,13 @@ import { useToast } from '@/hooks/use-toast';
 import { FedexConfig } from './useFedexConfig';
 import { handleApiError, logError, ErrorType, createShippingError } from '@/lib/error-utils';
 
+// Extend window interface for debug handler
+declare global {
+  interface Window {
+    __debugResponseHandler?: (data: unknown) => void;
+  }
+}
+
 export interface ShippingRate {
   service: string;
   cost: number;
@@ -160,8 +167,8 @@ export const useShippingCalculator = () => {
           console.log('🚨🚨🚨 END OF RAW FEDEX RESPONSE 🚨🚨🚨');
           
           // Call the debug handler if it exists
-          if ((window as any).__debugResponseHandler) {
-            (window as any).__debugResponseHandler(response.data);
+          if (window.__debugResponseHandler) {
+            window.__debugResponseHandler(response.data);
           }
         }
         
