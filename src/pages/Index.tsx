@@ -189,30 +189,34 @@ const Index = () => {
     switch (fedexConfig.fedexConfigStatus) {
       case 'complete':
         return (
-          <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+          <Badge variant="default" className="bg-green-100 text-green-800 border-green-200 text-xs sm:text-sm">
             <CheckCircle className="w-3 h-3 mr-1" />
-            Configured
+            <span className="hidden sm:inline">Configured</span>
+            <span className="sm:hidden">OK</span>
           </Badge>
         );
       case 'partial':
         return (
-          <Badge variant="destructive" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+          <Badge variant="destructive" className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs sm:text-sm">
             <AlertTriangle className="w-3 h-3 mr-1" />
-            Incomplete
+            <span className="hidden sm:inline">Incomplete</span>
+            <span className="sm:hidden">!</span>
           </Badge>
         );
       case 'missing':
         return (
-          <Badge variant="destructive">
+          <Badge variant="destructive" className="text-xs sm:text-sm">
             <AlertTriangle className="w-3 h-3 mr-1" />
-            Missing
+            <span className="hidden sm:inline">Missing</span>
+            <span className="sm:hidden">X</span>
           </Badge>
         );
       default:
         return (
-          <Badge variant="destructive">
+          <Badge variant="destructive" className="text-xs sm:text-sm">
             <AlertTriangle className="w-3 h-3 mr-1" />
-            Invalid
+            <span className="hidden sm:inline">Invalid</span>
+            <span className="sm:hidden">!</span>
           </Badge>
         );
     }
@@ -220,33 +224,33 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <div className="container mx-auto px-4 py-6">
-        <div className="max-w-2xl mx-auto">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        <div className="max-w-full sm:max-w-2xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-6">
-            <div className="flex items-center justify-center mb-4">
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 rounded-xl mr-3 shadow-lg">
-                <Truck className="w-6 h-6 text-white" />
+          <div className="text-center mb-4 sm:mb-6">
+            <div className="flex items-center justify-center mb-3 sm:mb-4">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-2 sm:p-3 rounded-xl mr-2 sm:mr-3 shadow-lg">
+                <Truck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <div className="bg-gradient-to-r from-slate-600 to-slate-700 p-3 rounded-xl shadow-lg">
-                <Package className="w-6 h-6 text-white" />
+              <div className="bg-gradient-to-r from-slate-600 to-slate-700 p-2 sm:p-3 rounded-xl shadow-lg">
+                <Package className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
             </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-blue-800 bg-clip-text text-transparent mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-slate-800 to-blue-800 bg-clip-text text-transparent mb-2">
               Art Collection Shipping Calculator
             </h1>
-            <p className="text-slate-600">
+            <p className="text-sm sm:text-base text-slate-600 px-4">
               Get instant FedEx shipping rates for your art collections worldwide
             </p>
           </div>
 
           {/* FedEx Configuration Status Alert */}
           {!fedexConfig.hasCompleteConfig && (
-            <Alert className="mb-6 border-yellow-200 bg-yellow-50">
+            <Alert className="mb-4 sm:mb-6 border-yellow-200 bg-yellow-50">
               <AlertTriangle className="h-4 w-4 text-yellow-600" />
               <AlertDescription className="text-yellow-800">
-                <div className="flex items-center justify-between">
-                  <span>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <span className="text-sm sm:text-base">
                     {fedexConfig.isMissingConfig 
                       ? 'FedEx API configuration is required to calculate shipping rates.'
                       : 'FedEx API configuration is incomplete. Some credentials are missing.'
@@ -254,7 +258,7 @@ const Index = () => {
                   </span>
                   <button
                     onClick={() => setActiveTab('config')}
-                    className="ml-4 text-sm text-yellow-700 underline hover:text-yellow-900"
+                    className="text-sm text-yellow-700 underline hover:text-yellow-900 whitespace-nowrap"
                   >
                     Configure Now
                   </button>
@@ -268,7 +272,7 @@ const Index = () => {
             <Alert className="mb-4 border-blue-200 bg-blue-50">
               <Bug className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800">
-                <div className="space-y-2">
+                <div className="space-y-2 text-sm">
                   <div><strong>🚫 Calculate Button Disabled</strong></div>
                   
                   {!validation.hasRequiredFields && (
@@ -276,7 +280,7 @@ const Index = () => {
                       <strong>❌ Missing Required Fields:</strong>
                       <ul className="list-disc list-inside ml-4 mt-1">
                         {getMissingValidationDetails().map(field => (
-                          <li key={field} className="text-sm">{field}</li>
+                          <li key={field} className="text-xs sm:text-sm">{field}</li>
                         ))}
                       </ul>
                     </div>
@@ -287,7 +291,7 @@ const Index = () => {
                       <strong>❌ Form Validation Errors:</strong>
                       <ul className="list-disc list-inside ml-4 mt-1">
                         {validation.errors.map((error, idx) => (
-                          <li key={idx} className="text-sm">{error}</li>
+                          <li key={idx} className="text-xs sm:text-sm">{error}</li>
                         ))}
                       </ul>
                     </div>
@@ -296,7 +300,7 @@ const Index = () => {
                   {!fedexConfig.isConfigReady && (
                     <div>
                       <strong>❌ FedEx Configuration Issue:</strong>
-                      <div className="text-sm ml-4 mt-1">
+                      <div className="text-xs sm:text-sm ml-4 mt-1">
                         Status: {fedexConfig.fedexConfigStatus}
                         {fedexConfig.getStatusDetails().missingFields.length > 0 && (
                           <div>Missing: {fedexConfig.getStatusDetails().missingFields.join(', ')}</div>
@@ -310,7 +314,7 @@ const Index = () => {
                       <strong>❌ Override Validation Errors:</strong>
                       <ul className="list-disc list-inside ml-4 mt-1">
                         {overrideSettings.validateOverrideValues().errors.map((error, idx) => (
-                          <li key={idx} className="text-sm">{error}</li>
+                          <li key={idx} className="text-xs sm:text-sm">{error}</li>
                         ))}
                       </ul>
                     </div>
@@ -326,39 +330,41 @@ const Index = () => {
 
           {/* Main Card */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50 overflow-hidden">
-            {/* Tab Navigation */}
+            {/* Tab Navigation - responsive */}
             <div className="flex border-b border-slate-200/70">
               <button
                 onClick={() => setActiveTab('calculator')}
-                className={`flex-1 px-6 py-3 text-sm font-semibold transition-all duration-200 ${
+                className={`flex-1 px-3 sm:px-6 py-3 text-xs sm:text-sm font-semibold transition-all duration-200 ${
                   activeTab === 'calculator'
                     ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-b-2 border-blue-600'
                     : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50/80'
                 }`}
               >
-                <Calculator className="w-4 h-4 inline mr-2" />
-                Rate Calculator
+                <Calculator className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Rate Calculator</span>
+                <span className="sm:hidden">Calculator</span>
               </button>
               <button
                 onClick={() => setActiveTab('config')}
-                className={`flex-1 px-6 py-3 text-sm font-semibold transition-all duration-200 relative ${
+                className={`flex-1 px-3 sm:px-6 py-3 text-xs sm:text-sm font-semibold transition-all duration-200 relative ${
                   activeTab === 'config'
                     ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-b-2 border-blue-600'
                     : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50/80'
                 }`}
               >
-                <Settings className="w-4 h-4 inline mr-2" />
-                FedEx Configuration
-                <div className="ml-2 inline-block">
+                <Settings className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">FedEx Configuration</span>
+                <span className="sm:hidden">Config</span>
+                <div className="ml-1 sm:ml-2 inline-block">
                   {getConfigStatusBadge()}
                 </div>
               </button>
             </div>
 
             {/* Tab Content */}
-            <div className="p-6">
+            <div className="p-3 sm:p-6">
               {activeTab === 'calculator' ? (
-                <div className="space-y-5">
+                <div className="space-y-4 sm:space-y-5">
                   {/* Origin Address Form */}
                   <OriginAddressForm
                     originCountry={originAddress.originCountry}
@@ -371,9 +377,9 @@ const Index = () => {
 
                   {/* Collection and Size Selection */}
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200 pb-2">
                       <div>
-                        <h3 className="text-base font-semibold text-slate-800">Art Collection Selection</h3>
+                        <h3 className="text-sm sm:text-base font-semibold text-slate-800">Art Collection Selection</h3>
                         {!overrideSettings.isOverrideEnabled && (
                           <p className="text-xs text-slate-600">Choose the artwork you want to ship</p>
                         )}
@@ -388,7 +394,7 @@ const Index = () => {
                     
                     {/* Only show collection and size selectors when override is NOT enabled */}
                     {!overrideSettings.isOverrideEnabled && (
-                      <div className="flex flex-col md:flex-row gap-4">
+                      <div className="flex flex-col md:flex-row gap-3 sm:gap-4">
                         <div className="w-full md:w-[70%]">
                           <CollectionSelector
                             collections={collectionData.collections}
@@ -475,7 +481,7 @@ const Index = () => {
                   {shippingCalculator.error && (
                     <Alert variant="destructive">
                       <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>{shippingCalculator.error}</AlertDescription>
+                      <AlertDescription className="text-sm">{shippingCalculator.error}</AlertDescription>
                     </Alert>
                   )}
 
@@ -492,8 +498,8 @@ const Index = () => {
           </div>
 
           {/* Footer */}
-          <div className="text-center mt-6 space-y-2">
-            <div className="flex items-center justify-center text-slate-500 text-sm">
+          <div className="text-center mt-4 sm:mt-6 space-y-2">
+            <div className="flex items-center justify-center text-slate-500 text-xs sm:text-sm">
               <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
               Powered by FedEx Shipping API • Rates updated in real-time
             </div>
