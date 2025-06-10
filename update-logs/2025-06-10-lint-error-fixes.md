@@ -3,7 +3,7 @@ Date: June 10, 2025
 Session: Fixing ESLint errors in the art-shipping-calculator-pro project
 
 ## Summary
-Fixed 4 lint errors (3 errors, 1 warning) across 3 files to ensure code quality and proper TypeScript typing.
+Fixed 4 lint errors (3 errors, 1 warning) across 3 files to ensure code quality and proper TypeScript typing. Additionally fixed import errors in UI components that were importing buttonVariants from the wrong file.
 
 ## Changes Made
 
@@ -32,10 +32,26 @@ Fixed 4 lint errors (3 errors, 1 warning) across 3 files to ensure code quality 
 - Removed all instances of `(window as any)`
 - Now properly typed as `window.__debugResponseHandler`
 
+### 4. Import Error Fixes
+**Issue**: Multiple UI components were importing buttonVariants from button.tsx causing runtime errors
+**Fixed Files**:
+- src/components/ui/calendar.tsx
+- src/components/ui/pagination.tsx 
+- src/components/ui/alert-dialog.tsx
+
+**Fix**: Updated all imports to use `@/components/ui/button-variants` instead of `@/components/ui/button`
+**Details**:
+- Changed import statements from `import { buttonVariants } from "@/components/ui/button"`
+- To `import { buttonVariants } from "@/components/ui/button-variants"`
+- Also separated ButtonProps import where needed
+
 ## Files Modified
 1. src/components/ui/button.tsx - Remove buttonVariants export
 2. src/hooks/useOverrideSettings.ts - Add proper typing for localStorage data
 3. src/hooks/useShippingCalculator.ts - Add Window interface extension
+4. src/components/ui/calendar.tsx - Fix buttonVariants import
+5. src/components/ui/pagination.tsx - Fix buttonVariants import and separate ButtonProps
+6. src/components/ui/alert-dialog.tsx - Fix buttonVariants import
 
 ## Success Criteria
 ✅ All lint errors resolved
@@ -43,13 +59,16 @@ Fixed 4 lint errors (3 errors, 1 warning) across 3 files to ensure code quality 
 ✅ Fast refresh warning fixed
 ✅ All 'any' types replaced with proper types
 ✅ Code maintains same functionality
+✅ Runtime import errors fixed
+✅ Application loads successfully
 
 ## Next Steps
 - Run `npm run lint` to verify all errors are resolved
 - Test the application to ensure functionality is preserved
-- Consider updating any imports that may have been using `buttonVariants` from button.tsx (should import from button-variants.tsx instead)
+- Monitor for any other components that might need buttonVariants import updates
 
 ## Notes
-- The button.tsx change might affect other files that import buttonVariants from it
+- The button.tsx change affected multiple files that were importing buttonVariants from it
 - The Window interface extension in useShippingCalculator.ts is a common pattern for extending global objects
 - All changes maintain backward compatibility and don't alter functionality
+- The import fixes ensure components can find the correct buttonVariants export location
