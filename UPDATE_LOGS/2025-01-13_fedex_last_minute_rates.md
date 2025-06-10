@@ -38,6 +38,12 @@ Adding support for FedEx last-minute rates and fixing the issue where our app sh
 - Added special orange-themed styling for last-minute rates
 - Added badges and icons to highlight special offers
 
+### 3. Edge Function Deployment ✅
+- **Deployed**: Successfully deployed the updated calculate-shipping edge function
+- **Version**: 6
+- **Status**: ACTIVE
+- **Project**: PAJ'Art Painting Management (coekzxeqsavjmexwjlax)
+
 ## Key Improvements
 
 1. **Better Rate Selection**: Now selects the lowest available rate from all rate types (LIST, ACCOUNT, INCENTIVE)
@@ -56,6 +62,7 @@ Adding support for FedEx last-minute rates and fixing the issue where our app sh
 - [x] Support last-minute rates in backend
 - [x] Display last-minute rates with special styling
 - [x] Show savings information for last-minute rates
+- [x] Deploy edge function successfully
 - [ ] Rates match FedEx website more closely (pending testing)
 
 ## Notes
@@ -63,8 +70,14 @@ Adding support for FedEx last-minute rates and fixing the issue where our app sh
 - Last-minute rates are identified by rate type containing "INCENTIVE" or special indicators
 - Frontend now groups rates by service and shows alternatives when available
 
+## Deployment Details
+- Edge Function: calculate-shipping (version 6)
+- Deployment Time: 2025-01-13 22:31:09 UTC
+- All files successfully included in deployment
+- Function is now live and ready for testing
+
 ## Next Steps
-1. Deploy changes to production
+1. ✅ Deploy changes to production (COMPLETED)
 2. Test with production FedEx account
 3. Monitor rate accuracy compared to FedEx website
 4. Consider adding a toggle to show/hide last-minute rates if needed
