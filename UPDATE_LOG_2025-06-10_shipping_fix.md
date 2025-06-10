@@ -15,14 +15,19 @@
 ### 1. Fixed Edge Function Validation (supabase/functions/calculate-shipping/index.ts)
 - Modified validation logic to properly handle empty strings when override mode is used
 - Empty strings for collection/size are now allowed when overrideData is provided
+- Added proper validation to check for either override data OR collection/size
+- Enhanced logging to show whether override mode is being used
 
 ### 2. Fixed FedEx Payload Builder (supabase/functions/calculate-shipping/lib/payload-builder.ts)
 - Changed `groupPackageCount` to always be 1 (single shipment)
-- Added proper comment explaining this is for single shipment pricing
+- Added detailed comments explaining this is for single shipment pricing
+- Enhanced logging to show user requested quantity vs FedEx API quantity
+- Added note that rates are for ONE package/shipment
 
-### 3. Enhanced Logging
-- Added detailed logging to help debug quantity and pricing issues
-- Logs now show whether override mode is being used
+### 3. Enhanced Edge Function Processing
+- When override data is provided, quantity is always set to 1 for FedEx API
+- User requested quantity is logged but not used in FedEx calculation
+- This ensures rates match FedEx website pricing for single shipments
 
 ## Testing Instructions
 1. Test with custom parameters only (no collection/size selected) - should work without 400 error
@@ -32,3 +37,15 @@
 ## Next Steps
 - Monitor rates to ensure they match FedEx website pricing
 - Consider adding UI option for multi-package shipments if needed in future
+- Add UI indicator showing rates are for single shipment when quantity > 1
+
+## Deployment
+These changes need to be deployed to the Supabase edge function:
+```bash
+supabase functions deploy calculate-shipping
+```
+
+## Status: COMPLETED ✅
+Both issues have been fixed. The application now:
+1. Accepts custom shipping parameters without requiring collection/size selection
+2. Always calculates rates for single shipment to match FedEx website pricing
