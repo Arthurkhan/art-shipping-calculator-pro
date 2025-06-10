@@ -55,18 +55,20 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
       <div className="space-y-3">
         {rates.map((rate, index) => (
           <Card key={index} className="p-4 hover:shadow-md transition-shadow border-slate-200">
-            <div className="flex justify-between items-center">
-              <div className="space-y-1">
-                <h4 className="font-medium text-slate-800">{rate.service}</h4>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+              <div className="space-y-1 flex-1">
+                <h4 className="font-medium text-slate-800 break-words">{rate.service}</h4>
                 <div className="flex items-center text-sm text-slate-600">
-                  <Clock className="w-4 h-4 mr-1" />
-                  {rate.transitTime}
-                  {rate.deliveryDate && (
-                    <span className="ml-2">• Delivery: {rate.deliveryDate}</span>
-                  )}
+                  <Clock className="w-4 h-4 mr-1 flex-shrink-0" />
+                  <span className="break-words">
+                    {rate.transitTime}
+                    {rate.deliveryDate && (
+                      <span className="ml-2">• Delivery: {rate.deliveryDate}</span>
+                    )}
+                  </span>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="sm:text-right">
                 <div className="text-xl font-bold text-slate-800">
                   {rate.currency} {formatPrice(rate.cost)}
                 </div>
