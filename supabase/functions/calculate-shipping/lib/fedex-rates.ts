@@ -289,6 +289,7 @@ export class FedexRatesService {
 
   /**
    * Parse FedEx rate response into ShippingRate array
+   * UPDATED: Now checks for all rate types and selects the best (lowest) rate
    */
   static parseRateResponse(
     responseData: FedexRateResponse, 
@@ -317,8 +318,8 @@ export class FedexRatesService {
         });
 
         if (rateDetail.ratedShipmentDetails && rateDetail.ratedShipmentDetails.length > 0) {
-          let selectedRateAmount: number | null = null;
-          let selectedRateType: string | undefined = undefined;
+          // Collect all valid rates for this service
+          const validRates: Array<{amount: number, rateType: string, isLastMinute: boolean}> = [];
           
           // Log ALL ratedShipmentDetails for debugging
           rateDetail.ratedShipmentDetails.forEach((detail: unknown, index: number) => {
@@ -330,121 +331,130 @@ export class FedexRatesService {
               hasNestedFields: Object.keys(detailApi).filter(k => typeof detailApi[k] === 'object').length > 0,
               allKeys: Object.keys(detailApi)
             });
+            
+            // Extract amount from this detail
+            const extractedAmount = this.extractAmountDirect(detailApi.totalNetCharge);
+            if (extractedAmount && extractedAmount > 0 && detailApi.rateType) {
+              // Check if this is a last-minute rate based on rate type
+              const isLastMinute = detailApi.rateType?.toLowerCase().includes('last') || 
+                                 detailApi.rateType?.toLowerCase().includes('minute') ||
+                                 detailApi.rateType === 'INCENTIVE' ||
+                                 detailApi.rateType === 'RATED_INCENTIVE';
+              
+              validRates.push({
+                amount: extractedAmount,
+                rateType: detailApi.rateType,
+                isLastMinute: isLastMinute
+              });
+            }
           });
           
-          // First, try to find a LIST rate
-          for (const detail of rateDetail.ratedShipmentDetails) {
-            const detailApi = detail as FedexApiRatedShipmentDetail;
-            
-            if (detailApi.rateType === 'LIST' || detailApi.rateType === 'RATED_LIST_PACKAGE') {
-              // CRITICAL: Use strict extraction - no recursion
-              const extractedAmount = this.extractAmountDirect(detailApi.totalNetCharge);
-              
-              Logger.info('LIST rate extraction attempt:', {
-                serviceType: rateDetail.serviceType,
-                rateType: detailApi.rateType,
-                totalNetChargeRaw: detailApi.totalNetCharge,
-                extractedAmount: extractedAmount
-              });
-              
-              if (extractedAmount && extractedAmount > 0) {
-                selectedRateAmount = extractedAmount;
-                selectedRateType = detailApi.rateType;
-                break;
+          // Sort rates by amount (lowest first)
+          validRates.sort((a, b) => a.amount - b.amount);
+          
+          Logger.info('All valid rates for service', {
+            serviceType: rateDetail.serviceType,
+            validRates: validRates
+          });
+          
+          // Select the best (lowest) rate as the primary rate
+          const bestRate = validRates[0];
+          
+          // Check if there's a last-minute rate that's different from the best rate
+          const lastMinuteRate = validRates.find(r => r.isLastMinute && r.amount !== bestRate?.amount);
+          
+          if (bestRate) {
+            // Extract currency (using first detail for currency info)
+            let rateCurrency = preferredCurrency;
+            const firstDetail = rateDetail.ratedShipmentDetails[0] as FedexApiRatedShipmentDetail;
+            if (firstDetail && firstDetail.currency) {
+              // If currency is a symbol, use the preferredCurrency instead
+              const currencySymbols = ['$', '€', '£', '¥', '₹', '₩', 'R$', '₱'];
+              if (currencySymbols.includes(firstDetail.currency)) {
+                rateCurrency = preferredCurrency;
+              } else {
+                rateCurrency = firstDetail.currency;
               }
             }
-          }
-          
-          // If no LIST rate found, try ACCOUNT rate
-          if (!selectedRateAmount) {
-            for (const detail of rateDetail.ratedShipmentDetails) {
-              const detailApi = detail as FedexApiRatedShipmentDetail;
+
+            // Extract transit time and delivery date
+            let transitTime = 'Unknown';
+            let deliveryDate = undefined;
+            
+            if (rateDetail.transitTime) {
+              transitTime = rateDetail.transitTime;
+            }
+            
+            if (rateDetail.deliveryTimestamp) {
+              deliveryDate = this.formatDeliveryDate(rateDetail.deliveryTimestamp);
+            }
+            
+            if (rateDetail.operationalDetail) {
+              if (rateDetail.operationalDetail.transitTime) {
+                transitTime = rateDetail.operationalDetail.transitTime;
+              }
+              if (!deliveryDate && rateDetail.operationalDetail.deliveryDate) {
+                deliveryDate = this.formatDeliveryDate(rateDetail.operationalDetail.deliveryDate);
+              }
+            }
+            
+            if (rateDetail.commit) {
+              if (rateDetail.commit.label) {
+                transitTime = rateDetail.commit.label;
+              } else if (rateDetail.commit.transitTime) {
+                transitTime = rateDetail.commit.transitTime;
+              }
               
-              if (detailApi.rateType === 'ACCOUNT') {
-                const extractedAmount = this.extractAmountDirect(detailApi.totalNetCharge);
-                
-                Logger.info('ACCOUNT rate extraction attempt:', {
-                  serviceType: rateDetail.serviceType,
-                  rateType: detailApi.rateType,
-                  totalNetChargeRaw: detailApi.totalNetCharge,
-                  extractedAmount: extractedAmount
-                });
-                
-                if (extractedAmount && extractedAmount > 0) {
-                  selectedRateAmount = extractedAmount;
-                  selectedRateType = detailApi.rateType;
-                  break;
+              if (!deliveryDate && rateDetail.commit.dateDetail) {
+                if (rateDetail.commit.dateDetail.dayOfWeek) {
+                  deliveryDate = rateDetail.commit.dateDetail.dayOfWeek;
                 }
               }
             }
-          }
-          
-          // Extract currency (using first detail for currency info)
-          let rateCurrency = preferredCurrency;
-          const firstDetail = rateDetail.ratedShipmentDetails[0] as FedexApiRatedShipmentDetail;
-          if (firstDetail && firstDetail.currency) {
-            // If currency is a symbol, use the preferredCurrency instead
-            const currencySymbols = ['$', '€', '£', '¥', '₹', '₩', 'R$', '₱'];
-            if (currencySymbols.includes(firstDetail.currency)) {
-              rateCurrency = preferredCurrency;
-            } else {
-              rateCurrency = firstDetail.currency;
-            }
-          }
 
-          // Extract transit time and delivery date
-          let transitTime = 'Unknown';
-          let deliveryDate = undefined;
-          
-          if (rateDetail.transitTime) {
-            transitTime = rateDetail.transitTime;
-          }
-          
-          if (rateDetail.deliveryTimestamp) {
-            deliveryDate = this.formatDeliveryDate(rateDetail.deliveryTimestamp);
-          }
-          
-          if (rateDetail.operationalDetail) {
-            if (rateDetail.operationalDetail.transitTime) {
-              transitTime = rateDetail.operationalDetail.transitTime;
-            }
-            if (!deliveryDate && rateDetail.operationalDetail.deliveryDate) {
-              deliveryDate = this.formatDeliveryDate(rateDetail.operationalDetail.deliveryDate);
-            }
-          }
-          
-          if (rateDetail.commit) {
-            if (rateDetail.commit.label) {
-              transitTime = rateDetail.commit.label;
-            } else if (rateDetail.commit.transitTime) {
-              transitTime = rateDetail.commit.transitTime;
-            }
-            
-            if (!deliveryDate && rateDetail.commit.dateDetail) {
-              if (rateDetail.commit.dateDetail.dayOfWeek) {
-                deliveryDate = rateDetail.commit.dateDetail.dayOfWeek;
-              }
-            }
-          }
-
-          // Add the rate if we found a valid amount
-          if (selectedRateAmount !== null && selectedRateAmount > 0) {
+            // Add the primary rate
             const rate: ShippingRate = {
               service: rateDetail.serviceType || 'Unknown Service',
-              cost: selectedRateAmount,
+              cost: bestRate.amount,
               currency: rateCurrency,
               transitTime: transitTime,
-              deliveryDate: deliveryDate
+              deliveryDate: deliveryDate,
+              rateType: bestRate.rateType,
+              isLastMinute: bestRate.isLastMinute
             };
             
             Logger.info('=== FINAL RATE ADDED ===', { 
               service: rate.service,
               cost: rate.cost,
               currency: rate.currency,
-              extractedFrom: selectedRateType
+              rateType: rate.rateType,
+              isLastMinute: rate.isLastMinute,
+              extractedFrom: bestRate.rateType
             });
             
             rates.push(rate);
+            
+            // If there's a different last-minute rate, add it as an alternative
+            if (lastMinuteRate && lastMinuteRate.amount !== bestRate.amount) {
+              const alternativeRate: ShippingRate = {
+                service: rateDetail.serviceType || 'Unknown Service',
+                cost: lastMinuteRate.amount,
+                currency: rateCurrency,
+                transitTime: transitTime,
+                deliveryDate: deliveryDate,
+                rateType: lastMinuteRate.rateType,
+                isLastMinute: true,
+                isAlternative: true
+              };
+              
+              Logger.info('=== ALTERNATIVE LAST-MINUTE RATE ADDED ===', { 
+                service: alternativeRate.service,
+                cost: alternativeRate.cost,
+                rateType: alternativeRate.rateType
+              });
+              
+              rates.push(alternativeRate);
+            }
           } else {
             Logger.error('No valid rate amount found for service', {
               serviceType: rateDetail.serviceType
