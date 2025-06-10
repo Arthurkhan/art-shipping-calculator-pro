@@ -16,6 +16,13 @@ export interface ShippingRequest {
     clientId: string;
     clientSecret: string;
   };
+  overrideData?: { // New field for override dimensions and weight
+    weight_kg: number;
+    height_cm: number;
+    length_cm: number;
+    width_cm: number;
+    quantity: number;
+  };
 }
 
 export interface ShippingRate {
