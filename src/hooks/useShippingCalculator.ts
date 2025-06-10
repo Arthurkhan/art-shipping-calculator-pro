@@ -17,6 +17,9 @@ export interface ShippingRate {
   currency: string;
   transitTime: string;
   deliveryDate?: string;
+  rateType?: string;      // Added to match backend and ResultsDisplay expectations
+  isLastMinute?: boolean; // Added to match backend and ResultsDisplay expectations
+  isAlternative?: boolean; // Added to match backend and ResultsDisplay expectations
 }
 
 export interface OverrideData {
@@ -45,6 +48,7 @@ export interface CalculateRatesParams {
  * Extracted from Index.tsx for Phase 2 refactoring - Core business logic
  * Updated for Phase 4 - Using shared error handling utilities
  * Updated for Override Feature - Support custom dimensions and weight
+ * Updated to include rate type information for proper display
  */
 export const useShippingCalculator = () => {
   const [rates, setRates] = useState<ShippingRate[]>([]);
@@ -181,6 +185,8 @@ export const useShippingCalculator = () => {
               costType: typeof rate.cost,
               currency: rate.currency,
               transitTime: rate.transitTime,
+              rateType: rate.rateType,
+              isLastMinute: rate.isLastMinute,
               rawData: rate
             });
           });
@@ -212,7 +218,8 @@ export const useShippingCalculator = () => {
             service: rate.service,
             displayCost: `${rate.currency} ${rate.cost}`,
             rawCost: rate.cost,
-            transitTime: rate.transitTime
+            transitTime: rate.transitTime,
+            rateType: rate.rateType
           });
         });
         
