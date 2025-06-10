@@ -13,6 +13,7 @@ export class PayloadBuilder {
   /**
    * Build FedEx rate request payload matching n8n workflow structure EXACTLY
    * CRITICAL FIX: This implements the exact structure from the working n8n workflow
+   * Updated to support quantity parameter for multiple boxes
    */
   static buildRateRequest(params: PayloadParams): FedexRateRequest {
     const {
@@ -23,7 +24,8 @@ export class PayloadBuilder {
       destinationCountry,
       destinationPostalCode,
       preferredCurrency,
-      shipDateStamp
+      shipDateStamp,
+      quantity = 1 // Default to 1 if not provided
     } = params;
 
     // Enhanced debugging: Log dimensional weight calculation
@@ -35,7 +37,8 @@ export class PayloadBuilder {
       dimensionalWeight: Math.round(dimensionalWeight * 100) / 100,
       billedWeight: Math.round(billedWeight * 100) / 100,
       dimensions: `${sizeData.length_cm}x${sizeData.width_cm}x${sizeData.height_cm} cm`,
-      volume: sizeData.length_cm * sizeData.width_cm * sizeData.height_cm
+      volume: sizeData.length_cm * sizeData.width_cm * sizeData.height_cm,
+      quantity: quantity
     });
 
     // CRITICAL FIX: Construct payload EXACTLY matching n8n workflow structure
@@ -46,6 +49,7 @@ export class PayloadBuilder {
     // 4. Use CM/KG directly (no unit conversions)
     // 5. Add missing required fields: preferredCurrency, shipDateStamp, packagingType
     // 6. ADD variableOptions to request transit time and delivery date
+    // 7. Support quantity parameter for multiple boxes
     const payload: FedexRateRequest = {
       accountNumber: {
         value: accountNumber
@@ -70,7 +74,7 @@ export class PayloadBuilder {
         rateRequestType: ["LIST", "ACCOUNT", "INCENTIVE"], // Fixed array format from roadmap
         requestedPackageLineItems: [
           {
-            groupPackageCount: 1, // ONLY here - not at top level
+            groupPackageCount: quantity, // Use the quantity parameter here
             weight: {
               units: "KG", // Use KG directly (no conversion)
               value: sizeData.weight_kg
@@ -104,7 +108,9 @@ export class PayloadBuilder {
           dimensional: Math.round(dimensionalWeight * 100) / 100,
           billed: Math.round(billedWeight * 100) / 100
         },
-        fixApplied: 'Implemented n8n-compliant payload structure with all required fields + TRANSIT_TIME'
+        quantity: quantity,
+        totalWeight: Math.round(billedWeight * quantity * 100) / 100,
+        fixApplied: 'Implemented n8n-compliant payload structure with all required fields + TRANSIT_TIME + quantity support'
       }
     });
 
