@@ -40,12 +40,14 @@
 - Add UI indicator showing rates are for single shipment when quantity > 1
 
 ## Deployment
-These changes need to be deployed to the Supabase edge function:
-```bash
-supabase functions deploy calculate-shipping
-```
+Edge function has been deployed successfully:
+- Function ID: de252d3b-4be3-4b79-8c27-44e3c9939caa
+- Version: 5
+- Status: ACTIVE
+- Deployed at: 2025-06-10 10:32:21 UTC
 
-## Status: COMPLETED ✅
-Both issues have been fixed. The application now:
+## Status: COMPLETED & DEPLOYED ✅
+Both issues have been fixed and deployed. The application now:
 1. Accepts custom shipping parameters without requiring collection/size selection
 2. Always calculates rates for single shipment to match FedEx website pricing
+3. Edge function is live and ready for testing
