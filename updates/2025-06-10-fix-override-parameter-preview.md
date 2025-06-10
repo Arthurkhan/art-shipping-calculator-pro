@@ -5,13 +5,14 @@
 **Feature**: Fix Parameter Preview for Custom Shipping Parameters
 
 ## Summary
-Fixed issues where the Shipping Parameters Preview was not correctly displaying custom box configurations when override mode is active. The preview was showing incorrect aggregated data instead of the actual box configurations. Also fixed the FedEx API payload generation to properly handle multiple box configurations.
+Fixed issues where the Shipping Parameters Preview was not correctly displaying custom box configurations when override mode is active. The preview was showing incorrect aggregated data instead of the actual box configurations. Also fixed the FedEx API payload generation to properly handle multiple box configurations. Additionally fixed validation logic that was incorrectly requiring collection/size selection even when override mode was enabled.
 
 ## Problems Identified
 1. ParameterPreview shows average weight (4.5kg) instead of total weight (18kg) when multiple boxes are configured
 2. Only displays a single dimension set instead of showing all box configurations
 3. The aggregated data from `getOverrideData()` was using average weight which could cause FedEx API validation errors
 4. The 400 Bad Request error was likely due to sending invalid weight/dimension combinations
+5. **NEW**: Validation logic was still requiring collection and size selection even when override mode was enabled
 
 ## Changes Made
 
@@ -37,7 +38,15 @@ Fixed issues where the Shipping Parameters Preview was not correctly displaying 
   - For multiple configurations: uses the box with highest billed weight as the reference
   - Still includes detailed `box_configurations` array for UI display
 
-### 3. Backend Already Supports Multi-Box
+### 3. Fixed Validation Logic
+- **Frontend File**: `src/hooks/useShippingCalculator.ts`
+- **Backend File**: `supabase/functions/calculate-shipping/index.ts`
+- **Changes**:
+  - Modified validation to only require collection and size when override mode is NOT enabled
+  - When override data is provided, collection and size fields are no longer required
+  - This allows users to calculate rates using custom dimensions without selecting a collection
+
+### 4. Backend Already Supports Multi-Box
 - **File**: `supabase/functions/calculate-shipping/lib/payload-builder.ts`
 - **Status**: Already properly configured to handle quantity parameter
 - The backend correctly uses the quantity in `groupPackageCount` field
@@ -61,6 +70,11 @@ Fixed issues where the Shipping Parameters Preview was not correctly displaying 
 - This aligns with FedEx API expectations for uniform packages
 - Ensures shipping costs are not underestimated
 
+### Validation Fix
+- Frontend: Added check for `needsCollectionAndSize` based on override mode
+- Backend: Same logic applied to ensure consistency
+- Both now properly skip collection/size validation when override data is present
+
 ### Visual Improvements
 - Box configurations displayed in card-like containers
 - Clear visual separation between configurations
@@ -73,6 +87,7 @@ Fixed issues where the Shipping Parameters Preview was not correctly displaying 
 - ✅ Verified that non-override mode still works correctly
 - ✅ Confirmed correct calculations for dimensional and billed weights
 - ✅ Verified FedEx API parameters show correct total box count
+- ✅ Tested validation works correctly in override mode (no collection/size required)
 
 ## Results
 - Parameter preview now correctly shows:
@@ -84,6 +99,9 @@ Fixed issues where the Shipping Parameters Preview was not correctly displaying 
   - Largest box dimensions (40x31x28cm) with weight (6kg)
   - Total quantity of 4 boxes
   - This should resolve the 400 Bad Request errors
+- Validation now works correctly:
+  - Override mode no longer requires collection/size selection
+  - Users can calculate rates with just custom dimensions and destination info
 
 ## Next Steps
 - Monitor to ensure 400 Bad Request errors are resolved
@@ -93,3 +111,5 @@ Fixed issues where the Shipping Parameters Preview was not correctly displaying 
 ## Screenshots Reference
 - Before: Preview showed 4.5kg (average) with single dimension set
 - After: Preview shows all box configurations with correct totals
+- Before: "Please fill in all required fields" error even with all fields filled
+- After: Calculation works correctly with override mode enabled
