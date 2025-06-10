@@ -28,13 +28,6 @@ const formatPrice = (price: number): string => {
 const organizeRates = (rates: ShippingRate[]): Map<string, { list?: ShippingRate, account?: ShippingRate }> => {
   const organized = new Map<string, { list?: ShippingRate, account?: ShippingRate }>();
   
-  // Debug logging
-  console.log('📊 Organizing rates:', rates.map(r => ({
-    service: r.service,
-    rateType: r.rateType,
-    cost: r.cost
-  })));
-  
   rates.forEach(rate => {
     const service = rate.service;
     if (!organized.has(service)) {
@@ -50,17 +43,6 @@ const organizeRates = (rates: ShippingRate[]): Map<string, { list?: ShippingRate
                rate.rateType === 'INCENTIVE' || rate.rateType === 'RATED_INCENTIVE') {
       serviceRates.account = rate;
     }
-  });
-  
-  // Debug logging
-  console.log('📋 Organized rates by service:');
-  organized.forEach((rates, service) => {
-    console.log(`  ${service}:`, {
-      hasList: !!rates.list,
-      hasAccount: !!rates.account,
-      listCost: rates.list?.cost,
-      accountCost: rates.account?.cost
-    });
   });
   
   return organized;
@@ -92,9 +74,6 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
     return null;
   }
 
-  // Debug incoming rates
-  console.log('🎯 ResultsDisplay received rates:', rates);
-
   // Organize rates by service type
   const organizedRates = organizeRates(rates);
 
@@ -116,13 +95,6 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
           const hasDiscount = list && account && list.cost > account.cost;
           const discountAmount = hasDiscount ? list.cost - account.cost : 0;
           const discountPercent = hasDiscount ? Math.round((discountAmount / list.cost) * 100) : 0;
-          
-          console.log(`💰 Rendering ${service}:`, {
-            hasDiscount,
-            listRate: list?.cost,
-            accountRate: account?.cost,
-            discountPercent
-          });
           
           return (
             <Card key={service} className="p-4 hover:shadow-md transition-shadow border-slate-200">
