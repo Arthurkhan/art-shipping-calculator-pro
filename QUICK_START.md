@@ -49,24 +49,54 @@ https://amazing-shipping-calc-123.netlify.app
 3. Name it: **"Shipping Calculator"**
 4. URL Slug: `/shipping-calculator`
 
-### Step 2: Add the Calculator
+### Step 2: Add the Auto-Resizing Calculator
 1. Edit your new page
 2. Click **+** → **Code**
 3. Paste this code (replace the URL!):
 
 ```html
-<div style="width: 100%; max-width: 1200px; margin: 0 auto;">
+<!-- Auto-resizing iframe container -->
+<div id="shipping-calc-container" style="width: 100%; max-width: 1200px; margin: 0 auto;">
+  <!-- Loading message -->
+  <div id="calc-loading" style="text-align: center; padding: 40px;">
+    Loading shipping calculator...
+  </div>
+  
+  <!-- The iframe -->
   <iframe 
-    src="https://YOUR-APP-NAME.netlify.app" 
+    id="shipping-calculator-iframe"
+    src="https://YOUR-NETLIFY-URL.netlify.app" 
     width="100%" 
-    height="900px"
-    style="border: none;"
+    height="800px"
+    frameborder="0"
+    scrolling="no"
+    style="border: none; display: none;"
     title="Shipping Calculator">
   </iframe>
 </div>
+
+<script>
+(function() {
+  const iframe = document.getElementById('shipping-calculator-iframe');
+  const loading = document.getElementById('calc-loading');
+  
+  // Show iframe when loaded
+  iframe.onload = function() {
+    loading.style.display = 'none';
+    iframe.style.display = 'block';
+  };
+  
+  // Auto-resize based on content
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'resize' && e.data.height) {
+      iframe.style.height = (parseInt(e.data.height) + 50) + 'px';
+    }
+  });
+})();
+</script>
 ```
 
-4. **Important**: Replace `YOUR-APP-NAME` with your actual Netlify URL
+4. **Important**: Replace `YOUR-NETLIFY-URL` with your actual Netlify URL
 5. Save the page
 
 ### Step 3: Add to Navigation
@@ -83,6 +113,8 @@ Your shipping calculator is now live at:
 www.nazare-aga.com/shipping-calculator
 ```
 
+The iframe will automatically adjust its height to show all content - no cutoffs!
+
 ---
 
 ## 🛠️ Troubleshooting
@@ -92,54 +124,24 @@ www.nazare-aga.com/shipping-calculator
 - Make sure you replaced the URL in the iframe code
 - Check browser console for errors (F12)
 
-### Need different height?
-Change `height="900px"` to your preferred height
+### Content still cut off?
+- Make sure you deployed the latest code to Netlify
+- The app now includes auto-resize functionality
+- Try refreshing the page
 
-### Want a button instead?
-Use this code for a popup button:
-
-```html
-<button class="sqs-block-button-element--medium" 
-        onclick="window.open('https://YOUR-APP-NAME.netlify.app', 'shipping', 'width=1000,height=800')">
-  Calculate Shipping
-</button>
-```
-
----
-
-## 📱 Mobile Optimization
-
-For better mobile experience, update the iframe code:
-
+### Want a simple fixed height instead?
+Replace the code above with:
 ```html
 <div style="width: 100%; max-width: 1200px; margin: 0 auto;">
   <iframe 
-    src="https://YOUR-APP-NAME.netlify.app" 
+    src="https://YOUR-NETLIFY-URL.netlify.app" 
     width="100%" 
-    height="900px"
-    style="border: none;"
-    title="Shipping Calculator">
+    height="1500px"
+    frameborder="0"
+    style="border: none;">
   </iframe>
 </div>
-
-<style>
-@media (max-width: 768px) {
-  iframe {
-    height: 1200px !important;
-  }
-}
-</style>
 ```
-
----
-
-## 🔐 Security Note
-
-Your calculator is secure because:
-- It runs in an isolated iframe
-- Uses HTTPS
-- Has proper CORS configuration
-- Supabase handles authentication
 
 ---
 
@@ -148,9 +150,6 @@ Your calculator is secure because:
 1. **Custom Domain**: In Netlify, you can set up `shipping.nazare-aga.com`
 2. **Analytics**: Netlify provides free analytics
 3. **Updates**: Push to GitHub = auto-deploy to Netlify
+4. **Height**: The iframe auto-adjusts, but you can set a fixed height if preferred
 
-Need help? Your app is now:
-- ✅ Deployed on Netlify
-- ✅ Embedded in Squarespace
-- ✅ Fully functional
-- ✅ Mobile responsive
+Need help? Check `/docs/AUTO_RESIZE_IFRAME.md` for advanced options.
