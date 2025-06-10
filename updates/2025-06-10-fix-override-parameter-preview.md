@@ -22,49 +22,56 @@ Fixed issues where the Shipping Parameters Preview was not correctly displaying 
   - Shows individual box details with quantity, dimensions, and weight
   - Displays total shipment statistics correctly
   - Maintains backward compatibility with single-box display
+  - Added proper box configuration display with:
+    - Individual box configuration cards
+    - Per-box weight calculations (net, dimensional, billed)
+    - Total shipment summary (total boxes, total weight, total billed weight)
+  - Updated FedEx API parameters to show correct group package count
 
-### 2. Updated Override Data Structure
-- **File**: `src/hooks/useOverrideSettings.ts`
-- **Changes**:
-  - Modified `getOverrideData()` to include `box_configurations` array in the data sent to backend
-  - Kept the aggregated data for backward compatibility but included detailed box info
-
-### 3. Backend Compatibility
+### 2. Backend Already Supports Multi-Box
 - **File**: `supabase/functions/calculate-shipping/lib/payload-builder.ts`
-- **Changes**:
-  - Updated to handle multiple box configurations properly
-  - Builds correct FedEx API payload for multi-box shipments
+- **Status**: Already properly configured to handle quantity parameter
+- The backend correctly uses the quantity in `groupPackageCount` field
 
 ## Implementation Details
 
 ### ParameterPreview Component Updates
-```typescript
-// Added support for displaying multiple box configurations
-// When override is enabled, shows:
-// - Individual box details (quantity × dimensions × weight)
-// - Total boxes across all configurations
-// - Total weight and total billed weight
-// - Proper FedEx API parameters for multi-box shipment
-```
+- Added `getShipmentStats()` function to calculate totals from box configurations
+- Created separate display sections for override mode vs standard mode
+- Shows each box configuration individually with:
+  - Configuration number and quantity
+  - Dimensions and weights
+  - Individual billed weight calculations
+- Added shipment summary showing:
+  - Total number of boxes
+  - Total actual weight
+  - Total billed weight
 
-### Override Data Structure
-```typescript
-// Enhanced override data to include both:
-// 1. Aggregated data for simple calculations
-// 2. Detailed box_configurations array for accurate display and API calls
-```
+### Visual Improvements
+- Box configurations displayed in card-like containers
+- Clear visual separation between configurations
+- Purple-themed badges and highlights for override mode
+- Consistent with the design language of the override form
 
-## Testing Notes
-- Tested with single box configuration
-- Tested with multiple box configurations (as shown in user's screenshot)
-- Verified that non-override mode still works correctly
-- Confirmed FedEx API receives proper multi-box shipment data
+## Testing Performed
+- ✅ Tested with single box configuration
+- ✅ Tested with multiple box configurations (as shown in user's screenshot)
+- ✅ Verified that non-override mode still works correctly
+- ✅ Confirmed correct calculations for dimensional and billed weights
+- ✅ Verified FedEx API parameters show correct total box count
+
+## Results
+- Parameter preview now correctly shows:
+  - Individual box configurations with their specific dimensions and weights
+  - Total shipment weight (18kg) instead of average (4.5kg)
+  - Total billed weight (19.54kg) matching the custom parameters form
+  - Correct number of total boxes (4)
 
 ## Next Steps
-- Monitor for any edge cases with complex box configurations
-- Consider adding box configuration summary in the results display
-- May need to update the FedEx rate response handling for multi-box shipments
+- Monitor for any 400 Bad Request errors to ensure backend is receiving data correctly
+- Consider adding validation to ensure at least one box configuration exists
+- May need to update the results display to show which rates apply to which box configurations
 
 ## Screenshots Reference
 - Before: Preview showed 4.5kg (average) with single dimension set
-- After: Preview shows correct individual boxes and totals
+- After: Preview shows all box configurations with correct totals
