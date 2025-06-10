@@ -7,6 +7,8 @@ import { CalculateButton } from "@/components/shipping/CalculateButton";
 import { ResultsDisplay } from "@/components/shipping/ResultsDisplay";
 import { FedexConfigForm } from "@/components/shipping/FedexConfigForm";
 import { ParameterPreview } from "@/components/shipping/ParameterPreview";
+import { OverrideToggleButton } from "@/components/shipping/OverrideToggleButton";
+import { OverrideForm } from "@/components/shipping/OverrideForm";
 import { DebugPanel } from "@/components/debug/DebugPanel";
 import { Truck, Package, Settings, Calculator, AlertTriangle, CheckCircle, Bug } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -20,6 +22,7 @@ import { useCurrencySelector } from "@/hooks/useCurrencySelector";
 import { useCollectionData } from "@/hooks/useCollectionData";
 import { useShippingValidation } from "@/hooks/useShippingValidation";
 import { useShippingCalculator } from "@/hooks/useShippingCalculator";
+import { useOverrideSettings } from "@/hooks/useOverrideSettings";
 
 const Index = () => {
   // UI state
@@ -40,11 +43,12 @@ const Index = () => {
   const currencySelector = useCurrencySelector();
   const collectionData = useCollectionData();
   const shippingCalculator = useShippingCalculator();
+  const overrideSettings = useOverrideSettings(); // New override hook
 
   // Form validation using extracted hook
   const validation = useShippingValidation({
     selectedCollection: collectionData.selectedCollection,
-    selectedSize: collectionData.selectedSize,
+    selectedSize: overrideSettings.isOverrideEnabled ? 'custom' : collectionData.selectedSize,
     country,
     postalCode,
     originCountry: originAddress.originCountry,
@@ -55,9 +59,10 @@ const Index = () => {
   // Enhanced debug logging to help identify the issue
   const debugInfo = {
     // Button status
-    buttonDisabled: !validation.isReadyForSubmission || !fedexConfig.isConfigReady,
+    buttonDisabled: !validation.isReadyForSubmission || !fedexConfig.isConfigReady || (overrideSettings.isOverrideEnabled && !overrideSettings.hasValidOverrideValues),
     validationReady: validation.isReadyForSubmission,
     fedexReady: fedexConfig.isConfigReady,
+    overrideReady: !overrideSettings.isOverrideEnabled || overrideSettings.hasValidOverrideValues,
     
     // Detailed form data
     formData: {
@@ -69,6 +74,8 @@ const Index = () => {
       originPostalCode: originAddress.originPostalCode,
       preferredCurrency: currencySelector.preferredCurrency,
       shipDate: shipDate?.toISOString().split('T')[0],
+      overrideEnabled: overrideSettings.isOverrideEnabled,
+      overrideData: overrideSettings.getOverrideData(),
     },
     
     // Validation breakdown
@@ -97,6 +104,13 @@ const Index = () => {
       sizesCount: collectionData.sizes.length,
       hasSelectedCollection: !!collectionData.selectedCollection,
       hasSelectedSize: !!collectionData.selectedSize,
+    },
+    
+    // Override status
+    overrideStatus: {
+      enabled: overrideSettings.isOverrideEnabled,
+      valid: overrideSettings.hasValidOverrideValues,
+      errors: overrideSettings.validateOverrideValues().errors,
     }
   };
 
@@ -108,7 +122,7 @@ const Index = () => {
     const data = debugInfo.formData;
     
     if (!data.selectedCollection) missing.push('Art Collection');
-    if (!data.selectedSize) missing.push('Artwork Size');
+    if (!data.selectedSize && !overrideSettings.isOverrideEnabled) missing.push('Artwork Size');
     if (!data.country) missing.push('Destination Country');
     if (!data.postalCode) missing.push('Destination Postal Code');
     if (!data.originCountry) missing.push('Origin Country');
@@ -123,6 +137,14 @@ const Index = () => {
     if (!fedexConfig.isConfigReady) {
       fedexConfig.checkFedexConfigStatus();
       setActiveTab('config');
+      return;
+    }
+
+    // Check override validation if enabled
+    if (overrideSettings.isOverrideEnabled && !overrideSettings.hasValidOverrideValues) {
+      console.warn('⚠️ Override validation failed:', {
+        errors: overrideSettings.validateOverrideValues().errors
+      });
       return;
     }
 
@@ -146,6 +168,7 @@ const Index = () => {
       preferredCurrency: currencySelector.preferredCurrency,
       shipDate: shipDate?.toISOString().split('T')[0], // Pass ship date as YYYY-MM-DD
       fedexConfig: fedexConfig.fedexConfig || undefined,
+      overrideData: overrideSettings.getOverrideData(), // Pass override data
     });
 
     // Additional UI feedback can be added here if needed
@@ -156,7 +179,7 @@ const Index = () => {
 
   // Check if parameter preview should be shown
   const shouldShowParameterPreview = () => {
-    return validation.hasRequiredFields;
+    return validation.hasRequiredFields || overrideSettings.isOverrideEnabled;
   };
 
   // Get configuration status badge
@@ -280,6 +303,17 @@ const Index = () => {
                     </div>
                   )}
                   
+                  {overrideSettings.isOverrideEnabled && !overrideSettings.hasValidOverrideValues && (
+                    <div>
+                      <strong>❌ Override Validation Errors:</strong>
+                      <ul className="list-disc list-inside ml-4 mt-1">
+                        {overrideSettings.validateOverrideValues().errors.map((error, idx) => (
+                          <li key={idx} className="text-sm">{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
                   <div className="text-xs text-blue-600 mt-2">
                     Check browser console for detailed debugging information.
                   </div>
@@ -335,9 +369,17 @@ const Index = () => {
 
                   {/* Collection and Size Selection */}
                   <div className="space-y-3">
-                    <div className="border-b border-slate-200 pb-2">
-                      <h3 className="text-base font-semibold text-slate-800">Art Collection Selection</h3>
-                      <p className="text-xs text-slate-600">Choose the artwork you want to ship</p>
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                      <div>
+                        <h3 className="text-base font-semibold text-slate-800">Art Collection Selection</h3>
+                        <p className="text-xs text-slate-600">Choose the artwork you want to ship</p>
+                      </div>
+                      {/* Override Toggle Button */}
+                      <OverrideToggleButton
+                        isEnabled={overrideSettings.isOverrideEnabled}
+                        onClick={overrideSettings.toggleOverride}
+                        hasValidValues={overrideSettings.hasValidOverrideValues}
+                      />
                     </div>
                     
                     <div className="flex flex-col md:flex-row gap-4">
@@ -354,11 +396,27 @@ const Index = () => {
                           sizes={collectionData.sizes}
                           selectedSize={collectionData.selectedSize}
                           onSizeChange={collectionData.handleSizeChange}
-                          disabled={!collectionData.selectedCollection}
+                          disabled={!collectionData.selectedCollection || overrideSettings.isOverrideEnabled}
                         />
                       </div>
                     </div>
                   </div>
+
+                  {/* Override Form */}
+                  {overrideSettings.isOverrideEnabled && (
+                    <>
+                      <Separator className="my-4" />
+                      <OverrideForm
+                        overrideSettings={overrideSettings.overrideSettings}
+                        onDimensionsChange={overrideSettings.updateDimensions}
+                        onWeightChange={overrideSettings.updateWeight}
+                        onQuantityChange={overrideSettings.updateQuantity}
+                        onReset={overrideSettings.resetToDefaults}
+                        validationErrors={overrideSettings.validateOverrideValues().errors}
+                        isEnabled={overrideSettings.isOverrideEnabled}
+                      />
+                    </>
+                  )}
 
                   <Separator className="my-4" />
 
@@ -388,6 +446,8 @@ const Index = () => {
                         preferredCurrency={currencySelector.preferredCurrency}
                         isVisible={true}
                         shipDate={shipDate}
+                        overrideData={overrideSettings.getOverrideData()}
+                        isOverrideEnabled={overrideSettings.isOverrideEnabled}
                       />
                     </div>
                   )}
@@ -396,7 +456,7 @@ const Index = () => {
                   <div className="pt-3">
                     <CalculateButton
                       onClick={handleCalculateRates}
-                      disabled={!validation.isReadyForSubmission || !fedexConfig.isConfigReady}
+                      disabled={debugInfo.buttonDisabled}
                       isLoading={shippingCalculator.isCalculating}
                       fedexConfigMissing={!fedexConfig.hasCompleteConfig}
                     />
