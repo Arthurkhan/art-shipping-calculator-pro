@@ -82,8 +82,11 @@ export const useShippingCalculator = () => {
     }
 
     // Validation - all required fields
-    if (!selectedCollection || (!selectedSize && !overrideData) || !country || !postalCode || 
-        !originCountry || !originPostalCode || !preferredCurrency) {
+    // When override mode is enabled (overrideData is provided), we don't need collection/size
+    const needsCollectionAndSize = !overrideData;
+    
+    if ((needsCollectionAndSize && (!selectedCollection || !selectedSize)) || 
+        !country || !postalCode || !originCountry || !originPostalCode || !preferredCurrency) {
       const errorMsg = "Please fill in all required fields before calculating rates";
       const error = createShippingError(
         ErrorType.VALIDATION,
@@ -116,8 +119,8 @@ export const useShippingCalculator = () => {
       });
 
       console.log('🚀 Starting FedEx rate calculation with params:', {
-        collection: selectedCollection,
-        size: selectedSize,
+        collection: selectedCollection || 'Not required (override mode)',
+        size: selectedSize || 'Not required (override mode)',
         origin: `${originCountry} ${originPostalCode}`,
         destination: `${country} ${postalCode}`,
         currency: preferredCurrency,
