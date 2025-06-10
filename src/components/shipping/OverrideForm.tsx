@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, Plus, Trash2, RotateCcw } from "lucide-react";
+import { Package, Plus, Trash2, RotateCcw, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,8 @@ const BoxRow = ({
     weight: box.weight.toString(),
   });
 
+  const [isExpanded, setIsExpanded] = useState(true);
+
   useEffect(() => {
     setLocalValues({
       quantity: box.quantity.toString(),
@@ -98,124 +100,234 @@ const BoxRow = ({
   const billedWeight = getBilledWeight(box);
 
   return (
-    <div className="space-y-3">
-      {/* Box label for multiple boxes */}
-      {showRemove && (
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium text-slate-700">Box Configuration {index + 1}</Label>
-          {isEnabled && (
-            <Button
-              onClick={onRemove}
-              variant="ghost"
-              size="sm"
-              className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
+    <div className="space-y-3 bg-slate-50 rounded-lg p-3 sm:p-4">
+      {/* Box header - collapsible on mobile */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center gap-2 text-sm font-medium text-slate-700 sm:cursor-default"
+          disabled={!showRemove}
+        >
+          {showRemove && (
+            <ChevronRight 
+              className={`w-4 h-4 transition-transform sm:hidden ${isExpanded ? 'rotate-90' : ''}`} 
+            />
           )}
-        </div>
-      )}
-
-      {/* Responsive grid layout - stacked on mobile, grid on larger screens */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        {/* Quantity */}
-        <div>
-          <Label htmlFor={`quantity-${box.id}`} className="text-xs sm:text-sm">Quantity</Label>
-          <Input
-            id={`quantity-${box.id}`}
-            type="number"
-            value={localValues.quantity}
-            onChange={(e) => handleQuantityChange(e.target.value)}
-            placeholder="1"
-            min="1"
-            step="1"
-            disabled={!isEnabled}
-            className="h-10 sm:h-9 text-base sm:text-sm"
-            inputMode="numeric"
-          />
-        </div>
-
-        {/* Length */}
-        <div>
-          <Label htmlFor={`length-${box.id}`} className="text-xs sm:text-sm">Length (cm)</Label>
-          <Input
-            id={`length-${box.id}`}
-            type="number"
-            value={localValues.length}
-            onChange={(e) => handleDimensionChange('length', e.target.value)}
-            placeholder="40"
-            min="0.1"
-            step="0.1"
-            disabled={!isEnabled}
-            className="h-10 sm:h-9 text-base sm:text-sm"
-            inputMode="decimal"
-          />
-        </div>
-
-        {/* Width */}
-        <div>
-          <Label htmlFor={`width-${box.id}`} className="text-xs sm:text-sm">Width (cm)</Label>
-          <Input
-            id={`width-${box.id}`}
-            type="number"
-            value={localValues.width}
-            onChange={(e) => handleDimensionChange('width', e.target.value)}
-            placeholder="31"
-            min="0.1"
-            step="0.1"
-            disabled={!isEnabled}
-            className="h-10 sm:h-9 text-base sm:text-sm"
-            inputMode="decimal"
-          />
-        </div>
-
-        {/* Height */}
-        <div>
-          <Label htmlFor={`height-${box.id}`} className="text-xs sm:text-sm">Height (cm)</Label>
-          <Input
-            id={`height-${box.id}`}
-            type="number"
-            value={localValues.height}
-            onChange={(e) => handleDimensionChange('height', e.target.value)}
-            placeholder="28"
-            min="0.1"
-            step="0.1"
-            disabled={!isEnabled}
-            className="h-10 sm:h-9 text-base sm:text-sm"
-            inputMode="decimal"
-          />
-        </div>
-
-        {/* Weight */}
-        <div>
-          <Label htmlFor={`weight-${box.id}`} className="text-xs sm:text-sm">Weight (kg)</Label>
-          <Input
-            id={`weight-${box.id}`}
-            type="number"
-            value={localValues.weight}
-            onChange={(e) => handleWeightChange(e.target.value)}
-            placeholder="4"
-            min="0.1"
-            step="0.1"
-            disabled={!isEnabled}
-            className="h-10 sm:h-9 text-base sm:text-sm"
-            inputMode="decimal"
-          />
-        </div>
+          <span>Box {showRemove ? `Configuration ${index + 1}` : 'Configuration'}</span>
+          <Badge variant="outline" className="ml-2 text-xs">
+            {box.quantity} {box.quantity > 1 ? 'boxes' : 'box'}
+          </Badge>
+        </button>
+        {showRemove && isEnabled && (
+          <Button
+            onClick={onRemove}
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
       </div>
 
-      {/* Weight calculations per box - responsive text */}
-      {isEnabled && (
-        <div className="text-xs sm:text-sm text-slate-600 pl-2 space-y-1 sm:space-y-0">
-          <span className="block sm:inline">Actual: {box.weight} kg</span>
-          <span className="hidden sm:inline mx-2">•</span>
-          <span className="block sm:inline">Dimensional: {dimensionalWeight.toFixed(2)} kg</span>
-          <span className="hidden sm:inline mx-2">•</span>
-          <span className="block sm:inline">
-            Billed: <span className="font-medium">{billedWeight.toFixed(2)} kg</span> × {box.quantity} {box.quantity > 1 ? 'boxes' : 'box'}
-          </span>
+      {/* Box inputs - collapsible on mobile, always visible on desktop */}
+      <div className={`space-y-3 ${!isExpanded && showRemove ? 'hidden sm:block' : ''}`}>
+        {/* Mobile: Vertical layout | Desktop: Horizontal scroll wrapper */}
+        <div className="block sm:hidden space-y-3">
+          {/* Quantity - full width on mobile */}
+          <div>
+            <Label htmlFor={`quantity-${box.id}`} className="text-sm font-medium">
+              Quantity
+            </Label>
+            <Input
+              id={`quantity-${box.id}`}
+              type="number"
+              value={localValues.quantity}
+              onChange={(e) => handleQuantityChange(e.target.value)}
+              placeholder="1"
+              min="1"
+              step="1"
+              disabled={!isEnabled}
+              className="h-12 text-base"
+              inputMode="numeric"
+            />
+          </div>
+
+          {/* Dimensions - 2 column grid on mobile */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor={`length-${box.id}`} className="text-sm">Length (cm)</Label>
+              <Input
+                id={`length-${box.id}`}
+                type="number"
+                value={localValues.length}
+                onChange={(e) => handleDimensionChange('length', e.target.value)}
+                placeholder="40"
+                min="0.1"
+                step="0.1"
+                disabled={!isEnabled}
+                className="h-12 text-base"
+                inputMode="decimal"
+              />
+            </div>
+            <div>
+              <Label htmlFor={`width-${box.id}`} className="text-sm">Width (cm)</Label>
+              <Input
+                id={`width-${box.id}`}
+                type="number"
+                value={localValues.width}
+                onChange={(e) => handleDimensionChange('width', e.target.value)}
+                placeholder="31"
+                min="0.1"
+                step="0.1"
+                disabled={!isEnabled}
+                className="h-12 text-base"
+                inputMode="decimal"
+              />
+            </div>
+            <div>
+              <Label htmlFor={`height-${box.id}`} className="text-sm">Height (cm)</Label>
+              <Input
+                id={`height-${box.id}`}
+                type="number"
+                value={localValues.height}
+                onChange={(e) => handleDimensionChange('height', e.target.value)}
+                placeholder="28"
+                min="0.1"
+                step="0.1"
+                disabled={!isEnabled}
+                className="h-12 text-base"
+                inputMode="decimal"
+              />
+            </div>
+            <div>
+              <Label htmlFor={`weight-${box.id}`} className="text-sm">Weight (kg)</Label>
+              <Input
+                id={`weight-${box.id}`}
+                type="number"
+                value={localValues.weight}
+                onChange={(e) => handleWeightChange(e.target.value)}
+                placeholder="4"
+                min="0.1"
+                step="0.1"
+                disabled={!isEnabled}
+                className="h-12 text-base"
+                inputMode="decimal"
+              />
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Desktop: Horizontal layout with scroll if needed */}
+        <div className="hidden sm:block overflow-x-auto">
+          <div className="grid grid-cols-5 gap-3 min-w-[600px]">
+            <div>
+              <Label htmlFor={`quantity-${box.id}-desktop`} className="text-sm">Quantity</Label>
+              <Input
+                id={`quantity-${box.id}-desktop`}
+                type="number"
+                value={localValues.quantity}
+                onChange={(e) => handleQuantityChange(e.target.value)}
+                placeholder="1"
+                min="1"
+                step="1"
+                disabled={!isEnabled}
+                className="h-9 text-sm"
+                inputMode="numeric"
+              />
+            </div>
+            <div>
+              <Label htmlFor={`length-${box.id}-desktop`} className="text-sm">Length (cm)</Label>
+              <Input
+                id={`length-${box.id}-desktop`}
+                type="number"
+                value={localValues.length}
+                onChange={(e) => handleDimensionChange('length', e.target.value)}
+                placeholder="40"
+                min="0.1"
+                step="0.1"
+                disabled={!isEnabled}
+                className="h-9 text-sm"
+                inputMode="decimal"
+              />
+            </div>
+            <div>
+              <Label htmlFor={`width-${box.id}-desktop`} className="text-sm">Width (cm)</Label>
+              <Input
+                id={`width-${box.id}-desktop`}
+                type="number"
+                value={localValues.width}
+                onChange={(e) => handleDimensionChange('width', e.target.value)}
+                placeholder="31"
+                min="0.1"
+                step="0.1"
+                disabled={!isEnabled}
+                className="h-9 text-sm"
+                inputMode="decimal"
+              />
+            </div>
+            <div>
+              <Label htmlFor={`height-${box.id}-desktop`} className="text-sm">Height (cm)</Label>
+              <Input
+                id={`height-${box.id}-desktop`}
+                type="number"
+                value={localValues.height}
+                onChange={(e) => handleDimensionChange('height', e.target.value)}
+                placeholder="28"
+                min="0.1"
+                step="0.1"
+                disabled={!isEnabled}
+                className="h-9 text-sm"
+                inputMode="decimal"
+              />
+            </div>
+            <div>
+              <Label htmlFor={`weight-${box.id}-desktop`} className="text-sm">Weight (kg)</Label>
+              <Input
+                id={`weight-${box.id}-desktop`}
+                type="number"
+                value={localValues.weight}
+                onChange={(e) => handleWeightChange(e.target.value)}
+                placeholder="4"
+                min="0.1"
+                step="0.1"
+                disabled={!isEnabled}
+                className="h-9 text-sm"
+                inputMode="decimal"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Weight calculations - responsive layout */}
+        {isEnabled && (
+          <div className="bg-white rounded-md p-2 sm:p-3 space-y-1">
+            <div className="text-xs sm:text-sm text-slate-600">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2">
+                <div>
+                  <span className="text-slate-500">Actual:</span>{' '}
+                  <span className="font-medium">{box.weight} kg</span>
+                </div>
+                <div>
+                  <span className="text-slate-500">Dimensional:</span>{' '}
+                  <span className="font-medium">{dimensionalWeight.toFixed(2)} kg</span>
+                </div>
+                <div>
+                  <span className="text-slate-500">Billed:</span>{' '}
+                  <span className="font-semibold text-purple-700">
+                    {billedWeight.toFixed(2)} kg
+                  </span>
+                </div>
+              </div>
+              {box.quantity > 1 && (
+                <div className="mt-1 text-xs text-purple-600">
+                  Total: {(billedWeight * box.quantity).toFixed(2)} kg ({box.quantity} boxes)
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -247,15 +359,15 @@ export const OverrideForm = ({
 
   return (
     <Card className={`border-purple-200 ${isEnabled ? 'bg-purple-50/50' : 'bg-slate-50/50'}`}>
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-3 sm:pb-4">
         <CardTitle className="text-base sm:text-lg flex items-center text-purple-900">
           <Package className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           Custom Shipping Parameters
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4 px-3 sm:px-6">
+      <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6">
         {/* Box configurations */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {overrideSettings.boxes.map((box, index) => (
             <div key={box.id}>
               <BoxRow
@@ -270,7 +382,6 @@ export const OverrideForm = ({
                 calculateDimensionalWeight={calculateDimensionalWeight}
                 getBilledWeight={getBilledWeight}
               />
-              {index < overrideSettings.boxes.length - 1 && <Separator className="mt-4" />}
             </div>
           ))}
         </div>
@@ -281,35 +392,39 @@ export const OverrideForm = ({
             onClick={onAddBox}
             variant="outline"
             size="sm"
-            className="w-full h-10 sm:h-9"
+            className="w-full h-12 sm:h-10"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Add Row
+            Add Box Configuration
           </Button>
         )}
 
         {/* Shipment Summary - responsive grid */}
-        {isEnabled && shipmentStats && overrideSettings.boxes.length > 1 && (
-          <div className="bg-white rounded-lg p-3 space-y-2">
+        {isEnabled && shipmentStats && overrideSettings.boxes.length > 0 && (
+          <div className="bg-white rounded-lg p-3 sm:p-4 space-y-2">
             <div className="text-sm font-medium text-slate-700">Shipment Summary</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm">
-              <div>
-                <span className="text-slate-600">Total Boxes:</span>{" "}
-                <span className="font-medium">{shipmentStats.totalBoxes}</span>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="space-y-2">
+                <div>
+                  <span className="text-slate-600">Total Boxes:</span>{" "}
+                  <span className="font-medium">{shipmentStats.totalBoxes}</span>
+                </div>
+                <div>
+                  <span className="text-slate-600">Configurations:</span>{" "}
+                  <span className="font-medium">{shipmentStats.boxConfigurations}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-slate-600">Box Configurations:</span>{" "}
-                <span className="font-medium">{shipmentStats.boxConfigurations}</span>
-              </div>
-              <div>
-                <span className="text-slate-600">Total Weight:</span>{" "}
-                <span className="font-medium">{shipmentStats.totalWeight.toFixed(2)} kg</span>
-              </div>
-              <div>
-                <span className="text-slate-600">Total Billed Weight:</span>{" "}
-                <Badge variant="outline" className="ml-1 bg-purple-100 text-purple-800 text-xs">
-                  {shipmentStats.totalBilledWeight.toFixed(2)} kg
-                </Badge>
+              <div className="space-y-2">
+                <div>
+                  <span className="text-slate-600">Total Weight:</span>{" "}
+                  <span className="font-medium">{shipmentStats.totalWeight.toFixed(2)} kg</span>
+                </div>
+                <div>
+                  <span className="text-slate-600">Billed Weight:</span>{" "}
+                  <Badge variant="outline" className="ml-1 bg-purple-100 text-purple-800 text-xs">
+                    {shipmentStats.totalBilledWeight.toFixed(2)} kg
+                  </Badge>
+                </div>
               </div>
             </div>
           </div>
@@ -319,7 +434,7 @@ export const OverrideForm = ({
         {validationErrors.length > 0 && isEnabled && (
           <Alert variant="destructive">
             <AlertDescription>
-              <ul className="list-disc list-inside text-xs sm:text-sm">
+              <ul className="list-disc list-inside text-xs sm:text-sm space-y-1">
                 {validationErrors.map((error, index) => (
                   <li key={index}>{error}</li>
                 ))}
@@ -335,7 +450,7 @@ export const OverrideForm = ({
               onClick={onReset}
               variant="outline"
               size="sm"
-              className="w-full h-10 sm:h-9"
+              className="w-full h-12 sm:h-10"
             >
               <RotateCcw className="w-4 h-4 mr-2" />
               Reset to Defaults
