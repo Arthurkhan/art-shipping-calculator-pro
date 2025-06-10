@@ -43,11 +43,11 @@ const Index = () => {
   const currencySelector = useCurrencySelector();
   const collectionData = useCollectionData();
   const shippingCalculator = useShippingCalculator();
-  const overrideSettings = useOverrideSettings(); // New override hook
+  const overrideSettings = useOverrideSettings();
 
   // Form validation using extracted hook
   const validation = useShippingValidation({
-    selectedCollection: collectionData.selectedCollection,
+    selectedCollection: overrideSettings.isOverrideEnabled ? 'custom' : collectionData.selectedCollection,
     selectedSize: overrideSettings.isOverrideEnabled ? 'custom' : collectionData.selectedSize,
     country,
     postalCode,
@@ -121,8 +121,10 @@ const Index = () => {
     const missing = [];
     const data = debugInfo.formData;
     
-    if (!data.selectedCollection) missing.push('Art Collection');
-    if (!data.selectedSize && !overrideSettings.isOverrideEnabled) missing.push('Artwork Size');
+    if (!overrideSettings.isOverrideEnabled) {
+      if (!data.selectedCollection) missing.push('Art Collection');
+      if (!data.selectedSize) missing.push('Artwork Size');
+    }
     if (!data.country) missing.push('Destination Country');
     if (!data.postalCode) missing.push('Destination Postal Code');
     if (!data.originCountry) missing.push('Origin Country');
@@ -372,7 +374,9 @@ const Index = () => {
                     <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                       <div>
                         <h3 className="text-base font-semibold text-slate-800">Art Collection Selection</h3>
-                        <p className="text-xs text-slate-600">Choose the artwork you want to ship</p>
+                        {!overrideSettings.isOverrideEnabled && (
+                          <p className="text-xs text-slate-600">Choose the artwork you want to ship</p>
+                        )}
                       </div>
                       {/* Override Toggle Button */}
                       <OverrideToggleButton
@@ -382,38 +386,43 @@ const Index = () => {
                       />
                     </div>
                     
-                    <div className="flex flex-col md:flex-row gap-4">
-                      <div className="w-full md:w-[70%]">
-                        <CollectionSelector
-                          collections={collectionData.collections}
-                          selectedCollection={collectionData.selectedCollection}
-                          onCollectionChange={collectionData.handleCollectionChange}
-                          isLoading={collectionData.isLoading}
-                        />
+                    {/* Only show collection and size selectors when override is NOT enabled */}
+                    {!overrideSettings.isOverrideEnabled && (
+                      <div className="flex flex-col md:flex-row gap-4">
+                        <div className="w-full md:w-[70%]">
+                          <CollectionSelector
+                            collections={collectionData.collections}
+                            selectedCollection={collectionData.selectedCollection}
+                            onCollectionChange={collectionData.handleCollectionChange}
+                            isLoading={collectionData.isLoading}
+                          />
+                        </div>
+                        <div className="w-full md:w-[30%]">
+                          <SizeSelector
+                            sizes={collectionData.sizes}
+                            selectedSize={collectionData.selectedSize}
+                            onSizeChange={collectionData.handleSizeChange}
+                            disabled={!collectionData.selectedCollection}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full md:w-[30%]">
-                        <SizeSelector
-                          sizes={collectionData.sizes}
-                          selectedSize={collectionData.selectedSize}
-                          onSizeChange={collectionData.handleSizeChange}
-                          disabled={!collectionData.selectedCollection || overrideSettings.isOverrideEnabled}
-                        />
-                      </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Override Form */}
                   {overrideSettings.isOverrideEnabled && (
                     <>
-                      <Separator className="my-4" />
                       <OverrideForm
                         overrideSettings={overrideSettings.overrideSettings}
-                        onDimensionsChange={overrideSettings.updateDimensions}
-                        onWeightChange={overrideSettings.updateWeight}
-                        onQuantityChange={overrideSettings.updateQuantity}
+                        onAddBox={overrideSettings.addBoxConfiguration}
+                        onRemoveBox={overrideSettings.removeBoxConfiguration}
+                        onUpdateBoxDimensions={overrideSettings.updateBoxDimensions}
+                        onUpdateBoxWeight={overrideSettings.updateBoxWeight}
+                        onUpdateBoxQuantity={overrideSettings.updateBoxQuantity}
                         onReset={overrideSettings.resetToDefaults}
                         validationErrors={overrideSettings.validateOverrideValues().errors}
                         isEnabled={overrideSettings.isOverrideEnabled}
+                        shipmentStats={overrideSettings.getShipmentStats()}
                       />
                     </>
                   )}
