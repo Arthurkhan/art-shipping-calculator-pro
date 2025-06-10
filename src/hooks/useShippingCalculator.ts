@@ -12,6 +12,14 @@ export interface ShippingRate {
   deliveryDate?: string;
 }
 
+export interface OverrideData {
+  weight_kg: number;
+  height_cm: number;
+  length_cm: number;
+  width_cm: number;
+  quantity: number;
+}
+
 export interface CalculateRatesParams {
   selectedCollection: string;
   selectedSize: string;
@@ -22,12 +30,14 @@ export interface CalculateRatesParams {
   preferredCurrency: string;
   shipDate?: string; // Optional ship date in YYYY-MM-DD format
   fedexConfig?: FedexConfig;
+  overrideData?: OverrideData | null; // New field for override data
 }
 
 /**
  * Custom hook for shipping rate calculations
  * Extracted from Index.tsx for Phase 2 refactoring - Core business logic
  * Updated for Phase 4 - Using shared error handling utilities
+ * Updated for Override Feature - Support custom dimensions and weight
  */
 export const useShippingCalculator = () => {
   const [rates, setRates] = useState<ShippingRate[]>([]);
@@ -47,7 +57,8 @@ export const useShippingCalculator = () => {
       originPostalCode,
       preferredCurrency,
       shipDate,
-      fedexConfig
+      fedexConfig,
+      overrideData
     } = params;
 
     // Validation - FedEx config must be provided
@@ -71,7 +82,7 @@ export const useShippingCalculator = () => {
     }
 
     // Validation - all required fields
-    if (!selectedCollection || !selectedSize || !country || !postalCode || 
+    if (!selectedCollection || (!selectedSize && !overrideData) || !country || !postalCode || 
         !originCountry || !originPostalCode || !preferredCurrency) {
       const errorMsg = "Please fill in all required fields before calculating rates";
       const error = createShippingError(
@@ -98,9 +109,10 @@ export const useShippingCalculator = () => {
 
     try {
       // Enhanced feedback during calculation
+      const usingOverride = !!overrideData;
       toast({
         title: "Calculating Rates",
-        description: `Contacting FedEx API for rates in ${preferredCurrency}...`,
+        description: `Contacting FedEx API for rates in ${preferredCurrency}${usingOverride ? ' (using custom dimensions)' : ''}...`,
       });
 
       console.log('🚀 Starting FedEx rate calculation with params:', {
@@ -109,7 +121,9 @@ export const useShippingCalculator = () => {
         origin: `${originCountry} ${originPostalCode}`,
         destination: `${country} ${postalCode}`,
         currency: preferredCurrency,
-        shipDate: shipDate || 'Not specified (will use tomorrow)'
+        shipDate: shipDate || 'Not specified (will use tomorrow)',
+        usingOverride,
+        overrideData: overrideData || 'Not provided'
       });
 
       const response = await supabase.functions.invoke('calculate-shipping', {
@@ -123,6 +137,7 @@ export const useShippingCalculator = () => {
           preferredCurrency,
           shipDate, // Pass ship date to backend
           fedexConfig,
+          overrideData, // Pass override data to backend
         },
       });
 
@@ -193,7 +208,7 @@ export const useShippingCalculator = () => {
         
         toast({
           title: "Rates Calculated",
-          description: `Found ${calculatedRates.length} shipping options in ${preferredCurrency}.`,
+          description: `Found ${calculatedRates.length} shipping options in ${preferredCurrency}${usingOverride ? ' using custom dimensions' : ''}.`,
         });
       }
       
@@ -261,6 +276,7 @@ export const useShippingCalculator = () => {
       },
       currency: lastCalculationParams.preferredCurrency,
       shipDate: lastCalculationParams.shipDate,
+      overrideData: lastCalculationParams.overrideData,
       ratesFound: rates.length,
       hasError: !!error,
       timestamp: new Date().toISOString(),
