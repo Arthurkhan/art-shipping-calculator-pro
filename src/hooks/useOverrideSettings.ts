@@ -212,26 +212,55 @@ export const useOverrideSettings = () => {
       return null;
     }
 
-    // For now, we'll aggregate all boxes into a single shipment
-    // The backend will need to be updated to handle multiple box configurations
-    // This is a temporary solution that sums up all boxes
-    const totalWeight = overrideSettings.boxes.reduce((sum, box) => sum + (box.weight * box.quantity), 0);
+    // For multiple box configurations, we need to send data differently
+    // FedEx API can handle multiple packages, but we need to aggregate properly
+    
+    // If we have only one box configuration, send it as-is
+    if (overrideSettings.boxes.length === 1) {
+      const box = overrideSettings.boxes[0];
+      return {
+        weight_kg: box.weight,
+        height_cm: box.dimensions.height,
+        length_cm: box.dimensions.length,
+        width_cm: box.dimensions.width,
+        quantity: box.quantity,
+        // Include box configurations for the UI
+        box_configurations: overrideSettings.boxes.map(box => ({
+          dimensions: box.dimensions,
+          weight: box.weight,
+          quantity: box.quantity,
+        })),
+      };
+    }
+
+    // For multiple box configurations, we need to find the largest box
+    // and send the total quantity with the maximum dimensions
+    // This is because FedEx API expects uniform packages when using groupPackageCount
+    
+    // Find the box with the largest billed weight (considering dimensional weight)
+    let largestBox = overrideSettings.boxes[0];
+    let largestBilledWeight = getBoxBilledWeight(largestBox);
+    
+    overrideSettings.boxes.forEach(box => {
+      const billedWeight = getBoxBilledWeight(box);
+      if (billedWeight > largestBilledWeight) {
+        largestBox = box;
+        largestBilledWeight = billedWeight;
+      }
+    });
+
+    // Total quantity across all boxes
     const totalQuantity = overrideSettings.boxes.reduce((sum, box) => sum + box.quantity, 0);
     
-    // Use the largest box dimensions for now (temporary solution)
-    const maxDimensions = overrideSettings.boxes.reduce((max, box) => {
-      const boxVolume = box.dimensions.length * box.dimensions.width * box.dimensions.height;
-      const maxVolume = max.length * max.width * max.height;
-      return boxVolume > maxVolume ? box.dimensions : max;
-    }, overrideSettings.boxes[0]?.dimensions || DEFAULT_BOX_CONFIG.dimensions);
-
+    // Use the largest box dimensions and its weight for the FedEx API
+    // This ensures we don't underestimate shipping costs
     return {
-      weight_kg: totalWeight / totalQuantity, // Average weight per box
-      height_cm: maxDimensions.height,
-      length_cm: maxDimensions.length,
-      width_cm: maxDimensions.width,
+      weight_kg: largestBox.weight,
+      height_cm: largestBox.dimensions.height,
+      length_cm: largestBox.dimensions.length,
+      width_cm: largestBox.dimensions.width,
       quantity: totalQuantity,
-      // Include detailed box configurations for future use
+      // Include detailed box configurations for future use and UI display
       box_configurations: overrideSettings.boxes.map(box => ({
         dimensions: box.dimensions,
         weight: box.weight,
