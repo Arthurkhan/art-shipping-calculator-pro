@@ -53,7 +53,7 @@ export const useCollectionData = () => {
     setIsLoadingSizes(true);
     try {
       const { data, error } = await supabase
-        .from('collection_sizes')
+        .from('sizes') // Changed from 'collection_sizes' to 'sizes'
         .select('size')
         .eq('collection_id', collectionId)
         .order('size');
