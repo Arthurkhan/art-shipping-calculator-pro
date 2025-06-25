@@ -1,7 +1,7 @@
 /**
  * Centralized error handling utilities for shipping calculator
  * Phase 4 implementation - Standardizing error handling
- * Updated 2025-06-25: Enhanced FedEx service availability error handling
+ * Updated 2025-06-25: Enhanced FedEx service availability error handling with more routes
  */
 
 export enum ErrorType {
@@ -103,11 +103,48 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 /**
  * Alternative destination suggestions for common unsupported routes
+ * Expanded to cover more routes from Thailand and other regions
  */
 const ROUTE_ALTERNATIVES: Record<string, string[]> = {
-  'TH_IT': ['TH_SG', 'TH_HK', 'TH_JP', 'TH_AU', 'TH_US'], // Thailand to Italy alternatives
-  'TH_ES': ['TH_GB', 'TH_FR', 'TH_DE'], // Thailand to Spain alternatives
-  'TH_PT': ['TH_GB', 'TH_FR', 'TH_DE'], // Thailand to Portugal alternatives
+  // Thailand to Europe (often requires hub routing)
+  'TH_IT': ['TH_SG', 'TH_HK', 'TH_JP', 'TH_AU', 'TH_US', 'TH_GB'], // Thailand to Italy
+  'TH_ES': ['TH_GB', 'TH_FR', 'TH_DE', 'TH_NL'], // Thailand to Spain
+  'TH_PT': ['TH_GB', 'TH_FR', 'TH_DE', 'TH_NL'], // Thailand to Portugal
+  'TH_GR': ['TH_GB', 'TH_DE', 'TH_FR', 'TH_NL'], // Thailand to Greece
+  'TH_PL': ['TH_DE', 'TH_GB', 'TH_NL', 'TH_FR'], // Thailand to Poland
+  'TH_CZ': ['TH_DE', 'TH_AT', 'TH_GB', 'TH_NL'], // Thailand to Czech Republic
+  'TH_HU': ['TH_AT', 'TH_DE', 'TH_GB', 'TH_NL'], // Thailand to Hungary
+  'TH_RO': ['TH_AT', 'TH_DE', 'TH_GB', 'TH_TR'], // Thailand to Romania
+  'TH_BG': ['TH_TR', 'TH_GR', 'TH_DE', 'TH_GB'], // Thailand to Bulgaria
+  
+  // Thailand to Nordic countries
+  'TH_NO': ['TH_SE', 'TH_DK', 'TH_DE', 'TH_GB'], // Thailand to Norway
+  'TH_FI': ['TH_SE', 'TH_DE', 'TH_GB', 'TH_NL'], // Thailand to Finland
+  'TH_IS': ['TH_DK', 'TH_GB', 'TH_DE', 'TH_NL'], // Thailand to Iceland
+  
+  // Thailand to Middle East/Africa
+  'TH_IL': ['TH_TR', 'TH_AE', 'TH_SG', 'TH_HK'], // Thailand to Israel
+  'TH_SA': ['TH_AE', 'TH_SG', 'TH_HK', 'TH_TR'], // Thailand to Saudi Arabia
+  'TH_EG': ['TH_AE', 'TH_TR', 'TH_SG', 'TH_HK'], // Thailand to Egypt
+  'TH_ZA': ['TH_AE', 'TH_SG', 'TH_HK', 'TH_AU'], // Thailand to South Africa
+  
+  // Thailand to Latin America
+  'TH_BR': ['TH_US', 'TH_MX', 'TH_CL', 'TH_AR'], // Thailand to Brazil
+  'TH_AR': ['TH_US', 'TH_CL', 'TH_BR', 'TH_UY'], // Thailand to Argentina
+  'TH_CL': ['TH_US', 'TH_PE', 'TH_AR', 'TH_BR'], // Thailand to Chile
+  'TH_CO': ['TH_US', 'TH_MX', 'TH_PA', 'TH_BR'], // Thailand to Colombia
+  'TH_PE': ['TH_US', 'TH_CL', 'TH_CO', 'TH_BR'], // Thailand to Peru
+  
+  // Southeast Asia internal routes that might be restricted
+  'TH_MM': ['TH_SG', 'TH_MY', 'TH_VN', 'TH_HK'], // Thailand to Myanmar
+  'TH_LA': ['TH_VN', 'TH_KH', 'TH_SG', 'TH_MY'], // Thailand to Laos
+  'TH_KH': ['TH_VN', 'TH_SG', 'TH_MY', 'TH_HK'], // Thailand to Cambodia
+  
+  // Other Asian routes from Thailand
+  'TH_PK': ['TH_IN', 'TH_AE', 'TH_SG', 'TH_HK'], // Thailand to Pakistan
+  'TH_BD': ['TH_IN', 'TH_SG', 'TH_MY', 'TH_HK'], // Thailand to Bangladesh
+  'TH_LK': ['TH_IN', 'TH_SG', 'TH_MY', 'TH_HK'], // Thailand to Sri Lanka
+  'TH_NP': ['TH_IN', 'TH_CN', 'TH_SG', 'TH_HK'], // Thailand to Nepal
 };
 
 /**
@@ -131,6 +168,41 @@ const COUNTRY_NAMES: Record<string, string> = {
   'CN': 'China',
   'KR': 'South Korea',
   'IN': 'India',
+  'NL': 'Netherlands',
+  'AT': 'Austria',
+  'TR': 'Turkey',
+  'SE': 'Sweden',
+  'DK': 'Denmark',
+  'NO': 'Norway',
+  'FI': 'Finland',
+  'IS': 'Iceland',
+  'PL': 'Poland',
+  'CZ': 'Czech Republic',
+  'HU': 'Hungary',
+  'RO': 'Romania',
+  'BG': 'Bulgaria',
+  'GR': 'Greece',
+  'AE': 'United Arab Emirates',
+  'SA': 'Saudi Arabia',
+  'IL': 'Israel',
+  'EG': 'Egypt',
+  'ZA': 'South Africa',
+  'BR': 'Brazil',
+  'AR': 'Argentina',
+  'CL': 'Chile',
+  'CO': 'Colombia',
+  'PE': 'Peru',
+  'MX': 'Mexico',
+  'PA': 'Panama',
+  'UY': 'Uruguay',
+  'MM': 'Myanmar',
+  'LA': 'Laos',
+  'KH': 'Cambodia',
+  'VN': 'Vietnam',
+  'PK': 'Pakistan',
+  'BD': 'Bangladesh',
+  'LK': 'Sri Lanka',
+  'NP': 'Nepal',
 };
 
 interface ErrorLike {
