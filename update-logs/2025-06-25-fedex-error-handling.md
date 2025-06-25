@@ -5,6 +5,8 @@
 ## Issue Description
 FedEx API was returning a specific error: "FedEx service is not currently available to this origin / destination combination" but the error handling was not properly parsing and displaying this message to users.
 
+Additionally, the edge function was experiencing 500 Internal Server errors due to inadequate error handling in the code.
+
 ## Changes Made
 
 ### 1. Enhanced Error Parsing in fedex-rates.ts
@@ -20,15 +22,23 @@ FedEx API was returning a specific error: "FedEx service is not currently availa
 - Extracts specific error messages and codes
 - Falls back to generic messages only when no specific error is available
 
-### 3. Created Enhanced Single-File Edge Function
+### 3. Created Enhanced Single-File Edge Functions
 - **Created:** `supabase/functions/calculate-shipping/index-single-file-enhanced.ts`
   - Combined all modules into a single file with enhanced error handling
   - Properly typed FedEx error responses
   - Improved user-facing error messages
 
+- **Created:** `supabase/functions/calculate-shipping/index-single-file-fixed.ts` (v6)
+  - Added defensive programming with instanceof checks
+  - Better JSON parsing error handling
+  - Enhanced logging with JSON.stringify for data
+  - Added try-catch around JSON parsing to prevent crashes
+  - Improved error stack trace logging
+
 ### 4. Deployed Enhanced Edge Function
-- Successfully deployed version 5 of the edge function to Supabase
+- Successfully deployed version 6 of the edge function to Supabase
 - The edge function now properly handles FedEx service availability errors
+- Fixed 500 Internal Server errors with better error handling
 
 ## Technical Details
 
@@ -47,10 +57,12 @@ The FedEx API returns errors in this format:
 
 ### Implementation Changes
 - Added `FedexErrorResponse` interface for proper typing
-- Enhanced error extraction logic
+- Enhanced error extraction logic with defensive programming
 - Improved user-facing error messages
 - Special handling for service availability errors
-- Preserved all existing functionality
+- Added instanceof checks for Error objects
+- Better JSON parsing with try-catch blocks
+- Enhanced logging to help debug issues
 
 ### Error Message Improvements
 - Service availability: "FedEx does not currently offer service between these locations. Please try a different destination or contact FedEx Customer Service."
@@ -62,10 +74,13 @@ The FedEx API returns errors in this format:
 ✅ Service availability errors are clearly communicated to users
 ✅ Error logging is enhanced for better debugging
 ✅ No breaking changes to existing functionality
-✅ Edge function successfully deployed and running
+✅ Edge function successfully deployed and running (v6)
+✅ Fixed 500 Internal Server errors
 
 ## Root Cause
 The error occurs because FedEx doesn't provide service between certain locations (e.g., Thailand to Indonesia for certain service types). This is not a code error but a business limitation from FedEx. The fix ensures users receive clear, actionable error messages instead of generic errors.
+
+The 500 errors were caused by improper error handling in the edge function, particularly around JSON parsing and logging.
 
 ## Next Steps
 - Monitor for other FedEx-specific error types that may need special handling
