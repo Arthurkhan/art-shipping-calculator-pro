@@ -168,7 +168,7 @@ export const useShippingCalculator = () => {
           postalCode,
           originCountry,
           originPostalCode,
-          preferredCurrency,
+          preferredCurrency: preferredCurrency || 'EUR', // Default to EUR if empty
           shipDate, // Pass ship date to backend
           sessionId: effectiveSessionId, // Pass session ID instead of config
           overrideData, // Pass override data to backend

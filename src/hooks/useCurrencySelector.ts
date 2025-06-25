@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
  * Updated: Currency now defaults to empty string for manual selection
  */
 export const useCurrencySelector = () => {
-  const [preferredCurrency, setPreferredCurrency] = useState<string>(''); // Changed from 'USD' to ''
+  const [preferredCurrency, setPreferredCurrency] = useState<string>('EUR'); // Default to EUR
   const { toast } = useToast();
 
   // Handle currency change with validation

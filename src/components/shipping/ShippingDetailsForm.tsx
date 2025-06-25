@@ -119,15 +119,16 @@ export const ShippingDetailsForm = ({
         <div className="space-y-2">
           <Label htmlFor="currency" className="text-sm font-medium flex items-center">
             <DollarSign className="w-4 h-4 mr-1" />
-            Preferred Currency
+            Preferred Currency 
+            <span className="text-xs text-slate-500 ml-1">(optional)</span>
           </Label>
           <Select value={preferredCurrency} onValueChange={onPreferredCurrencyChange}>
             <SelectTrigger id="currency" className="h-12 sm:h-10 text-base sm:text-sm">
               <SelectValue placeholder="Select currency" />
             </SelectTrigger>
             <SelectContent className="max-h-[300px]">
+              <SelectItem value="EUR">EUR - Euro (default)</SelectItem>
               <SelectItem value="USD">USD - US Dollar</SelectItem>
-              <SelectItem value="EUR">EUR - Euro</SelectItem>
               <SelectItem value="GBP">GBP - British Pound</SelectItem>
               <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
               <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
@@ -148,7 +149,7 @@ export const ShippingDetailsForm = ({
             </SelectContent>
           </Select>
           <div className="space-y-1">
-            <p className="text-xs text-slate-500">Rate currency</p>
+            <p className="text-xs text-slate-500">Defaults to EUR if not selected</p>
           </div>
         </div>
       </div>

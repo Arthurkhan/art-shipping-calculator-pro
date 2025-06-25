@@ -94,9 +94,9 @@ export const validateShippingForm = (data: {
     warnings.push('Destination and origin countries are the same - this may result in domestic shipping rates');
   }
 
-  // Add warning if no currency is selected
+  // Add info if no currency is selected (EUR is used as default)
   if (!data.preferredCurrency) {
-    warnings.push('No currency selected - rates will be displayed in default carrier currency');
+    warnings.push('No currency selected - rates will be displayed in EUR (default currency)');
   }
 
   return {
