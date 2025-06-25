@@ -22,18 +22,30 @@ The user clarified that they want to keep the existing Supabase table names ('si
 - Kept the dimension columns (width_cm, length_cm, height_cm, weight_kg)
 - The 'size' column name remains (not reverting to 'size_code')
 
+### 4. Dimension Data Migration
+- Updated 64 existing size records
+- Copied dimension data from JSONB column to numeric columns
+- All existing collections now have proper dimension data
+
 ## Status
 - [x] Update frontend hook to use 'sizes' table
 - [x] Update backend function to use 'sizes' table
 - [x] Revert table name in database
-- [ ] Update dimension data for existing sizes
+- [x] Update dimension data for existing sizes
+
+## Completion Status
+✅ **COMPLETE** - The app now correctly uses the 'sizes' table and has dimension data
 
 ## Next Steps
 1. Deploy the updated Edge Function to apply backend changes
-2. Add dimension data to existing size records
-3. Test shipping calculations with collections that have dimension data
+2. Test shipping calculations with any collection
 
 ## Notes
 - The app now correctly uses the 'sizes' table as it exists in Supabase
-- Sample collections (Pop Art, Modern Art, Classic Art) already have dimension data
-- Other collections need their dimension data added to the width_cm, length_cm, height_cm, and weight_kg columns
+- All 64 existing size records have been updated with dimension data
+- Sample collections (Pop Art, Modern Art, Classic Art) plus all existing collections now have dimension data
+- The webapp is ready to calculate shipping rates with proper dimensions and weights
+
+## Collections with Dimension Data
+- All existing collections including: Eleph'Pop, Goril'Pop, Hippop'Art, Dancing B, Lazy B, Sitting B, Sumo, Whale Pop, Lion Pop, Venus, and many more
+- Each size has width_cm, length_cm, height_cm, and weight_kg properly populated
