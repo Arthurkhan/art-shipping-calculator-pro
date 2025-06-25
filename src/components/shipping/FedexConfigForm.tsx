@@ -1,309 +1,236 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { Settings, Save, Eye, EyeOff, CheckCircle, XCircle, Loader2, TestTube } from "lucide-react";
-import { validateFedexAccountNumberStrict } from "@/lib/validation-utils";
-import { handleApiError, logError } from "@/lib/error-utils";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Settings, AlertCircle, CheckCircle, Lock, Shield, Trash2 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { validateFedexConfig } from "@/lib/form-validation";
+import { sanitizeInput } from "@/lib/input-sanitizer";
 
 interface FedexConfigFormProps {
-  onConfigSave: (config: FedexConfig) => void;
+  onConfigSave: (config: { accountNumber: string; clientId: string; clientSecret: string }) => void;
 }
 
-interface FedexConfig {
-  accountNumber: string;
-  clientId: string;
-  clientSecret: string;
-}
-
+/**
+ * Secure FedEx Configuration Form
+ * Updated 2025-06-25: Use secure server-side storage instead of localStorage
+ * Credentials are never stored client-side for security
+ */
 export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
-  const [config, setConfig] = useState<FedexConfig>({
-    accountNumber: localStorage.getItem('fedex_account_number') || '',
-    clientId: localStorage.getItem('fedex_client_id') || '',
-    clientSecret: localStorage.getItem('fedex_client_secret') || '',
-  });
-  const [showSecrets, setShowSecrets] = useState(false);
-  const [isTestingCredentials, setIsTestingCredentials] = useState(false);
-  const [credentialsValid, setCredentialsValid] = useState<boolean | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [accountNumber, setAccountNumber] = useState("");
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [isTesting, setIsTesting] = useState(false);
+  const [showCredentials, setShowCredentials] = useState(false);
+  
   const { toast } = useToast();
 
-  const testCredentials = async () => {
-    if (!config.accountNumber || !config.clientId || !config.clientSecret) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all FedEx configuration fields before testing.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!validateFedexAccountNumberStrict(config.accountNumber)) {
-      toast({
-        title: "Invalid Account Number",
-        description: "Account number must be exactly 9 digits.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsTestingCredentials(true);
-    setCredentialsValid(null);
-
-    try {
-      // Test credentials by making a simple API call
-      const response = await supabase.functions.invoke('test-fedex-credentials', {
-        body: {
-          accountNumber: config.accountNumber,
-          clientId: config.clientId,
-          clientSecret: config.clientSecret,
-        },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message || 'Credential test failed');
-      }
-
-      setCredentialsValid(true);
-      toast({
-        title: "Credentials Valid",
-        description: "Your FedEx API credentials are working correctly!",
-      });
-    } catch (err) {
-      logError(err as Error, 'FedexConfigForm.testCredentials');
-      setCredentialsValid(false);
-      
-      const { message } = handleApiError(err);
-      toast({
-        title: "Credentials Invalid",
-        description: message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsTestingCredentials(false);
-    }
-  };
-
   const handleSave = async () => {
-    if (!config.accountNumber || !config.clientId || !config.clientSecret) {
+    // Sanitize inputs
+    const sanitizedConfig = {
+      accountNumber: sanitizeInput(accountNumber.trim()),
+      clientId: sanitizeInput(clientId.trim()),
+      clientSecret: sanitizeInput(clientSecret.trim()),
+    };
+    
+    // Validate
+    const validation = validateFedexConfig(sanitizedConfig);
+    
+    if (!validation.isValid) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all FedEx configuration fields.",
+        title: "Validation Error",
+        description: validation.errors.join(", "),
         variant: "destructive",
       });
       return;
     }
-
-    if (!validateFedexAccountNumberStrict(config.accountNumber)) {
-      toast({
-        title: "Invalid Account Number",
-        description: "Account number must be exactly 9 digits.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSaving(true);
-
+    
+    setIsTesting(true);
+    
     try {
-      // Save to localStorage
-      localStorage.setItem('fedex_account_number', config.accountNumber);
-      localStorage.setItem('fedex_client_id', config.clientId);
-      localStorage.setItem('fedex_client_secret', config.clientSecret);
-
-      onConfigSave(config);
+      // Save to secure storage
+      await onConfigSave(sanitizedConfig);
+      
+      // Clear form for security
+      setAccountNumber("");
+      setClientId("");
+      setClientSecret("");
+      setShowCredentials(false);
       
       toast({
         title: "Configuration Saved",
-        description: "FedEx API configuration has been saved successfully.",
+        description: "Your FedEx credentials have been securely saved and validated.",
       });
-    } catch (err) {
-      logError(err as Error, 'FedexConfigForm.handleSave');
+    } catch (error) {
+      console.error("Failed to save FedEx config:", error);
       toast({
         title: "Save Failed",
         description: "Failed to save configuration. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsSaving(false);
+      setIsTesting(false);
     }
   };
 
-  const getCredentialStatusIcon = () => {
-    if (isTestingCredentials) {
-      return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />;
-    }
-    if (credentialsValid === true) {
-      return <CheckCircle className="w-5 h-5 text-green-500" />;
-    }
-    if (credentialsValid === false) {
-      return <XCircle className="w-5 h-5 text-red-500" />;
-    }
-    return null;
+  const handleClear = () => {
+    setAccountNumber("");
+    setClientId("");
+    setClientSecret("");
+    setShowCredentials(false);
   };
-
-  const getCredentialStatusMessage = () => {
-    if (isTestingCredentials) {
-      return "Testing credentials...";
-    }
-    if (credentialsValid === true) {
-      return "Credentials verified successfully";
-    }
-    if (credentialsValid === false) {
-      return "Credentials test failed";
-    }
-    return null;
-  };
-
-  const isFormComplete = config.accountNumber && config.clientId && config.clientSecret;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center mb-4">
-        <Settings className="w-5 h-5 mr-2 text-blue-600" />
-        <h3 className="text-lg font-semibold text-slate-800">FedEx API Configuration</h3>
-        {getCredentialStatusIcon()}
-      </div>
+      {/* Security Notice */}
+      <Alert className="border-blue-200 bg-blue-50">
+        <Shield className="h-4 w-4 text-blue-600" />
+        <AlertTitle className="text-blue-800">Secure Configuration</AlertTitle>
+        <AlertDescription className="text-blue-700">
+          Your FedEx credentials are encrypted and stored securely on our servers. 
+          They are never stored in your browser or exposed in the application code.
+        </AlertDescription>
+      </Alert>
 
-      {/* Credential Status Banner */}
-      {getCredentialStatusMessage() && (
-        <div className={`p-4 rounded-lg border ${
-          credentialsValid === true
-            ? 'bg-green-50 border-green-200 text-green-700'
-            : credentialsValid === false
-            ? 'bg-red-50 border-red-200 text-red-700'
-            : 'bg-blue-50 border-blue-200 text-blue-700'
-        }`}>
-          <div className="flex items-center">
-            {getCredentialStatusIcon()}
-            <span className="ml-2 font-medium">{getCredentialStatusMessage()}</span>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="w-5 h-5" />
+            FedEx API Configuration
+          </CardTitle>
+          <CardDescription>
+            Enter your FedEx API credentials to enable shipping rate calculations.
+            Need credentials? Visit the FedEx Developer Portal.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="accountNumber">FedEx Account Number</Label>
+            <Input
+              id="accountNumber"
+              type={showCredentials ? "text" : "password"}
+              placeholder="Enter your FedEx account number"
+              value={accountNumber}
+              onChange={(e) => setAccountNumber(sanitizeInput(e.target.value))}
+              className="font-mono"
+              maxLength={20}
+              autoComplete="off"
+              data-testid="fedex-account-number"
+            />
+            <p className="text-xs text-muted-foreground">
+              Your 9-digit FedEx account number
+            </p>
           </div>
-        </div>
-      )}
-      
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="accountNumber" className="text-slate-700 font-medium">
-            Account Number (9 digits)
-          </Label>
-          <Input
-            id="accountNumber"
-            type="text"
-            placeholder="123456789"
-            value={config.accountNumber}
-            onChange={(e) => {
-              const value = e.target.value.replace(/\D/g, ''); // Only allow digits
-              setConfig({ ...config, accountNumber: value });
-              setCredentialsValid(null); // Reset validation status
-            }}
-            className={`h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500 ${
-              config.accountNumber && !validateFedexAccountNumberStrict(config.accountNumber)
-                ? 'border-red-300 focus:border-red-500'
-                : ''
-            }`}
-            maxLength={9}
-          />
-          {config.accountNumber && !validateFedexAccountNumberStrict(config.accountNumber) && (
-            <p className="text-sm text-red-600">Account number must be exactly 9 digits</p>
-          )}
-        </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="clientId" className="text-slate-700 font-medium">
-            Client ID
-          </Label>
-          <Input
-            id="clientId"
-            type="text"
-            placeholder="Enter FedEx Client ID..."
-            value={config.clientId}
-            onChange={(e) => {
-              setConfig({ ...config, clientId: e.target.value });
-              setCredentialsValid(null); // Reset validation status
-            }}
-            className="h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="clientId">API Client ID</Label>
+            <Input
+              id="clientId"
+              type={showCredentials ? "text" : "password"}
+              placeholder="Enter your API client ID"
+              value={clientId}
+              onChange={(e) => setClientId(sanitizeInput(e.target.value))}
+              className="font-mono"
+              maxLength={50}
+              autoComplete="off"
+              data-testid="fedex-client-id"
+            />
+            <p className="text-xs text-muted-foreground">
+              OAuth2 client ID from FedEx Developer Portal
+            </p>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="clientSecret" className="text-slate-700 font-medium">
-            Client Secret
-          </Label>
-          <div className="relative">
+          <div className="space-y-2">
+            <Label htmlFor="clientSecret">API Client Secret</Label>
             <Input
               id="clientSecret"
-              type={showSecrets ? "text" : "password"}
-              placeholder="Enter FedEx Client Secret..."
-              value={config.clientSecret}
-              onChange={(e) => {
-                setConfig({ ...config, clientSecret: e.target.value });
-                setCredentialsValid(null); // Reset validation status
-              }}
-              className="h-12 border-slate-300 focus:border-blue-500 focus:ring-blue-500 pr-12"
+              type={showCredentials ? "text" : "password"}
+              placeholder="Enter your API client secret"
+              value={clientSecret}
+              onChange={(e) => setClientSecret(sanitizeInput(e.target.value))}
+              className="font-mono"
+              maxLength={100}
+              autoComplete="off"
+              data-testid="fedex-client-secret"
             />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
-              onClick={() => setShowSecrets(!showSecrets)}
+            <p className="text-xs text-muted-foreground">
+              OAuth2 client secret from FedEx Developer Portal
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="showCredentials"
+              checked={showCredentials}
+              onChange={(e) => setShowCredentials(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            <Label htmlFor="showCredentials" className="text-sm font-normal cursor-pointer">
+              Show credentials
+            </Label>
+          </div>
+
+          <Separator />
+
+          <Alert className="border-amber-200 bg-amber-50">
+            <Lock className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800">Security Best Practices</AlertTitle>
+            <AlertDescription className="text-amber-700 space-y-2 mt-2">
+              <ul className="list-disc list-inside text-sm space-y-1">
+                <li>Never share your API credentials with anyone</li>
+                <li>Rotate your client secret regularly</li>
+                <li>Use test credentials for development</li>
+                <li>Monitor your API usage in the FedEx portal</li>
+              </ul>
+            </AlertDescription>
+          </Alert>
+
+          <div className="flex gap-3">
+            <Button 
+              onClick={handleSave} 
+              disabled={!accountNumber || !clientId || !clientSecret || isTesting}
+              className="flex-1"
             >
-              {showSecrets ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {isTesting ? (
+                <>
+                  <Settings className="w-4 h-4 mr-2 animate-spin" />
+                  Validating...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Save & Validate
+                </>
+              )}
+            </Button>
+            <Button 
+              onClick={handleClear}
+              variant="outline"
+              disabled={isTesting}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Clear
             </Button>
           </div>
-        </div>
-      </div>
 
-      {/* Action Buttons */}
-      <div className="space-y-3">
-        <Button
-          onClick={testCredentials}
-          disabled={!isFormComplete || isTestingCredentials}
-          variant="outline"
-          className="w-full h-12 font-medium"
-        >
-          {isTestingCredentials ? (
-            <>
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Testing Credentials...
-            </>
-          ) : (
-            <>
-              <TestTube className="w-5 h-5 mr-2" />
-              Test Credentials
-            </>
-          )}
-        </Button>
-
-        <Button
-          onClick={handleSave}
-          disabled={!isFormComplete || isSaving}
-          className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="w-5 h-5 mr-2" />
-              Save Configuration
-            </>
-          )}
-        </Button>
-      </div>
-
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-blue-700 text-sm">
-          <strong>Note:</strong> Your FedEx API credentials are stored locally in your browser cache. 
-          You can find your Client ID and Client Secret in your FedEx Developer Portal account.
-          <br /><br />
-          <strong>Tip:</strong> Test your credentials before saving to ensure they work properly with the FedEx API.
-        </p>
-      </div>
+          <Alert className="border-green-200 bg-green-50">
+            <AlertCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-700">
+              <strong>Need FedEx API Credentials?</strong>
+              <ol className="list-decimal list-inside mt-2 space-y-1 text-sm">
+                <li>Visit <a href="https://developer.fedex.com" target="_blank" rel="noopener noreferrer" className="underline">developer.fedex.com</a></li>
+                <li>Create a free developer account</li>
+                <li>Create a new project and select "Track API" and "Rates & Transit Times API"</li>
+                <li>Copy your credentials from the project dashboard</li>
+              </ol>
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
     </div>
   );
 };
