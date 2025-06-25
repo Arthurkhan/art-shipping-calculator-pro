@@ -17,7 +17,7 @@ const AppContent = () => {
   useIframeResize();
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/art-shipping-calculator-pro">
       <Routes>
         <Route path="/" element={<Index />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

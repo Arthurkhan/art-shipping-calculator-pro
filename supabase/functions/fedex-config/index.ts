@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import * as crypto from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 // ============================================
 // TYPES
@@ -24,6 +23,17 @@ interface FedexConfigResponse {
 }
 
 // ============================================
+// UTILITY FUNCTIONS
+// ============================================
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// ============================================
 // ENCRYPTION HELPERS
 // ============================================
 class EncryptionService {
@@ -31,7 +41,10 @@ class EncryptionService {
   private static decoder = new TextDecoder();
 
   static async generateKey(secret: string): Promise<CryptoKey> {
-    const keyMaterial = await crypto.subtle.importKey(
+    // Use the global crypto object (no import needed in Deno)
+    const subtle = globalThis.crypto.subtle;
+    
+    const keyMaterial = await subtle.importKey(
       "raw",
       this.encoder.encode(secret),
       { name: "PBKDF2" },
@@ -39,7 +52,7 @@ class EncryptionService {
       ["deriveBits", "deriveKey"]
     );
 
-    return await crypto.subtle.deriveKey(
+    return await subtle.deriveKey(
       {
         name: "PBKDF2",
         salt: this.encoder.encode("art-shipping-salt"),
@@ -54,8 +67,8 @@ class EncryptionService {
   }
 
   static async encrypt(text: string, key: CryptoKey): Promise<string> {
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encrypted = await crypto.subtle.encrypt(
+    const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await globalThis.crypto.subtle.encrypt(
       { name: "AES-GCM", iv },
       key,
       this.encoder.encode(text)
@@ -73,7 +86,7 @@ class EncryptionService {
     const iv = combined.slice(0, 12);
     const encrypted = combined.slice(12);
 
-    const decrypted = await crypto.subtle.decrypt(
+    const decrypted = await globalThis.crypto.subtle.decrypt(
       { name: "AES-GCM", iv },
       key,
       encrypted
@@ -81,6 +94,20 @@ class EncryptionService {
 
     return this.decoder.decode(decrypted);
   }
+}
+
+// ============================================
+// SUPABASE HELPER
+// ============================================
+function getSupabaseClient() {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Supabase configuration missing');
+  }
+  
+  return createClient(supabaseUrl, supabaseServiceKey);
 }
 
 // ============================================
@@ -94,6 +121,8 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log('FedEx config endpoint called:', req.method);
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -115,11 +144,13 @@ serve(async (req) => {
     const request: FedexConfigRequest = await req.json();
     
     // Generate session ID for temporary storage
-    const sessionId = request.sessionId || crypto.randomUUID();
-    const sessionKey = `fedex_config_${sessionId}`;
+    const sessionId = request.sessionId || generateUUID();
     
     // Initialize encryption
     const encryptionKey = await EncryptionService.generateKey(encryptionSecret);
+    
+    // Get Supabase client
+    const supabase = getSupabaseClient();
 
     // Handle different actions
     let response: FedexConfigResponse;
@@ -136,19 +167,29 @@ serve(async (req) => {
           throw new Error('All FedEx credentials are required');
         }
 
-        // Encrypt and store in Deno KV (temporary session storage)
+        // Encrypt credentials
         const encryptedConfig = {
-          accountNumber: await EncryptionService.encrypt(accountNumber, encryptionKey),
-          clientId: await EncryptionService.encrypt(clientId, encryptionKey),
-          clientSecret: await EncryptionService.encrypt(clientSecret, encryptionKey),
-          timestamp: new Date().toISOString()
+          session_id: sessionId,
+          encrypted_account_number: await EncryptionService.encrypt(accountNumber, encryptionKey),
+          encrypted_client_id: await EncryptionService.encrypt(clientId, encryptionKey),
+          encrypted_client_secret: await EncryptionService.encrypt(clientSecret, encryptionKey)
         };
 
-        // Store in Deno KV with 24-hour expiration
-        const kv = await Deno.openKv();
-        await kv.set([sessionKey], encryptedConfig, {
-          expireIn: 24 * 60 * 60 * 1000 // 24 hours
-        });
+        // Delete any existing session with same ID
+        await supabase
+          .from('fedex_sessions')
+          .delete()
+          .eq('session_id', sessionId);
+        
+        // Insert new session
+        const { error: insertError } = await supabase
+          .from('fedex_sessions')
+          .insert(encryptedConfig);
+          
+        if (insertError) {
+          console.error('Insert error:', insertError);
+          throw new Error(`Failed to store configuration: ${insertError.message}`);
+        }
 
         response = {
           success: true,
@@ -166,11 +207,14 @@ serve(async (req) => {
           break;
         }
 
-        // Retrieve from Deno KV
-        const kvGet = await Deno.openKv();
-        const stored = await kvGet.get([sessionKey]);
+        // Retrieve from Supabase
+        const { data: getSession, error: getError } = await supabase
+          .from('fedex_sessions')
+          .select('*')
+          .eq('session_id', request.sessionId)
+          .single();
 
-        if (!stored.value) {
+        if (getError || !getSession) {
           response = {
             success: true,
             hasConfig: false
@@ -179,7 +223,7 @@ serve(async (req) => {
           response = {
             success: true,
             hasConfig: true,
-            sessionId
+            sessionId: request.sessionId
           };
         }
         break;
@@ -190,21 +234,24 @@ serve(async (req) => {
         }
 
         // Retrieve and decrypt config
-        const kvValidate = await Deno.openKv();
-        const storedConfig = await kvValidate.get([sessionKey]);
+        const { data: validateSession, error: validateError } = await supabase
+          .from('fedex_sessions')
+          .select('*')
+          .eq('session_id', request.sessionId)
+          .single();
 
-        if (!storedConfig.value) {
+        if (validateError || !validateSession) {
           throw new Error('No configuration found');
         }
 
-        const encryptedData = storedConfig.value as any;
+        // Decrypt credentials
         const decryptedConfig = {
-          accountNumber: await EncryptionService.decrypt(encryptedData.accountNumber, encryptionKey),
-          clientId: await EncryptionService.decrypt(encryptedData.clientId, encryptionKey),
-          clientSecret: await EncryptionService.decrypt(encryptedData.clientSecret, encryptionKey)
+          accountNumber: await EncryptionService.decrypt(validateSession.encrypted_account_number, encryptionKey),
+          clientId: await EncryptionService.decrypt(validateSession.encrypted_client_id, encryptionKey),
+          clientSecret: await EncryptionService.decrypt(validateSession.encrypted_client_secret, encryptionKey)
         };
 
-        // Test FedEx authentication
+        // Validate with FedEx OAuth endpoint
         const authUrl = 'https://apis.fedex.com/oauth/token';
         const authBody = new URLSearchParams({
           grant_type: 'client_credentials',
@@ -220,23 +267,29 @@ serve(async (req) => {
           body: authBody.toString()
         });
 
-        const isValid = authResponse.ok;
-
         response = {
           success: true,
-          isValid,
-          message: isValid ? 'Configuration is valid' : 'Invalid FedEx credentials'
+          isValid: authResponse.ok,
+          message: authResponse.ok ? 
+            'FedEx credentials validated successfully' : 
+            'Invalid FedEx credentials'
         };
         break;
 
       case 'delete':
         if (!request.sessionId) {
-          throw new Error('Session ID required');
+          throw new Error('Session ID required for deletion');
         }
 
-        // Delete from Deno KV
-        const kvDelete = await Deno.openKv();
-        await kvDelete.delete([sessionKey]);
+        // Delete from Supabase
+        const { error: deleteError } = await supabase
+          .from('fedex_sessions')
+          .delete()
+          .eq('session_id', request.sessionId);
+
+        if (deleteError) {
+          throw new Error(`Failed to delete configuration: ${deleteError.message}`);
+        }
 
         response = {
           success: true,
@@ -245,7 +298,7 @@ serve(async (req) => {
         break;
 
       default:
-        throw new Error('Invalid action');
+        throw new Error(`Unknown action: ${request.action}`);
     }
 
     return new Response(JSON.stringify(response), {

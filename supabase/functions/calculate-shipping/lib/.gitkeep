@@ -1,9 +1,0 @@
-# Core business logic modules
-# - fedex-auth.ts (Authentication logic)
-# - fedex-rates.ts (Rate calculation) 
-# - payload-builder.ts (Request payload construction)
-# - currency-mapper.ts (Currency mapping utilities)
-# - collection-service.ts (Database operations)
-# - error-handler.ts (Error types and handling)
-# - logger.ts (Logging utilities)
-# - retry-utils.ts (Retry logic with backoff)

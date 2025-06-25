@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import * as crypto from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 // ============================================
 // TYPES
@@ -81,7 +80,7 @@ class EncryptionService {
   private static decoder = new TextDecoder();
 
   static async generateKey(secret: string): Promise<CryptoKey> {
-    const keyMaterial = await crypto.subtle.importKey(
+    const keyMaterial = await globalThis.crypto.subtle.importKey(
       "raw",
       this.encoder.encode(secret),
       { name: "PBKDF2" },
@@ -89,7 +88,7 @@ class EncryptionService {
       ["deriveBits", "deriveKey"]
     );
 
-    return await crypto.subtle.deriveKey(
+    return await globalThis.crypto.subtle.deriveKey(
       {
         name: "PBKDF2",
         salt: this.encoder.encode("art-shipping-salt"),
@@ -108,7 +107,7 @@ class EncryptionService {
     const iv = combined.slice(0, 12);
     const encrypted = combined.slice(12);
 
-    const decrypted = await crypto.subtle.decrypt(
+    const decrypted = await globalThis.crypto.subtle.decrypt(
       { name: "AES-GCM", iv },
       key,
       encrypted
@@ -134,22 +133,35 @@ async function getFedexConfig(sessionId: string | undefined): Promise<{accountNu
       return null;
     }
 
-    const sessionKey = `fedex_config_${sessionId}`;
-    const kv = await Deno.openKv();
-    const stored = await kv.get([sessionKey]);
+    // Get Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      Logger.error('Supabase configuration missing');
+      return null;
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Retrieve session from Supabase
+    const { data: session, error } = await supabase
+      .from('fedex_sessions')
+      .select('*')
+      .eq('session_id', sessionId)
+      .single();
 
-    if (!stored.value) {
-      Logger.warn('No FedEx config found for session', { sessionId });
+    if (error || !session) {
+      Logger.warn('No FedEx config found for session', { sessionId, error: error?.message });
       return null;
     }
 
     const encryptionKey = await EncryptionService.generateKey(encryptionSecret);
-    const encryptedData = stored.value as any;
 
     const decryptedConfig = {
-      accountNumber: await EncryptionService.decrypt(encryptedData.accountNumber, encryptionKey),
-      clientId: await EncryptionService.decrypt(encryptedData.clientId, encryptionKey),
-      clientSecret: await EncryptionService.decrypt(encryptedData.clientSecret, encryptionKey)
+      accountNumber: await EncryptionService.decrypt(session.encrypted_account_number, encryptionKey),
+      clientId: await EncryptionService.decrypt(session.encrypted_client_id, encryptionKey),
+      clientSecret: await EncryptionService.decrypt(session.encrypted_client_secret, encryptionKey)
     };
 
     Logger.info('FedEx config retrieved successfully');
