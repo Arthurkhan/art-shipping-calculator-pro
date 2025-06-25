@@ -86,7 +86,7 @@ export const ParameterPreview = ({
         setError("");
         try {
           const { data, error } = await supabase
-            .from('collection_sizes')
+            .from('sizes') // Changed from 'collection_sizes' to 'sizes'
             .select('weight_kg, height_cm, length_cm, width_cm')
             .eq('collection_id', collection)
             .eq('size', size)
