@@ -1,6 +1,7 @@
 /**
  * Centralized error handling utilities for shipping calculator
  * Phase 4 implementation - Standardizing error handling
+ * Updated 2025-06-25: Enhanced FedEx service availability error handling
  */
 
 export enum ErrorType {
@@ -12,6 +13,7 @@ export enum ErrorType {
   CONFIGURATION_ERROR = 'CONFIGURATION_ERROR',
   DATABASE_ERROR = 'DATABASE_ERROR',
   CALCULATION_ERROR = 'CALCULATION_ERROR',
+  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE', // New: For FedEx service availability
   UNKNOWN_ERROR = 'UNKNOWN_ERROR'
 }
 
@@ -21,6 +23,11 @@ export interface ShippingError extends Error {
   details?: unknown;
   timestamp: string;
   context?: string;
+  route?: {
+    origin: { country: string; postalCode: string };
+    destination: { country: string; postalCode: string };
+  };
+  suggestions?: string[];
 }
 
 /**
@@ -79,6 +86,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   'INVALID_FEDEX_CREDENTIALS': 'FedEx API credentials are invalid. Please check your configuration.',
   'FEDEX_RATE_LIMIT': 'FedEx API rate limit exceeded. Please try again later.',
   'NO_RATES_AVAILABLE': 'No shipping rates available for this destination.',
+  'RATE.LOCATION.NOSERVICE': 'FedEx does not currently offer service between these locations.',
+  'SERVICE.UNAVAILABLE': 'This shipping service is not available for the selected route.',
+  'SERVICE.NOT.AVAILABLE': 'FedEx service is not available for this origin/destination combination.',
   
   // Validation errors
   'VALIDATION_ERROR': 'Please check your input and try again.',
@@ -91,6 +101,38 @@ const ERROR_MESSAGES: Record<string, string> = {
   'CONFIG_INVALID': 'Configuration is invalid. Please check your settings.',
 };
 
+/**
+ * Alternative destination suggestions for common unsupported routes
+ */
+const ROUTE_ALTERNATIVES: Record<string, string[]> = {
+  'TH_IT': ['TH_SG', 'TH_HK', 'TH_JP', 'TH_AU', 'TH_US'], // Thailand to Italy alternatives
+  'TH_ES': ['TH_GB', 'TH_FR', 'TH_DE'], // Thailand to Spain alternatives
+  'TH_PT': ['TH_GB', 'TH_FR', 'TH_DE'], // Thailand to Portugal alternatives
+};
+
+/**
+ * Get friendly country names
+ */
+const COUNTRY_NAMES: Record<string, string> = {
+  'TH': 'Thailand',
+  'IT': 'Italy',
+  'SG': 'Singapore',
+  'HK': 'Hong Kong',
+  'JP': 'Japan',
+  'AU': 'Australia',
+  'US': 'United States',
+  'GB': 'United Kingdom',
+  'FR': 'France',
+  'DE': 'Germany',
+  'ES': 'Spain',
+  'PT': 'Portugal',
+  'MY': 'Malaysia',
+  'ID': 'Indonesia',
+  'CN': 'China',
+  'KR': 'South Korea',
+  'IN': 'India',
+};
+
 interface ErrorLike {
   code?: string | number;
   status?: string | number;
@@ -101,9 +143,81 @@ interface ErrorLike {
 }
 
 /**
+ * Check if error is a service availability error
+ */
+export const isServiceAvailabilityError = (error: unknown): boolean => {
+  const errorStr = String(error).toUpperCase();
+  const message = error instanceof Error ? error.message.toUpperCase() : '';
+  
+  return (
+    errorStr.includes('NOSERVICE') ||
+    errorStr.includes('SERVICE.UNAVAILABLE') ||
+    errorStr.includes('SERVICE.NOT.AVAILABLE') ||
+    errorStr.includes('NOT CURRENTLY AVAILABLE') ||
+    errorStr.includes('DOES NOT CURRENTLY OFFER SERVICE') ||
+    message.includes('NOSERVICE') ||
+    message.includes('SERVICE IS NOT CURRENTLY AVAILABLE') ||
+    message.includes('DOES NOT CURRENTLY OFFER SERVICE')
+  );
+};
+
+/**
+ * Get route alternatives for unsupported routes
+ */
+export const getRouteAlternatives = (
+  originCountry: string, 
+  destinationCountry: string
+): { suggestions: string[]; friendlyNames: string[] } => {
+  const routeKey = `${originCountry}_${destinationCountry}`;
+  const alternatives = ROUTE_ALTERNATIVES[routeKey] || [];
+  
+  const friendlyNames = alternatives.map(route => {
+    const [origin, dest] = route.split('_');
+    const originName = COUNTRY_NAMES[origin] || origin;
+    const destName = COUNTRY_NAMES[dest] || dest;
+    return `${originName} → ${destName}`;
+  });
+  
+  return { suggestions: alternatives, friendlyNames };
+};
+
+/**
  * Handle API errors and return user-friendly messages
  */
-export const handleApiError = (error: unknown): { message: string; type: ErrorType; code?: string } => {
+export const handleApiError = (error: unknown): { 
+  message: string; 
+  type: ErrorType; 
+  code?: string;
+  isServiceAvailability?: boolean;
+  route?: { origin: string; destination: string };
+  suggestions?: string[];
+} => {
+  // Check for service availability errors first
+  if (isServiceAvailabilityError(error)) {
+    // Try to extract route information from error
+    const errorStr = error instanceof Error ? error.message : String(error);
+    const routeMatch = errorStr.match(/(\w{2})\s*\([\d\s]+\)\s*→\s*(\w{2})\s*\([\d\s]+\)/);
+    
+    let route = undefined;
+    let suggestions: string[] = [];
+    
+    if (routeMatch) {
+      const [, origin, destination] = routeMatch;
+      route = { origin, destination };
+      const alternatives = getRouteAlternatives(origin, destination);
+      suggestions = alternatives.friendlyNames;
+    }
+    
+    return {
+      message: 'FedEx does not currently offer direct service between these locations. You may need to use an alternative shipping method or destination.',
+      type: ErrorType.SERVICE_UNAVAILABLE,
+      code: 'RATE.LOCATION.NOSERVICE',
+      isServiceAvailability: true,
+      route,
+      suggestions
+    };
+  }
+  
   // Handle string errors
   if (typeof error === 'string') {
     const message = getErrorMessage(error);
@@ -162,7 +276,7 @@ export const handleApiError = (error: unknown): { message: string; type: ErrorTy
     // Check for FedEx specific errors
     if (errorMessage.includes('FedEx') || errorMessage.includes('fedex')) {
       return {
-        message: ERROR_MESSAGES['FEDEX_API_ERROR'] || errorMessage,
+        message: errorMessage,
         type: ErrorType.API_ERROR,
         code: 'FEDEX_ERROR'
       };
@@ -235,6 +349,10 @@ const determineErrorType = (code: string | number | undefined): ErrorType => {
     return ErrorType.DATABASE_ERROR;
   }
   
+  if (codeStr.includes('NOSERVICE') || codeStr.includes('SERVICE')) {
+    return ErrorType.SERVICE_UNAVAILABLE;
+  }
+  
   return ErrorType.API_ERROR;
 };
 
@@ -254,6 +372,8 @@ export const logError = (error: Error | ShippingError, context: string, addition
       type: (error as ShippingError).type,
       code: (error as ShippingError).code,
       details: (error as ShippingError).details,
+      route: (error as ShippingError).route,
+      suggestions: (error as ShippingError).suggestions,
     }),
     ...(additionalData && { additionalData })
   };
@@ -281,6 +401,11 @@ export const formatErrorForDisplay = (error: unknown): string => {
 export const isRetryableError = (error: unknown): boolean => {
   const errorStr = String(error) || '';
   const message = error instanceof Error ? error.message : '';
+  
+  // Service availability errors are NOT retryable
+  if (isServiceAvailabilityError(error)) {
+    return false;
+  }
   
   // Network and timeout errors are typically retryable
   if (errorStr.includes('NETWORK') || errorStr.includes('TIMEOUT')) {
