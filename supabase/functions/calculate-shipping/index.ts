@@ -1,156 +1,676 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Import refactored modules from lib directory
-import { FedexAuthService } from './lib/fedex-auth.ts';
-import { FedexRatesService } from './lib/fedex-rates.ts';
-import { Logger } from './lib/logger.ts';
-import { getCollectionSize } from './lib/collection-service.ts'; // Fixed import - it's a function, not a class
-import type { ShippingRequest, ShippingRate, ShippingError, ErrorType, CollectionSize } from './types/index.ts';
+// ============================================
+// TYPES
+// ============================================
+interface ShippingRequest {
+  collection?: string;
+  size?: string;
+  country: string;
+  postalCode: string;
+  originCountry?: string;
+  originPostalCode?: string;
+  preferredCurrency?: string;
+  shipDate?: string;
+  overrideData?: {
+    weight_kg: number;
+    height_cm: number;
+    length_cm: number;
+    width_cm: number;
+    quantity?: number;
+  };
+  fedexConfig?: {
+    accountNumber: string;
+    clientId: string;
+    clientSecret: string;
+  };
+}
 
-// Complete CORS headers with all required fields
+interface ShippingRate {
+  service: string;
+  cost: number;
+  currency: string;
+  transitTime?: string;
+  deliveryDate?: string;
+  rateType?: string;
+}
+
+interface CollectionSize {
+  weight_kg: number;
+  height_cm: number;
+  length_cm: number;
+  width_cm: number;
+}
+
+// FedEx Error Response Structure
+interface FedexErrorResponse {
+  errors?: Array<{
+    code?: string;
+    message?: string;
+    parameterList?: Array<{
+      key?: string;
+      value?: string;
+    }>;
+  }>;
+  transactionId?: string;
+  customerTransactionId?: string;
+}
+
+// ============================================
+// LOGGER
+// ============================================
+class Logger {
+  static requestId = '';
+  static setRequestId(id: string) {
+    this.requestId = id;
+  }
+  static info(message: string, data?: any) {
+    console.log(`[INFO][${this.requestId}] ${message}`, data ? JSON.stringify(data) : '');
+  }
+  static error(message: string, data?: any) {
+    console.error(`[ERROR][${this.requestId}] ${message}`, data ? JSON.stringify(data) : '');
+  }
+  static warn(message: string, data?: any) {
+    console.warn(`[WARN][${this.requestId}] ${message}`, data ? JSON.stringify(data) : '');
+  }
+}
+
+// ============================================
+// CURRENCY MAPPER
+// ============================================
+const CURRENCY_MAP: Record<string, string> = {
+  // Asia Pacific
+  'TH': 'THB',
+  'SG': 'SGD',
+  'MY': 'MYR',
+  'ID': 'IDR',
+  'PH': 'PHP',
+  'VN': 'VND',
+  'KH': 'USD',
+  'LA': 'LAK',
+  'MM': 'MMK',
+  'BN': 'BND',
+  'JP': 'JPY',
+  'KR': 'KRW',
+  'CN': 'CNY',
+  'HK': 'HKD',
+  'TW': 'TWD',
+  'IN': 'INR',
+  'PK': 'PKR',
+  'BD': 'BDT',
+  'LK': 'LKR',
+  'NP': 'NPR',
+  'AU': 'AUD',
+  'NZ': 'NZD',
+  'FJ': 'FJD',
+  'PG': 'PGK',
+  'WS': 'WST',
+  // Europe
+  'GB': 'GBP',
+  'FR': 'EUR',
+  'DE': 'EUR',
+  'IT': 'EUR',
+  'ES': 'EUR',
+  'NL': 'EUR',
+  'BE': 'EUR',
+  'AT': 'EUR',
+  'PT': 'EUR',
+  'GR': 'EUR',
+  'IE': 'EUR',
+  'FI': 'EUR',
+  'LU': 'EUR',
+  'MT': 'EUR',
+  'CY': 'EUR',
+  'SI': 'EUR',
+  'SK': 'EUR',
+  'EE': 'EUR',
+  'LV': 'EUR',
+  'LT': 'EUR',
+  'CH': 'CHF',
+  'NO': 'NOK',
+  'SE': 'SEK',
+  'DK': 'DKK',
+  'IS': 'ISK',
+  'PL': 'PLN',
+  'CZ': 'CZK',
+  'HU': 'HUF',
+  'RO': 'RON',
+  'BG': 'BGN',
+  'HR': 'EUR',
+  'RS': 'RSD',
+  'UA': 'UAH',
+  'RU': 'RUB',
+  'TR': 'TRY',
+  // Americas
+  'US': 'USD',
+  'CA': 'CAD',
+  'MX': 'MXN',
+  'BR': 'BRL',
+  'AR': 'ARS',
+  'CL': 'CLP',
+  'CO': 'COP',
+  'PE': 'PEN',
+  'UY': 'UYU',
+  'PY': 'PYG',
+  'BO': 'BOB',
+  'EC': 'USD',
+  'VE': 'VES',
+  'GY': 'GYD',
+  'SR': 'SRD',
+  // Middle East & Africa
+  'AE': 'AED',
+  'SA': 'SAR',
+  'QA': 'QAR',
+  'KW': 'KWD',
+  'BH': 'BHD',
+  'OM': 'OMR',
+  'JO': 'JOD',
+  'IL': 'ILS',
+  'EG': 'EGP',
+  'MA': 'MAD',
+  'ZA': 'ZAR',
+  'NG': 'NGN',
+  'KE': 'KES',
+  'GH': 'GHS',
+  'TZ': 'TZS',
+  'UG': 'UGX',
+  'ET': 'ETB',
+  'ZW': 'ZWL',
+  'ZM': 'ZMW',
+  'BW': 'BWP',
+  // Caribbean & Central America
+  'JM': 'JMD',
+  'TT': 'TTD',
+  'BB': 'BBD',
+  'BS': 'BSD',
+  'BZ': 'BZD',
+  'GT': 'GTQ',
+  'SV': 'USD',
+  'HN': 'HNL',
+  'NI': 'NIO',
+  'CR': 'CRC',
+  'PA': 'PAB',
+  'DO': 'DOP',
+  'HT': 'HTG',
+  'CU': 'CUP',
+  'PR': 'USD'
+};
+
+function getCurrencyForCountry(countryCode: string): string {
+  return CURRENCY_MAP[countryCode] || 'USD';
+}
+
+// ============================================
+// COLLECTION SERVICE
+// ============================================
+async function getCollectionSize(collectionId: string, size: string): Promise<CollectionSize> {
+  try {
+    Logger.info('Fetching collection size data', {
+      collectionId,
+      size
+    });
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase configuration');
+    }
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    Logger.info('Looking up collection size data by collection ID', {
+      collectionId,
+      size
+    });
+    const { data, error } = await supabase
+      .from('sizes') // Using 'sizes' table
+      .select('weight_kg, height_cm, length_cm, width_cm')
+      .eq('collection_id', collectionId)
+      .eq('size', size)
+      .single();
+    if (error) {
+      Logger.error('Database query failed', {
+        error: error.message,
+        collectionId,
+        size
+      });
+      throw new Error(`Database error: ${error.message}`);
+    }
+    if (!data) {
+      Logger.warn('No size data found', {
+        collectionId,
+        size
+      });
+      throw new Error(`No size data found for collection ID: ${collectionId}, size: ${size}`);
+    }
+    Logger.info('Collection size data retrieved successfully', {
+      data
+    });
+    return data;
+  } catch (error) {
+    Logger.error('Unexpected error fetching collection size', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
+  }
+}
+
+// ============================================
+// FEDEX AUTH SERVICE
+// ============================================
+class FedexAuthService {
+  static async getAccessToken(clientId: string, clientSecret: string): Promise<string> {
+    try {
+      Logger.info('Requesting FedEx access token');
+      const authUrl = 'https://apis.fedex.com/oauth/token';
+      const authBody = new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: clientId,
+        client_secret: clientSecret
+      });
+      const authResponse = await fetch(authUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: authBody.toString()
+      });
+      if (!authResponse.ok) {
+        const errorText = await authResponse.text();
+        Logger.error('FedEx auth failed', {
+          status: authResponse.status,
+          statusText: authResponse.statusText,
+          error: errorText
+        });
+        throw new Error(`FedEx authentication failed: ${authResponse.statusText}`);
+      }
+      const authData = await authResponse.json();
+      if (!authData.access_token) {
+        throw new Error('No access token received from FedEx');
+      }
+      Logger.info('FedEx access token obtained successfully');
+      return authData.access_token;
+    } catch (error) {
+      Logger.error('FedEx authentication error', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
+  }
+}
+
+// ============================================
+// FEDEX RATES SERVICE (WITH ENHANCED ERROR HANDLING)
+// ============================================
+class FedexRatesService {
+  static lastRawResponse: any = null;
+  
+  static getLastRawResponse() {
+    return this.lastRawResponse;
+  }
+  
+  static async getRates(
+    accessToken: string,
+    accountNumber: string,
+    sizeData: CollectionSize,
+    originCountry: string,
+    originPostalCode: string,
+    destinationCountry: string,
+    destinationPostalCode: string,
+    preferredCurrency?: string,
+    shipDate?: string,
+    quantity: number = 1
+  ): Promise<ShippingRate[]> {
+    try {
+      Logger.info('Starting FedEx rate calculation', {
+        origin: `${originCountry} ${originPostalCode}`,
+        destination: `${destinationCountry} ${destinationPostalCode}`,
+        dimensions: sizeData,
+        preferredCurrency,
+        shipDate,
+        quantity
+      });
+      
+      const ratesUrl = 'https://apis.fedex.com/rate/v1/rates/quotes';
+      
+      // Currency mapping
+      const currency = preferredCurrency || getCurrencyForCountry(destinationCountry);
+      Logger.info('Using currency for rate calculation', {
+        currency,
+        preferredCurrency,
+        destinationCountry
+      });
+      
+      // Ship date handling
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const shipDateToUse = shipDate || tomorrow.toISOString().split('T')[0];
+      Logger.info('Using ship date', {
+        shipDateToUse,
+        providedShipDate: shipDate
+      });
+      
+      const payload = {
+        accountNumber: {
+          value: accountNumber
+        },
+        requestedShipment: {
+          shipper: {
+            address: {
+              postalCode: originPostalCode,
+              countryCode: originCountry
+            }
+          },
+          recipient: {
+            address: {
+              postalCode: destinationPostalCode,
+              countryCode: destinationCountry
+            }
+          },
+          preferredCurrency: currency,
+          shipDateStamp: shipDateToUse,
+          pickupType: "DROPOFF_AT_FEDEX_LOCATION",
+          packagingType: "YOUR_PACKAGING",
+          rateRequestType: [
+            "LIST",
+            "ACCOUNT",
+            "INCENTIVE"
+          ],
+          requestedPackageLineItems: [
+            {
+              groupPackageCount: 1, // Always use 1 for single shipment pricing
+              weight: {
+                units: "KG",
+                value: sizeData.weight_kg
+              },
+              dimensions: {
+                length: sizeData.length_cm,
+                width: sizeData.width_cm,
+                height: sizeData.height_cm,
+                units: "CM"
+              }
+            }
+          ],
+          variableOptions: ["TRANSIT_TIME"]
+        }
+      };
+      
+      Logger.info('FedEx API Request Payload', payload);
+      
+      const ratesResponse = await fetch(ratesUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+          'X-locale': 'en_US'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      const responseText = await ratesResponse.text();
+      Logger.info('FedEx API Raw Response Text', { responseText });
+      
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        Logger.error('Failed to parse FedEx response as JSON', {
+          parseError: parseError instanceof Error ? parseError.message : String(parseError),
+          responseText
+        });
+        throw new Error('Invalid response from FedEx API');
+      }
+      
+      this.lastRawResponse = responseData;
+      
+      Logger.info('FedEx API Response Status', {
+        status: ratesResponse.status,
+        ok: ratesResponse.ok
+      });
+      
+      if (!ratesResponse.ok) {
+        Logger.error('FedEx API error response', responseData);
+        
+        // Enhanced error handling with specific FedEx error parsing
+        if (ratesResponse.status === 400) {
+          // Parse FedEx-specific error response
+          const errorResponse = responseData as FedexErrorResponse;
+          let errorMessage = 'Invalid request parameters';
+          let userMessage = 'Invalid shipping parameters. Please check your destination details and try again.';
+          
+          // Extract specific error messages from FedEx response
+          if (errorResponse.errors && errorResponse.errors.length > 0) {
+            const fedexErrors = errorResponse.errors.map(err => ({
+              code: err.code || 'UNKNOWN',
+              message: err.message || 'Unknown error'
+            }));
+            
+            // Get the first error message as the primary message
+            const primaryError = fedexErrors[0];
+            errorMessage = primaryError.message;
+            
+            // Check for specific error codes/messages
+            if (primaryError.message?.includes('service is not currently available') ||
+                primaryError.code?.includes('SERVICE.UNAVAILABLE') ||
+                primaryError.code?.includes('SERVICE.NOT.AVAILABLE')) {
+              // Service availability error
+              userMessage = 'FedEx does not currently offer service between these locations. Please try a different destination or contact FedEx Customer Service.';
+              
+              Logger.warn('FedEx service availability issue', {
+                route: `${originCountry} (${originPostalCode}) → ${destinationCountry} (${destinationPostalCode})`,
+                fedexMessage: primaryError.message,
+                fedexCode: primaryError.code
+              });
+            } else if (primaryError.message?.includes('postal code') || 
+                      primaryError.message?.includes('country code')) {
+              // Invalid address error
+              userMessage = 'Invalid postal code or country code. Please verify your shipping addresses.';
+            } else if (primaryError.message?.includes('account')) {
+              // Account-related error
+              userMessage = 'Account authorization issue. Please verify your FedEx account settings.';
+            } else {
+              // Use the FedEx error message directly if it's user-friendly
+              userMessage = primaryError.message;
+            }
+            
+            Logger.error('FedEx validation error details (400 - Bad Request)', { 
+              fedexErrors,
+              responseData,
+              route: `${originCountry} (${originPostalCode}) → ${destinationCountry} (${destinationPostalCode})`,
+              currencyUsed: currency
+            });
+          }
+          
+          throw new Error(userMessage);
+        } else {
+          throw new Error(`FedEx API error: ${responseData.errors?.[0]?.message || 'Unknown error'}`);
+        }
+      }
+      
+      if (!responseData.output?.rateReplyDetails) {
+        Logger.warn('No rate details in response', responseData);
+        return [];
+      }
+      
+      const rates: ShippingRate[] = [];
+      for (const rateDetail of responseData.output.rateReplyDetails) {
+        const serviceName = rateDetail.serviceName || rateDetail.serviceType || 'Unknown Service';
+        if (!rateDetail.ratedShipmentDetails?.length) {
+          Logger.warn('No shipment details for service', {
+            serviceName
+          });
+          continue;
+        }
+        
+        for (const shipmentDetail of rateDetail.ratedShipmentDetails) {
+          const rateType = shipmentDetail.rateType || 'UNKNOWN';
+          const totalCharges = shipmentDetail.totalNetCharge || 
+                              shipmentDetail.totalNetFedExCharge || 
+                              shipmentDetail.shipmentRateDetail?.totalNetCharge;
+          
+          if (!totalCharges) {
+            Logger.warn('No charges found for shipment detail', {
+              serviceName,
+              rateType
+            });
+            continue;
+          }
+          
+          // Extract cost - handle both number and object formats
+          let cost = 0;
+          if (typeof totalCharges === 'number') {
+            cost = totalCharges;
+          } else if (totalCharges && typeof totalCharges === 'object' && 'amount' in totalCharges) {
+            cost = typeof totalCharges.amount === 'number' 
+              ? totalCharges.amount 
+              : parseFloat(String(totalCharges.amount));
+          } else {
+            cost = parseFloat(String(totalCharges));
+          }
+          
+          const currencyCode = shipmentDetail.currency || currency;
+          
+          // Extract transit time and delivery date
+          let transitTime = 'Unknown';
+          let deliveryDate = undefined;
+          
+          if (rateDetail.transitTime) {
+            transitTime = rateDetail.transitTime;
+          } else if (rateDetail.commit?.transitDays) {
+            transitTime = `${rateDetail.commit.transitDays} days`;
+          } else if (rateDetail.operationalDetail?.transitTime) {
+            transitTime = rateDetail.operationalDetail.transitTime;
+          }
+          
+          if (rateDetail.deliveryTimestamp) {
+            deliveryDate = rateDetail.deliveryTimestamp;
+          } else if (rateDetail.commit?.dateDetail?.dayOfWeek) {
+            deliveryDate = rateDetail.commit.dateDetail.dayOfWeek;
+          }
+          
+          const rate: ShippingRate = {
+            service: serviceName,
+            cost: cost,
+            currency: currencyCode,
+            transitTime: transitTime,
+            deliveryDate: deliveryDate,
+            rateType: rateType
+          };
+          
+          rates.push(rate);
+          Logger.info('Processed rate', rate);
+        }
+      }
+      
+      Logger.info(`Successfully parsed ${rates.length} FedEx rates`);
+      return rates;
+    } catch (error) {
+      Logger.error('Error getting FedEx rates', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      throw error;
+    }
+  }
+}
+
+// ============================================
+// MAIN HANDLER
+// ============================================
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400', // 24 hours
-}
+  'Access-Control-Max-Age': '86400'
+};
 
-// Main serve function with comprehensive error handling
 serve(async (req) => {
-  // Generate unique request ID for correlation
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   Logger.setRequestId(requestId);
-  
   Logger.info('New shipping calculation request received', {
     method: req.method,
     url: req.url,
     requestId
   });
-
-  // Handle CORS preflight requests - THIS IS CRITICAL
+  
   if (req.method === 'OPTIONS') {
     Logger.info('Handling OPTIONS preflight request');
-    return new Response('ok', { 
+    return new Response('ok', {
       headers: corsHeaders,
-      status: 200 
+      status: 200
     });
   }
-
+  
   try {
     if (req.method !== 'POST') {
-      throw {
-        type: 'VALIDATION',
-        message: `Method ${req.method} not allowed`,
-        userMessage: 'Only POST requests are allowed.'
-      };
+      throw new Error(`Method ${req.method} not allowed`);
     }
-
+    
     const requestData: ShippingRequest = await req.json();
-    Logger.info('Request payload received', { 
+    Logger.info('Request payload received', {
       requestData: {
         ...requestData,
-        fedexConfig: requestData.fedexConfig ? '[REDACTED]' : 'Not provided',
-        preferredCurrency: requestData.preferredCurrency || 'Not provided (will auto-map)',
-        shipDate: requestData.shipDate || 'Not provided (will use tomorrow)',
-        overrideData: requestData.overrideData || 'Not provided',
-        hasOverride: !!requestData.overrideData
+        fedexConfig: requestData.fedexConfig ? '[REDACTED]' : 'Not provided'
       }
     });
-
-    // Validate required fields
-    // FIX: When override data is provided, we don't need collection/size
-    // Also handle empty strings as missing values
-    const hasOverrideData = requestData.overrideData && 
-                           typeof requestData.overrideData === 'object' &&
-                           'weight_kg' in requestData.overrideData;
     
+    // Validate required fields
+    const hasOverrideData = requestData.overrideData && 
+                           typeof requestData.overrideData === 'object' && 
+                           'weight_kg' in requestData.overrideData;
     const hasValidCollectionAndSize = requestData.collection && 
-                                     requestData.collection.trim() !== '' &&
+                                     requestData.collection.trim() !== '' && 
                                      requestData.size && 
                                      requestData.size.trim() !== '';
     
-    // We need either override data OR collection/size, not both
     if (!hasOverrideData && !hasValidCollectionAndSize) {
-      throw {
-        type: 'VALIDATION',
-        message: 'Missing required fields: Either provide collection/size or override data',
-        userMessage: 'Please select a collection and size, or use custom dimensions.'
-      };
+      throw new Error('Missing required fields: Either provide collection/size or override data');
+    }
+    if (!requestData.country || !requestData.postalCode) {
+      throw new Error('Missing required destination fields');
     }
     
-    if (!requestData.country || !requestData.postalCode) {
-      throw {
-        type: 'VALIDATION',
-        message: 'Missing required destination fields',
-        userMessage: 'Please provide destination country and postal code.'
-      };
-    }
-
-    // PHASE 2: Set default origin to Thailand if not provided (matching roadmap)
     const originCountry = requestData.originCountry || 'TH';
     const originPostalCode = requestData.originPostalCode || '10240';
-
-    Logger.info('Using origin address (Phase 2 defaults)', { originCountry, originPostalCode });
-
-    // Get size data - either from override or database
+    Logger.info('Using origin address', {
+      originCountry,
+      originPostalCode
+    });
+    
+    // Get size data
     let sizeData: CollectionSize;
-    let quantity = 1; // Default quantity
-
-    if (hasOverrideData) {
-      // Use override data if provided
-      Logger.info('Using override data for dimensions and weight', { 
-        overrideData: requestData.overrideData 
+    let quantity = 1;
+    if (hasOverrideData && requestData.overrideData) {
+      Logger.info('Using override data for dimensions and weight', {
+        overrideData: requestData.overrideData
       });
-      
       sizeData = {
         weight_kg: requestData.overrideData.weight_kg,
         height_cm: requestData.overrideData.height_cm,
         length_cm: requestData.overrideData.length_cm,
         width_cm: requestData.overrideData.width_cm
       };
-      
-      // Store quantity for logging but ALWAYS use 1 for FedEx API
-      const userQuantity = requestData.overrideData.quantity || 1;
-      quantity = 1; // ALWAYS use 1 for single shipment pricing
-      
-      Logger.info('FIX: Using quantity=1 for single shipment pricing', { 
-        userRequestedQuantity: userQuantity,
-        fedexApiQuantity: quantity,
-        note: 'Always calculating rates for single shipment to match FedEx website pricing'
-      });
+      quantity = 1; // Always use 1 for single shipment pricing
     } else {
-      // Use getCollectionSize function directly
-      sizeData = await getCollectionSize(requestData.collection, requestData.size);
+      sizeData = await getCollectionSize(requestData.collection!, requestData.size!);
     }
-
-    Logger.info('Size data determined', { 
+    
+    Logger.info('Size data determined', {
       sizeData,
       quantity,
       source: hasOverrideData ? 'override' : 'database'
     });
-
+    
     let rates: ShippingRate[] = [];
-    let rawFedexResponse = null; // Store raw response for debugging
-
-    // Calculate FedEx rates if config is provided
+    let rawFedexResponse = null;
+    
     if (requestData.fedexConfig) {
       Logger.info('FedEx configuration provided, calculating rates');
-      
       const { accountNumber, clientId, clientSecret } = requestData.fedexConfig;
-      
       if (!accountNumber || !clientId || !clientSecret) {
-        throw {
-          type: 'CONFIGURATION',
-          message: 'Incomplete FedEx configuration',
-          userMessage: 'FedEx configuration is incomplete. Please check your API credentials.'
-        };
+        throw new Error('Incomplete FedEx configuration');
       }
-
+      
       try {
-        // Use FedexAuthService to get access token
         const accessToken = await FedexAuthService.getAccessToken(clientId, clientSecret);
-        
-        // Use FedexRatesService to get rates with optional ship date and quantity
         const fedexRates = await FedexRatesService.getRates(
           accessToken,
           accountNumber,
@@ -160,31 +680,23 @@ serve(async (req) => {
           requestData.country,
           requestData.postalCode,
           requestData.preferredCurrency,
-          requestData.shipDate, // Pass user-selected ship date (optional)
-          quantity // Pass quantity for multiple boxes (now always 1)
+          requestData.shipDate,
+          quantity
         );
-        
-        // DEBUGGING: Get the raw FedEx response
         rawFedexResponse = FedexRatesService.getLastRawResponse();
-        
         rates = rates.concat(fedexRates);
         Logger.info(`Added ${fedexRates.length} FedEx rates`);
       } catch (error) {
-        Logger.error('FedEx rate calculation failed', { error: error.message });
-        
-        if (error.type) {
-          // For FedEx-specific errors, we can still return partial results
-          Logger.warn('Continuing with empty FedEx rates due to error');
-        } else {
-          throw error;
-        }
+        Logger.error('FedEx rate calculation failed', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined
+        });
+        throw error;
       }
     } else {
       Logger.info('No FedEx configuration provided, skipping FedEx rates');
     }
-
-    // TODO: Add other shipping providers here (DHL, UPS, etc.)
-
+    
     Logger.info('Shipping calculation completed successfully', {
       totalRates: rates.length,
       requestId,
@@ -193,73 +705,38 @@ serve(async (req) => {
       usingOverride: hasOverrideData,
       quantity
     });
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        rates,
-        requestId,
-        // DEBUGGING: Include raw FedEx response temporarily
-        _debug: {
-          rawFedexResponse: rawFedexResponse,
-          usingOverride: hasOverrideData,
-          fedexQuantityUsed: quantity
-        }
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    
+    return new Response(JSON.stringify({
+      success: true,
+      rates,
+      requestId,
+      _debug: {
+        rawFedexResponse: rawFedexResponse,
+        usingOverride: hasOverrideData,
+        fedexQuantityUsed: quantity
       }
-    );
-
+    }), {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
+    });
   } catch (error) {
-    Logger.error('Request failed', { 
-      error: error.message,
-      type: error.type || 'UNKNOWN',
+    Logger.error('Request failed', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
       requestId
     });
-
-    let statusCode = 500;
-    let userMessage = 'An unexpected error occurred. Please try again.';
-
-    if (error.type) {
-      userMessage = error.userMessage || userMessage;
-      
-      // Map error types to appropriate HTTP status codes
-      switch (error.type) {
-        case 'VALIDATION':
-          statusCode = 400;
-          break;
-        case 'AUTHENTICATION':
-        case 'AUTHORIZATION':
-          statusCode = 401;
-          break;
-        case 'CONFIGURATION':
-          statusCode = 422;
-          break;
-        case 'TIMEOUT':
-          statusCode = 408;
-          break;
-        case 'NETWORK':
-        case 'API_RESPONSE':
-        case 'RATE_PARSING':
-        case 'DATABASE':
-        default:
-          statusCode = 500;
-          break;
+    return new Response(JSON.stringify({
+      success: false,
+      error: error instanceof Error ? error.message : 'An unexpected error occurred',
+      requestId
+    }), {
+      status: 500,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
       }
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: userMessage,
-        requestId,
-        ...(error.type && { errorType: error.type })
-      }),
-      {
-        status: statusCode,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    });
   }
 });
