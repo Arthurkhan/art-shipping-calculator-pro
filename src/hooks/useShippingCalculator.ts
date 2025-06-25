@@ -179,6 +179,23 @@ export const useShippingCalculator = () => {
       console.log('📦 Raw API Response:', response);
       console.log('📊 Response Data:', response.data);
       
+      // Check if the response has an error from our edge function
+      if (response.data && response.data.success === false && response.data.error) {
+        // Extract the actual error message from our edge function
+        console.log('❌ Edge Function Error:', response.data.error);
+        throw new Error(response.data.error);
+      }
+      
+      // Check for Supabase-level errors
+      if (response.error) {
+        console.error('❌ Supabase Error:', response.error);
+        // Try to extract meaningful error from response data if available
+        if (response.data && response.data.error) {
+          throw new Error(response.data.error);
+        }
+        throw response.error;
+      }
+      
       if (response.data) {
         console.log('✅ Response Success:', response.data.success);
         console.log('📋 Response Rates:', response.data.rates);
@@ -211,11 +228,6 @@ export const useShippingCalculator = () => {
             });
           });
         }
-      }
-
-      if (response.error) {
-        console.error('❌ API Error:', response.error);
-        throw response.error;
       }
 
       const calculatedRates = response.data?.rates || [];
@@ -252,13 +264,26 @@ export const useShippingCalculator = () => {
       return true;
     } catch (err) {
       console.error('❌ Calculation Error:', err);
-      logError(err as Error, 'useShippingCalculator.calculateRates', { params });
       
-      const errorInfo = handleApiError(err);
+      // Extract error message
+      let errorMessage = '';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err && typeof err === 'object' && 'message' in err) {
+        errorMessage = (err as any).message;
+      } else {
+        errorMessage = 'An unexpected error occurred';
+      }
+      
+      logError(new Error(errorMessage), 'useShippingCalculator.calculateRates', { params });
+      
+      const errorInfo = handleApiError(errorMessage);
       setError(errorInfo.message);
       
       // Check if it's a service availability error
-      if (errorInfo.isServiceAvailability) {
+      if (errorInfo.isServiceAvailability || isServiceAvailabilityError(errorMessage)) {
         const alternatives = getRouteAlternatives(originCountry, country);
         
         setServiceAvailabilityError({
