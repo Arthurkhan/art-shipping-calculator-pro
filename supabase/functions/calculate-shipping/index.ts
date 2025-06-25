@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import * as crypto from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 // ============================================
 // TYPES
@@ -20,11 +21,7 @@ interface ShippingRequest {
     width_cm: number;
     quantity?: number;
   };
-  fedexConfig?: {
-    accountNumber: string;
-    clientId: string;
-    clientSecret: string;
-  };
+  sessionId?: string; // Session ID for FedEx config retrieval
 }
 
 interface ShippingRate {
@@ -73,6 +70,93 @@ class Logger {
   }
   static warn(message: string, data?: any) {
     console.warn(`[WARN][${this.requestId}] ${message}`, data ? JSON.stringify(data) : '');
+  }
+}
+
+// ============================================
+// ENCRYPTION SERVICE (copied from fedex-config)
+// ============================================
+class EncryptionService {
+  private static encoder = new TextEncoder();
+  private static decoder = new TextDecoder();
+
+  static async generateKey(secret: string): Promise<CryptoKey> {
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      this.encoder.encode(secret),
+      { name: "PBKDF2" },
+      false,
+      ["deriveBits", "deriveKey"]
+    );
+
+    return await crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: this.encoder.encode("art-shipping-salt"),
+        iterations: 100000,
+        hash: "SHA-256"
+      },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  static async decrypt(encryptedText: string, key: CryptoKey): Promise<string> {
+    const combined = Uint8Array.from(atob(encryptedText), c => c.charCodeAt(0));
+    const iv = combined.slice(0, 12);
+    const encrypted = combined.slice(12);
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      key,
+      encrypted
+    );
+
+    return this.decoder.decode(decrypted);
+  }
+}
+
+// ============================================
+// FEDEX CONFIG RETRIEVAL
+// ============================================
+async function getFedexConfig(sessionId: string | undefined): Promise<{accountNumber: string, clientId: string, clientSecret: string} | null> {
+  if (!sessionId) {
+    Logger.warn('No session ID provided for FedEx config retrieval');
+    return null;
+  }
+
+  try {
+    const encryptionSecret = Deno.env.get('FEDEX_ENCRYPTION_SECRET');
+    if (!encryptionSecret) {
+      Logger.error('Encryption configuration missing');
+      return null;
+    }
+
+    const sessionKey = `fedex_config_${sessionId}`;
+    const kv = await Deno.openKv();
+    const stored = await kv.get([sessionKey]);
+
+    if (!stored.value) {
+      Logger.warn('No FedEx config found for session', { sessionId });
+      return null;
+    }
+
+    const encryptionKey = await EncryptionService.generateKey(encryptionSecret);
+    const encryptedData = stored.value as any;
+
+    const decryptedConfig = {
+      accountNumber: await EncryptionService.decrypt(encryptedData.accountNumber, encryptionKey),
+      clientId: await EncryptionService.decrypt(encryptedData.clientId, encryptionKey),
+      clientSecret: await EncryptionService.decrypt(encryptedData.clientSecret, encryptionKey)
+    };
+
+    Logger.info('FedEx config retrieved successfully');
+    return decryptedConfig;
+  } catch (error) {
+    Logger.error('Failed to retrieve FedEx config', { error: error instanceof Error ? error.message : String(error) });
+    return null;
   }
 }
 
@@ -608,7 +692,7 @@ serve(async (req) => {
     Logger.info('Request payload received', {
       requestData: {
         ...requestData,
-        fedexConfig: requestData.fedexConfig ? '[REDACTED]' : 'Not provided'
+        sessionId: requestData.sessionId ? '[REDACTED]' : 'Not provided'
       }
     });
     
@@ -662,12 +746,12 @@ serve(async (req) => {
     let rates: ShippingRate[] = [];
     let rawFedexResponse = null;
     
-    if (requestData.fedexConfig) {
-      Logger.info('FedEx configuration provided, calculating rates');
-      const { accountNumber, clientId, clientSecret } = requestData.fedexConfig;
-      if (!accountNumber || !clientId || !clientSecret) {
-        throw new Error('Incomplete FedEx configuration');
-      }
+    // Retrieve FedEx config from secure storage
+    const fedexConfig = await getFedexConfig(requestData.sessionId);
+    
+    if (fedexConfig) {
+      Logger.info('FedEx configuration retrieved, calculating rates');
+      const { accountNumber, clientId, clientSecret } = fedexConfig;
       
       try {
         const accessToken = await FedexAuthService.getAccessToken(clientId, clientSecret);
@@ -694,7 +778,7 @@ serve(async (req) => {
         throw error;
       }
     } else {
-      Logger.info('No FedEx configuration provided, skipping FedEx rates');
+      Logger.info('No FedEx configuration found, skipping FedEx rates');
     }
     
     Logger.info('Shipping calculation completed successfully', {
