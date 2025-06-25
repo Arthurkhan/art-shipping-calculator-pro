@@ -281,8 +281,8 @@ const Index = () => {
             </Alert>
           )}
 
-          {/* Debug Information - Hidden in production */}
-          {process.env.NODE_ENV === 'development' && debugInfo.buttonDisabled && (
+          {/* Debug Information - Completely hidden */}
+          {false && debugInfo.buttonDisabled && (
             <Alert className="mb-4 border-blue-200 bg-blue-50">
               <Bug className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800">
@@ -537,8 +537,8 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Debug Panel - Only in development */}
-      {process.env.NODE_ENV === 'development' && (
+      {/* Debug Panel - Completely hidden */}
+      {false && (
         <DebugPanel 
           rates={shippingCalculator.rates}
           isCalculating={shippingCalculator.isCalculating}
