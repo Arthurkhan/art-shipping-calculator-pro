@@ -4,13 +4,50 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const Select = SelectPrimitive.Root
+// Detect if we're running in Squarespace environment
+const isSquarespaceEnvironment = () => {
+  if (typeof window === 'undefined') return false;
+  
+  // Check for common Squarespace indicators
+  return !!(
+    window.location.hostname.includes('squarespace.com') ||
+    window.location.hostname.includes('sqsp.net') ||
+    document.querySelector('[data-squarespace-site]') ||
+    document.querySelector('.sqs-layout') ||
+    window.Static?.SQUARESPACE_CONTEXT ||
+    window.Y?.Squarespace
+  );
+};
 
-const SelectGroup = SelectPrimitive.Group
+// Lazy load the Squarespace-specific implementation
+const SquarespaceSelect = React.lazy(() => 
+  import('./select-squarespace-fix').then(module => ({
+    default: module.Select,
+  }))
+);
 
-const SelectValue = SelectPrimitive.Value
+const SquarespaceSelectContent = React.lazy(() => 
+  import('./select-squarespace-fix').then(module => ({
+    default: module.SelectContent,
+  }))
+);
 
-const SelectTrigger = React.forwardRef<
+// Export a wrapper that chooses the right implementation
+export const Select = (props: React.ComponentProps<typeof SelectPrimitive.Root>) => {
+  if (isSquarespaceEnvironment()) {
+    return (
+      <React.Suspense fallback={<SelectPrimitive.Root {...props} />}>
+        <SquarespaceSelect {...props} />
+      </React.Suspense>
+    );
+  }
+  return <SelectPrimitive.Root {...props} />;
+};
+
+export const SelectGroup = SelectPrimitive.Group;
+export const SelectValue = SelectPrimitive.Value;
+
+export const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
 >(({ className, children, ...props }, ref) => (
@@ -30,7 +67,7 @@ const SelectTrigger = React.forwardRef<
 ))
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
 
-const SelectScrollUpButton = React.forwardRef<
+export const SelectScrollUpButton = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.ScrollUpButton>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollUpButton>
 >(({ className, ...props }, ref) => (
@@ -47,7 +84,7 @@ const SelectScrollUpButton = React.forwardRef<
 ))
 SelectScrollUpButton.displayName = SelectPrimitive.ScrollUpButton.displayName
 
-const SelectScrollDownButton = React.forwardRef<
+export const SelectScrollDownButton = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.ScrollDownButton>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.ScrollDownButton>
 >(({ className, ...props }, ref) => (
@@ -65,7 +102,8 @@ const SelectScrollDownButton = React.forwardRef<
 SelectScrollDownButton.displayName =
   SelectPrimitive.ScrollDownButton.displayName
 
-const SelectContent = React.forwardRef<
+// Export a wrapper for SelectContent that chooses the right implementation
+const DefaultSelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = "popper", ...props }, ref) => (
@@ -94,10 +132,24 @@ const SelectContent = React.forwardRef<
       <SelectScrollDownButton />
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
-))
+));
+
+export const SelectContent = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
+>((props, ref) => {
+  if (isSquarespaceEnvironment()) {
+    return (
+      <React.Suspense fallback={<DefaultSelectContent {...props} ref={ref} />}>
+        <SquarespaceSelectContent {...props} ref={ref} />
+      </React.Suspense>
+    );
+  }
+  return <DefaultSelectContent {...props} ref={ref} />;
+});
 SelectContent.displayName = SelectPrimitive.Content.displayName
 
-const SelectLabel = React.forwardRef<
+export const SelectLabel = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Label>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Label>
 >(({ className, ...props }, ref) => (
@@ -109,7 +161,7 @@ const SelectLabel = React.forwardRef<
 ))
 SelectLabel.displayName = SelectPrimitive.Label.displayName
 
-const SelectItem = React.forwardRef<
+export const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
 >(({ className, children, ...props }, ref) => (
@@ -132,7 +184,7 @@ const SelectItem = React.forwardRef<
 ))
 SelectItem.displayName = SelectPrimitive.Item.displayName
 
-const SelectSeparator = React.forwardRef<
+export const SelectSeparator = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Separator>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Separator>
 >(({ className, ...props }, ref) => (
@@ -143,16 +195,3 @@ const SelectSeparator = React.forwardRef<
   />
 ))
 SelectSeparator.displayName = SelectPrimitive.Separator.displayName
-
-export {
-  Select,
-  SelectGroup,
-  SelectValue,
-  SelectTrigger,
-  SelectContent,
-  SelectLabel,
-  SelectItem,
-  SelectSeparator,
-  SelectScrollUpButton,
-  SelectScrollDownButton,
-}
