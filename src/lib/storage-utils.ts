@@ -1,15 +1,14 @@
-// localStorage utilities for shipping calculator
-// Centralized storage management for Phase 2 refactoring
+// Secure storage utilities for shipping calculator
+// This version removes FedEx credentials from localStorage for security
 
 /**
  * Storage keys for the shipping calculator
+ * FedEx credentials are NO LONGER stored in localStorage for security
  */
 export const STORAGE_KEYS = {
   ORIGIN_COUNTRY: 'origin_country',
   ORIGIN_POSTAL_CODE: 'origin_postal_code',
-  FEDEX_ACCOUNT_NUMBER: 'fedex_account_number',
-  FEDEX_CLIENT_ID: 'fedex_client_id',
-  FEDEX_CLIENT_SECRET: 'fedex_client_secret',
+  FEDEX_SESSION_ID: 'fedex_session_id', // Only store session ID, not credentials
 } as const;
 
 /**
@@ -84,59 +83,119 @@ export const originStorage = {
 };
 
 /**
- * FedEx configuration storage utilities
+ * Secure FedEx session storage
+ * Only stores session ID, actual credentials are stored server-side
  */
-export const fedexStorage = {
-  getAccountNumber: (): string => {
-    return storage.getItem(STORAGE_KEYS.FEDEX_ACCOUNT_NUMBER);
-  },
-
-  setAccountNumber: (accountNumber: string): void => {
-    storage.setItem(STORAGE_KEYS.FEDEX_ACCOUNT_NUMBER, accountNumber);
-  },
-
-  getClientId: (): string => {
-    return storage.getItem(STORAGE_KEYS.FEDEX_CLIENT_ID);
-  },
-
-  setClientId: (clientId: string): void => {
-    storage.setItem(STORAGE_KEYS.FEDEX_CLIENT_ID, clientId);
-  },
-
-  getClientSecret: (): string => {
-    return storage.getItem(STORAGE_KEYS.FEDEX_CLIENT_SECRET);
-  },
-
-  setClientSecret: (clientSecret: string): void => {
-    storage.setItem(STORAGE_KEYS.FEDEX_CLIENT_SECRET, clientSecret);
+export const secureFedexStorage = {
+  /**
+   * Get session ID for FedEx configuration
+   */
+  getSessionId: (): string => {
+    return storage.getItem(STORAGE_KEYS.FEDEX_SESSION_ID);
   },
 
   /**
-   * Get complete FedEx configuration
+   * Set session ID for FedEx configuration
+   */
+  setSessionId: (sessionId: string): void => {
+    storage.setItem(STORAGE_KEYS.FEDEX_SESSION_ID, sessionId);
+  },
+
+  /**
+   * Clear session ID
+   */
+  clearSessionId: (): void => {
+    storage.removeItem(STORAGE_KEYS.FEDEX_SESSION_ID);
+  },
+
+  /**
+   * Check if session exists
+   */
+  hasSession: (): boolean => {
+    return !!secureFedexStorage.getSessionId();
+  },
+};
+
+/**
+ * Legacy FedEx storage - DEPRECATED
+ * These functions are kept for backward compatibility but should NOT be used
+ * They will log warnings when called
+ */
+export const fedexStorage = {
+  getAccountNumber: (): string => {
+    console.warn('DEPRECATED: fedexStorage.getAccountNumber() should not be used. Use secure session-based storage instead.');
+    return '';
+  },
+
+  setAccountNumber: (accountNumber: string): void => {
+    console.warn('DEPRECATED: fedexStorage.setAccountNumber() should not be used. Use secure session-based storage instead.');
+  },
+
+  getClientId: (): string => {
+    console.warn('DEPRECATED: fedexStorage.getClientId() should not be used. Use secure session-based storage instead.');
+    return '';
+  },
+
+  setClientId: (clientId: string): void => {
+    console.warn('DEPRECATED: fedexStorage.setClientId() should not be used. Use secure session-based storage instead.');
+  },
+
+  getClientSecret: (): string => {
+    console.warn('DEPRECATED: fedexStorage.getClientSecret() should not be used. Use secure session-based storage instead.');
+    return '';
+  },
+
+  setClientSecret: (clientSecret: string): void => {
+    console.warn('DEPRECATED: fedexStorage.setClientSecret() should not be used. Use secure session-based storage instead.');
+  },
+
+  /**
+   * Get complete FedEx configuration - DEPRECATED
    */
   getFedexConfig: () => {
+    console.warn('DEPRECATED: fedexStorage.getFedexConfig() should not be used. Use secure session-based storage instead.');
     return {
-      accountNumber: fedexStorage.getAccountNumber(),
-      clientId: fedexStorage.getClientId(),
-      clientSecret: fedexStorage.getClientSecret(),
+      accountNumber: '',
+      clientId: '',
+      clientSecret: '',
     };
   },
 
   /**
-   * Set complete FedEx configuration
+   * Set complete FedEx configuration - DEPRECATED
    */
   setFedexConfig: (config: { accountNumber: string; clientId: string; clientSecret: string }) => {
-    fedexStorage.setAccountNumber(config.accountNumber);
-    fedexStorage.setClientId(config.clientId);
-    fedexStorage.setClientSecret(config.clientSecret);
+    console.warn('DEPRECATED: fedexStorage.setFedexConfig() should not be used. Use secure session-based storage instead.');
   },
 
   /**
-   * Clear FedEx configuration
+   * Clear FedEx configuration - DEPRECATED
    */
   clearFedexConfig: () => {
-    storage.removeItem(STORAGE_KEYS.FEDEX_ACCOUNT_NUMBER);
-    storage.removeItem(STORAGE_KEYS.FEDEX_CLIENT_ID);
-    storage.removeItem(STORAGE_KEYS.FEDEX_CLIENT_SECRET);
+    console.warn('DEPRECATED: fedexStorage.clearFedexConfig() should not be used. Use secure session-based storage instead.');
+    // Clear any legacy data that might exist
+    localStorage.removeItem('fedex_account_number');
+    localStorage.removeItem('fedex_client_id');
+    localStorage.removeItem('fedex_client_secret');
   },
 };
+
+// Migration function to clean up any existing FedEx credentials in localStorage
+export const migrateAndCleanupStorage = () => {
+  const legacyKeys = ['fedex_account_number', 'fedex_client_id', 'fedex_client_secret'];
+  let migrated = false;
+  
+  legacyKeys.forEach(key => {
+    if (localStorage.getItem(key)) {
+      localStorage.removeItem(key);
+      migrated = true;
+    }
+  });
+  
+  if (migrated) {
+    console.info('Legacy FedEx credentials removed from localStorage for security');
+  }
+};
+
+// Run migration on module load
+migrateAndCleanupStorage();
