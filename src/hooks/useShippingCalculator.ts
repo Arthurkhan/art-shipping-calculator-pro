@@ -2,7 +2,14 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { FedexConfig } from './useFedexConfig';
-import { handleApiError, logError, ErrorType, createShippingError } from '@/lib/error-utils';
+import { 
+  handleApiError, 
+  logError, 
+  ErrorType, 
+  createShippingError,
+  isServiceAvailabilityError,
+  getRouteAlternatives 
+} from '@/lib/error-utils';
 
 // Extend window interface for debug handler
 declare global {
@@ -43,17 +50,27 @@ export interface CalculateRatesParams {
   overrideData?: OverrideData | null; // New field for override data
 }
 
+export interface ServiceAvailabilityError {
+  isServiceError: boolean;
+  origin: { country: string; postalCode: string };
+  destination: { country: string; postalCode: string };
+  suggestions: string[];
+  message: string;
+}
+
 /**
  * Custom hook for shipping rate calculations
  * Extracted from Index.tsx for Phase 2 refactoring - Core business logic
  * Updated for Phase 4 - Using shared error handling utilities
  * Updated for Override Feature - Support custom dimensions and weight
  * Updated to include rate type information for proper display
+ * Updated 2025-06-25: Enhanced service availability error handling
  */
 export const useShippingCalculator = () => {
   const [rates, setRates] = useState<ShippingRate[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState('');
+  const [serviceAvailabilityError, setServiceAvailabilityError] = useState<ServiceAvailabilityError | null>(null);
   const [lastCalculationParams, setLastCalculationParams] = useState<CalculateRatesParams | null>(null);
   const { toast } = useToast();
 
@@ -71,6 +88,9 @@ export const useShippingCalculator = () => {
       fedexConfig,
       overrideData
     } = params;
+
+    // Clear previous errors
+    setServiceAvailabilityError(null);
 
     // Validation - FedEx config must be provided
     if (!fedexConfig) {
@@ -234,20 +254,41 @@ export const useShippingCalculator = () => {
       console.error('❌ Calculation Error:', err);
       logError(err as Error, 'useShippingCalculator.calculateRates', { params });
       
-      const { message, type } = handleApiError(err);
-      setError(message);
+      const errorInfo = handleApiError(err);
+      setError(errorInfo.message);
       
-      // Enhanced error feedback based on error type
-      const title = type === ErrorType.AUTH_ERROR ? "Authentication Error" :
-                   type === ErrorType.NETWORK_ERROR ? "Network Error" :
-                   type === ErrorType.PERMISSION_ERROR ? "Permission Error" :
-                   "Calculation Error";
-      
-      toast({
-        title,
-        description: message,
-        variant: "destructive",
-      });
+      // Check if it's a service availability error
+      if (errorInfo.isServiceAvailability) {
+        const alternatives = getRouteAlternatives(originCountry, country);
+        
+        setServiceAvailabilityError({
+          isServiceError: true,
+          origin: { country: originCountry, postalCode: originPostalCode },
+          destination: { country, postalCode },
+          suggestions: alternatives.friendlyNames,
+          message: errorInfo.message
+        });
+        
+        // Special toast for service availability
+        toast({
+          title: "Service Not Available",
+          description: "FedEx doesn't offer direct service for this route. See suggestions below.",
+          variant: "destructive",
+          duration: 8000, // Show longer
+        });
+      } else {
+        // Enhanced error feedback based on error type
+        const title = errorInfo.type === ErrorType.AUTH_ERROR ? "Authentication Error" :
+                     errorInfo.type === ErrorType.NETWORK_ERROR ? "Network Error" :
+                     errorInfo.type === ErrorType.PERMISSION_ERROR ? "Permission Error" :
+                     "Calculation Error";
+        
+        toast({
+          title,
+          description: errorInfo.message,
+          variant: "destructive",
+        });
+      }
       
       return false;
     } finally {
@@ -259,6 +300,7 @@ export const useShippingCalculator = () => {
   const clearRates = () => {
     setRates([]);
     setError('');
+    setServiceAvailabilityError(null);
     setLastCalculationParams(null);
   };
 
@@ -296,6 +338,7 @@ export const useShippingCalculator = () => {
       overrideData: lastCalculationParams.overrideData,
       ratesFound: rates.length,
       hasError: !!error,
+      hasServiceError: !!serviceAvailabilityError,
       timestamp: new Date().toISOString(),
     };
   };
@@ -323,6 +366,7 @@ export const useShippingCalculator = () => {
     rates,
     isCalculating,
     error,
+    serviceAvailabilityError,
     lastCalculationParams,
     
     // Actions
@@ -338,6 +382,7 @@ export const useShippingCalculator = () => {
     // Status
     hasRates: rates.length > 0,
     hasError: !!error,
+    hasServiceError: !!serviceAvailabilityError,
     hasCalculated: !!lastCalculationParams,
     canRetry: !!lastCalculationParams && !isCalculating,
   };
