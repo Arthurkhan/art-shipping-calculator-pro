@@ -9,6 +9,7 @@ import { FedexConfigForm } from "@/components/shipping/FedexConfigForm";
 import { ParameterPreview } from "@/components/shipping/ParameterPreview";
 import { OverrideToggleButton } from "@/components/shipping/OverrideToggleButton";
 import { OverrideForm } from "@/components/shipping/OverrideForm";
+import { ServiceAvailabilityAlert } from "@/components/shipping/ServiceAvailabilityAlert";
 import { DebugPanel } from "@/components/debug/DebugPanel";
 import { Truck, Package, Settings, Calculator, AlertTriangle, CheckCircle, Bug } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -177,6 +178,16 @@ const Index = () => {
     if (success) {
       // Success handled by the hook's toast notifications
     }
+  };
+
+  // Handle retry from service availability alert
+  const handleRetryWithDifferentDestination = () => {
+    // Clear the current destination
+    setCountry('');
+    setPostalCode('');
+    // Clear any errors
+    shippingCalculator.clearRates();
+    // Focus on the country field (would need ref for this)
   };
 
   // Check if parameter preview should be shown
@@ -477,8 +488,18 @@ const Index = () => {
                     />
                   </div>
 
-                  {/* Error Display */}
-                  {shippingCalculator.error && (
+                  {/* Service Availability Alert */}
+                  {shippingCalculator.serviceAvailabilityError && (
+                    <ServiceAvailabilityAlert
+                      origin={shippingCalculator.serviceAvailabilityError.origin}
+                      destination={shippingCalculator.serviceAvailabilityError.destination}
+                      suggestions={shippingCalculator.serviceAvailabilityError.suggestions}
+                      onRetry={handleRetryWithDifferentDestination}
+                    />
+                  )}
+
+                  {/* Error Display (for non-service errors) */}
+                  {shippingCalculator.error && !shippingCalculator.serviceAvailabilityError && (
                     <Alert variant="destructive">
                       <AlertTriangle className="h-4 w-4" />
                       <AlertDescription className="text-sm">{shippingCalculator.error}</AlertDescription>
