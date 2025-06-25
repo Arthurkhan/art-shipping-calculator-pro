@@ -7,6 +7,9 @@ import { useIframeResize } from "@/hooks/useIframeResize";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
+// Import Squarespace initializer to ensure dropdowns work properly
+import "@/lib/squarespace-initializer";
+
 const queryClient = new QueryClient();
 
 const AppContent = () => {
