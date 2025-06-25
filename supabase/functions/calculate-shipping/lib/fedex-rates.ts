@@ -27,6 +27,20 @@ interface FedexApiRatedShipmentDetail {
   [key: string]: unknown;
 }
 
+// FedEx Error Response Structure
+interface FedexErrorResponse {
+  errors?: Array<{
+    code?: string;
+    message?: string;
+    parameterList?: Array<{
+      key?: string;
+      value?: string;
+    }>;
+  }>;
+  transactionId?: string;
+  customerTransactionId?: string;
+}
+
 /**
  * FedEx Rates Service
  */
@@ -115,7 +129,7 @@ export class FedexRatesService {
           statusText: response.statusText 
         });
 
-        const responseData = await response.json() as FedexRateResponse;
+        const responseData = await response.json();
         
         // DEBUGGING: Store raw response for debugging
         this.lastRawResponse = responseData;
@@ -125,7 +139,9 @@ export class FedexRatesService {
           responseData,
           hasOutput: !!responseData.output,
           hasRateReplyDetails: !!(responseData.output?.rateReplyDetails),
-          rateReplyCount: responseData.output?.rateReplyDetails?.length || 0
+          rateReplyCount: responseData.output?.rateReplyDetails?.length || 0,
+          hasErrors: !!responseData.errors,
+          errorCount: responseData.errors?.length || 0
         });
 
         if (!response.ok) {
@@ -135,31 +151,74 @@ export class FedexRatesService {
             responseData 
           });
 
-          // Enhanced 400 error handling with detailed logging
+          // Enhanced error handling with specific FedEx error parsing
           if (response.status === 400) {
-            const errorDetails = responseData?.errors || responseData?.messages || [];
-            const errorMessage = errorDetails.length > 0 
-              ? `Validation error: ${JSON.stringify(errorDetails)}`
-              : 'Invalid request parameters';
+            // Parse FedEx-specific error response
+            const errorResponse = responseData as FedexErrorResponse;
+            let errorMessage = 'Invalid request parameters';
+            let userMessage = 'Invalid shipping parameters. Please check your destination details and try again.';
             
-            Logger.error('FedEx validation error details (400 - Bad Request)', { 
-              errorDetails, 
-              responseData,
-              sentPayload: {
-                ...payload,
-                accountNumber: { value: '[REDACTED]' }
-              },
-              currencyUsed: preferredCurrency,
-              currencySource: userPreferredCurrency ? 'USER_SELECTED' : 'AUTO_MAPPED',
-              shipDateUsed: shipDateStamp,
-              shipDateSource: userShipDate ? 'USER_SELECTED' : 'AUTO_GENERATED',
-              quantity
-            });
+            // Extract specific error messages from FedEx response
+            if (errorResponse.errors && errorResponse.errors.length > 0) {
+              const fedexErrors = errorResponse.errors.map(err => ({
+                code: err.code || 'UNKNOWN',
+                message: err.message || 'Unknown error'
+              }));
+              
+              // Get the first error message as the primary message
+              const primaryError = fedexErrors[0];
+              errorMessage = primaryError.message;
+              
+              // Check for specific error codes/messages
+              if (primaryError.message?.includes('service is not currently available') ||
+                  primaryError.code?.includes('SERVICE.UNAVAILABLE') ||
+                  primaryError.code?.includes('SERVICE.NOT.AVAILABLE')) {
+                // Service availability error
+                userMessage = 'FedEx does not currently offer service between these locations. Please try a different destination or contact FedEx Customer Service.';
+                
+                Logger.warn('FedEx service availability issue', {
+                  route: `${originCountry} (${originPostalCode}) → ${destinationCountry} (${destinationPostalCode})`,
+                  fedexMessage: primaryError.message,
+                  fedexCode: primaryError.code
+                });
+              } else if (primaryError.message?.includes('postal code') || 
+                        primaryError.message?.includes('country code')) {
+                // Invalid address error
+                userMessage = 'Invalid postal code or country code. Please verify your shipping addresses.';
+              } else if (primaryError.message?.includes('account')) {
+                // Account-related error
+                userMessage = 'Account authorization issue. Please verify your FedEx account settings.';
+              } else {
+                // Use the FedEx error message directly if it's user-friendly
+                userMessage = primaryError.message;
+              }
+              
+              Logger.error('FedEx validation error details (400 - Bad Request)', { 
+                fedexErrors,
+                responseData,
+                sentPayload: {
+                  ...payload,
+                  accountNumber: { value: '[REDACTED]' }
+                },
+                route: `${originCountry} (${originPostalCode}) → ${destinationCountry} (${destinationPostalCode})`,
+                currencyUsed: preferredCurrency,
+                currencySource: userPreferredCurrency ? 'USER_SELECTED' : 'AUTO_MAPPED',
+                shipDateUsed: shipDateStamp,
+                shipDateSource: userShipDate ? 'USER_SELECTED' : 'AUTO_GENERATED',
+                quantity
+              });
+            } else {
+              // Fallback if no specific errors array
+              Logger.error('FedEx 400 error without specific error details', { 
+                responseData,
+                route: `${originCountry} (${originPostalCode}) → ${destinationCountry} (${destinationPostalCode})`
+              });
+            }
             
             throw new ShippingError(
-              ErrorType.VALIDATION,
-              errorMessage,
-              'Invalid shipping parameters. Please check your destination details and try again.'
+              ErrorType.API_RESPONSE,
+              `FedEx API error: ${errorMessage}`,
+              userMessage
             );
           } else if (response.status === 401) {
             throw new ShippingError(
@@ -189,7 +248,7 @@ export class FedexRatesService {
         }
 
         // Parse the response
-        return this.parseRateResponse(responseData, preferredCurrency, userPreferredCurrency);
+        return this.parseRateResponse(responseData as FedexRateResponse, preferredCurrency, userPreferredCurrency);
 
       } catch (error) {
         clearTimeout(timeoutId);
