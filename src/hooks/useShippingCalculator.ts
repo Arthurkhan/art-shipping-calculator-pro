@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { FedexConfig } from './useFedexConfig';
+import { secureFedexStorage } from '@/lib/storage-utils';
 import { 
   handleApiError, 
   logError, 
@@ -46,7 +46,7 @@ export interface CalculateRatesParams {
   originPostalCode: string;
   preferredCurrency: string;
   shipDate?: string; // Optional ship date in YYYY-MM-DD format
-  fedexConfig?: FedexConfig;
+  sessionId?: string; // Session ID for secure FedEx config
   overrideData?: OverrideData | null; // New field for override data
 }
 
@@ -60,11 +60,7 @@ export interface ServiceAvailabilityError {
 
 /**
  * Custom hook for shipping rate calculations
- * Extracted from Index.tsx for Phase 2 refactoring - Core business logic
- * Updated for Phase 4 - Using shared error handling utilities
- * Updated for Override Feature - Support custom dimensions and weight
- * Updated to include rate type information for proper display
- * Updated 2025-06-25: Enhanced service availability error handling
+ * Updated 2025-06-25: Use secure session-based FedEx configuration
  */
 export const useShippingCalculator = () => {
   const [rates, setRates] = useState<ShippingRate[]>([]);
@@ -85,15 +81,18 @@ export const useShippingCalculator = () => {
       originPostalCode,
       preferredCurrency,
       shipDate,
-      fedexConfig,
+      sessionId,
       overrideData
     } = params;
 
     // Clear previous errors
     setServiceAvailabilityError(null);
 
-    // Validation - FedEx config must be provided
-    if (!fedexConfig) {
+    // Get session ID from secure storage if not provided
+    const effectiveSessionId = sessionId || secureFedexStorage.getSessionId();
+    
+    // Validation - FedEx session must exist
+    if (!effectiveSessionId) {
       const errorMsg = "FedEx configuration is required to calculate rates";
       const error = createShippingError(
         ErrorType.CONFIGURATION_ERROR,
@@ -157,7 +156,8 @@ export const useShippingCalculator = () => {
         currency: preferredCurrency,
         shipDate: shipDate || 'Not specified (will use tomorrow)',
         usingOverride,
-        overrideData: overrideData || 'Not provided'
+        overrideData: overrideData || 'Not provided',
+        sessionId: effectiveSessionId ? 'Present' : 'Missing'
       });
 
       const response = await supabase.functions.invoke('calculate-shipping', {
@@ -170,7 +170,7 @@ export const useShippingCalculator = () => {
           originPostalCode,
           preferredCurrency,
           shipDate, // Pass ship date to backend
-          fedexConfig,
+          sessionId: effectiveSessionId, // Pass session ID instead of config
           overrideData, // Pass override data to backend
         },
       });
