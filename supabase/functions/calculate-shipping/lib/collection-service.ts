@@ -9,6 +9,7 @@ import type { CollectionSize } from '../types/index.ts';
 
 /**
  * FIXED: Updated to work with collection ID directly (frontend passes collection.id)
+ * UPDATED: Changed table name from 'collection_sizes' to 'sizes' to match Supabase
  */
 export async function getCollectionSize(collectionId: string, size: string): Promise<CollectionSize> {
   try {
@@ -28,10 +29,11 @@ export async function getCollectionSize(collectionId: string, size: string): Pro
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     // CRITICAL FIX: Frontend passes collection ID, so query directly with collection_id
+    // UPDATED: Changed from 'collection_sizes' to 'sizes' table
     Logger.info('Looking up collection size data by collection ID', { collectionId, size });
     
     const { data, error } = await supabase
-      .from('collection_sizes')
+      .from('sizes') // Changed from 'collection_sizes' to 'sizes'
       .select('weight_kg, height_cm, length_cm, width_cm')
       .eq('collection_id', collectionId)
       .eq('size', size)
