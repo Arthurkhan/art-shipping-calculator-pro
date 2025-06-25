@@ -6,8 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Art Collection Shipping Calculator</title>
     
-    <!-- Add data attribute to help identify the app in Squarespace environments -->
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self'; 
+                   script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; 
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
+                   img-src 'self' data: https: blob:; 
+                   font-src 'self' data: https://fonts.gstatic.com; 
+                   connect-src 'self' https://*.supabase.co https://apis.fedex.com wss://*.supabase.co;">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    
+    <!-- App Identification -->
     <meta name="shipping-calculator-app" content="true" />
+    <meta name="description" content="Calculate FedEx shipping rates for art collections worldwide with secure, real-time pricing." />
     
     <!-- Preload styles to reduce flicker in Squarespace -->
     <style>
@@ -27,10 +41,26 @@
       #select-portal-container > * {
         pointer-events: auto;
       }
+      
+      /* Security: Hide sensitive data from print */
+      @media print {
+        [data-sensitive] {
+          display: none !important;
+        }
+      }
     </style>
   </head>
   <body>
     <div id="root" data-shipping-calculator="true"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- No-JS fallback -->
+    <noscript>
+      <div style="padding: 20px; text-align: center; font-family: sans-serif;">
+        <h2>JavaScript Required</h2>
+        <p>This shipping calculator requires JavaScript to be enabled for security and functionality.</p>
+        <p>Please enable JavaScript in your browser settings and reload the page.</p>
+      </div>
+    </noscript>
   </body>
 </html>
