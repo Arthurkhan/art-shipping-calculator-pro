@@ -96,6 +96,7 @@ const Index = () => {
       isMissingConfig: fedexConfig.isMissingConfig,
       isInvalidConfig: fedexConfig.isInvalidConfig,
       statusDetails: fedexConfig.getStatusDetails(),
+      sessionId: fedexConfig.sessionId ? 'Present' : 'Missing',
     },
     
     // Collection data status
@@ -138,9 +139,11 @@ const Index = () => {
   const handleCalculateRates = async () => {
     // Check FedEx configuration first
     if (!fedexConfig.isConfigReady) {
-      fedexConfig.checkFedexConfigStatus();
-      setActiveTab('config');
-      return;
+      await fedexConfig.checkFedexConfigStatus();
+      if (!fedexConfig.isConfigReady) {
+        setActiveTab('config');
+        return;
+      }
     }
 
     // Check override validation if enabled
@@ -160,7 +163,7 @@ const Index = () => {
       return;
     }
 
-    // Execute calculation using the hook
+    // Execute calculation using the hook with session ID
     const success = await shippingCalculator.calculateRates({
       selectedCollection: collectionData.selectedCollection,
       selectedSize: collectionData.selectedSize,
@@ -170,7 +173,7 @@ const Index = () => {
       originPostalCode: originAddress.originPostalCode,
       preferredCurrency: currencySelector.preferredCurrency,
       shipDate: shipDate?.toISOString().split('T')[0], // Pass ship date as YYYY-MM-DD
-      fedexConfig: fedexConfig.fedexConfig || undefined,
+      sessionId: fedexConfig.sessionId || undefined, // Pass session ID instead of config
       overrideData: overrideSettings.getOverrideData(), // Pass override data
     });
 
@@ -256,7 +259,7 @@ const Index = () => {
           </div>
 
           {/* FedEx Configuration Status Alert */}
-          {!fedexConfig.hasCompleteConfig && (
+          {!fedexConfig.hasCompleteConfig && !fedexConfig.isLoading && (
             <Alert className="mb-4 sm:mb-6 border-yellow-200 bg-yellow-50">
               <AlertTriangle className="h-4 w-4 text-yellow-600" />
               <AlertDescription className="text-yellow-800">
