@@ -14,7 +14,8 @@ The original Supabase project was accidentally deleted. A new project "PAJ'Art P
 
 ### 2. Updated Supabase Configuration
 - File: `src/integrations/supabase/client.ts`
-- Updated SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY to new project values
+- Updated SUPABASE_URL to: `https://lkqekrhbxtbowaswvvqs.supabase.co`
+- Updated SUPABASE_PUBLISHABLE_KEY with new anon key
 - Created guide for updating configuration
 
 ### 3. Created Migration File
@@ -35,15 +36,15 @@ The original Supabase project was accidentally deleted. A new project "PAJ'Art P
 ## Status
 - [x] Create migration script for database structure
 - [x] Create setup guide for configuration
-- [ ] Update Supabase client configuration (user needs to add credentials)
+- [x] Update Supabase client configuration
 - [ ] Run migration script in Supabase
 - [ ] Test database connectivity
 - [ ] Verify data loading in app
 
 ## Next Steps
-1. Get Supabase project URL and anon key from dashboard
-2. Update `src/integrations/supabase/client.ts` with new credentials
-3. Run the migration script in Supabase SQL editor
+1. ✅ ~~Get Supabase project URL and anon key from dashboard~~
+2. ✅ ~~Update `src/integrations/supabase/client.ts` with new credentials~~
+3. **Run the migration script in Supabase SQL editor**
 4. Add sample data to test the application
 5. Test the app to ensure it connects and loads data properly
 
@@ -52,3 +53,4 @@ The original Supabase project was accidentally deleted. A new project "PAJ'Art P
 - It adds columns only if they don't exist (safe to run multiple times)
 - RLS policies are included for public read access
 - Sample data is included but commented out in the migration
+- Configuration updated on 2025-01-28 at 06:21 UTC
