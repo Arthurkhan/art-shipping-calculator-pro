@@ -44,12 +44,4 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  // Environment variable handling
-  define: {
-    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL || ''),
-    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY || ''),
-    'import.meta.env.VITE_APP_URL': JSON.stringify(process.env.VITE_APP_URL || ''),
-    'import.meta.env.VITE_ENABLE_DEBUG': JSON.stringify(process.env.VITE_ENABLE_DEBUG || 'false'),
-    'import.meta.env.VITE_ENCRYPT_STORAGE': JSON.stringify(process.env.VITE_ENCRYPT_STORAGE || 'true'),
-  },
 }));

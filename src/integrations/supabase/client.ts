@@ -9,11 +9,11 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Validate required environment variables
 if (!SUPABASE_URL) {
-  throw new Error('Missing VITE_SUPABASE_URL environment variable');
+  throw new Error('Missing VITE_SUPABASE_URL environment variable. Check your .env.local file.');
 }
 
 if (!SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error('Missing VITE_SUPABASE_ANON_KEY environment variable');
+  throw new Error('Missing VITE_SUPABASE_ANON_KEY environment variable. Check your .env.local file.');
 }
 
 // Import the supabase client like this:
