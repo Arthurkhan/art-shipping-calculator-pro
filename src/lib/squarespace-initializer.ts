@@ -3,6 +3,16 @@
  * Addresses issues with dropdowns not working immediately after page load
  */
 
+// Extend window interface for Squarespace
+interface SquarespaceWindow extends Window {
+  Static?: {
+    SQUARESPACE_CONTEXT?: unknown;
+  };
+  Y?: {
+    Squarespace?: unknown;
+  };
+}
+
 export class SquarespaceInitializer {
   private static instance: SquarespaceInitializer | null = null;
   private initialized = false;
@@ -38,7 +48,7 @@ export class SquarespaceInitializer {
       return;
     }
 
-    console.log('🔧 Initializing Squarespace compatibility mode...');
+    // Initializing Squarespace compatibility mode
 
     // 1. Wait for DOM to be fully ready
     await this.waitForDOM();
@@ -55,7 +65,7 @@ export class SquarespaceInitializer {
     // 5. Set up periodic check for the first 10 seconds
     this.setupPeriodicCheck();
 
-    console.log('✅ Squarespace compatibility mode initialized');
+    // Squarespace compatibility mode initialized
   }
 
   private isSquarespaceEnvironment(): boolean {
@@ -66,8 +76,8 @@ export class SquarespaceInitializer {
       window.location.hostname.includes('sqsp.net') ||
       document.querySelector('[data-squarespace-site]') ||
       document.querySelector('.sqs-layout') ||
-      (window as any).Static?.SQUARESPACE_CONTEXT ||
-      (window as any).Y?.Squarespace
+      (window as SquarespaceWindow).Static?.SQUARESPACE_CONTEXT ||
+      (window as SquarespaceWindow).Y?.Squarespace
     );
   }
 
@@ -159,7 +169,7 @@ export class SquarespaceInitializer {
       
       if (hasWorkingDropdowns || checkCount >= maxChecks) {
         clearInterval(intervalId);
-        console.log(`✅ Dropdowns ${hasWorkingDropdowns ? 'working' : 'initialized'} after ${checkCount * 500}ms`);
+        // Dropdowns initialized
       }
     }, 500);
   }
@@ -182,7 +192,9 @@ export class SquarespaceInitializer {
 
 // Auto-initialize on import
 if (typeof window !== 'undefined') {
-  SquarespaceInitializer.getInstance().initialize().catch(console.error);
+  SquarespaceInitializer.getInstance().initialize().catch(() => {
+    // Initialization error handled silently
+  });
 }
 
 export default SquarespaceInitializer;

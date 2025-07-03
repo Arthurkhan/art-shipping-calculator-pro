@@ -113,19 +113,34 @@ function getSupabaseClient() {
 // ============================================
 // MAIN HANDLER
 // ============================================
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400'
+const allowedOrigins = [
+  'http://localhost:8080',
+  'http://localhost:8083',
+  'http://localhost:5173',
+  'https://arthurkhan.github.io'
+];
+
+const corsHeaders = (origin: string | null) => {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-session-id',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Max-Age': '86400'
+  };
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  
+  return headers;
 };
 
 serve(async (req) => {
-  console.log('FedEx config endpoint called:', req.method);
+  const origin = req.headers.get('origin');
+  // FedEx config endpoint called
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders(origin) });
   }
 
   try {
@@ -187,7 +202,7 @@ serve(async (req) => {
           .insert(encryptedConfig);
           
         if (insertError) {
-          console.error('Insert error:', insertError);
+          // Insert error occurred
           throw new Error(`Failed to store configuration: ${insertError.message}`);
         }
 
@@ -303,20 +318,20 @@ serve(async (req) => {
 
     return new Response(JSON.stringify(response), {
       headers: {
-        ...corsHeaders,
+        ...corsHeaders(origin),
         'Content-Type': 'application/json'
       }
     });
 
   } catch (error) {
-    console.error('FedEx config error:', error);
+    // FedEx config error occurred
     return new Response(JSON.stringify({
       success: false,
       message: error instanceof Error ? error.message : 'An error occurred'
     }), {
       status: 500,
       headers: {
-        ...corsHeaders,
+        ...corsHeaders(origin),
         'Content-Type': 'application/json'
       }
     });

@@ -205,12 +205,12 @@ export function sanitizeUrl(url: string): string {
  * @param obj - The object to sanitize
  * @returns Sanitized object
  */
-export function deepSanitizeObject<T extends Record<string, any>>(obj: T): T {
+export function deepSanitizeObject<T extends Record<string, unknown>>(obj: T): T {
   if (!obj || typeof obj !== 'object') {
     return obj;
   }
   
-  const sanitized: any = Array.isArray(obj) ? [] : {};
+  const sanitized = Array.isArray(obj) ? [] as unknown as T : {} as T;
   
   for (const key in obj) {
     if (obj.hasOwnProperty(key)) {

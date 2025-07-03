@@ -301,6 +301,285 @@
   }
 }
 
+/* ===== PHASE 1: Visual Polish & Micro-interactions ===== */
+
+/* Smooth card animations */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.15);
+}
+
+/* Glass morphism effects */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+}
+
+.dark .glass-morphism {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.glass-morphism-dark {
+  background: rgba(17, 25, 40, 0.75);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.125);
+}
+
+/* Animated gradient backgrounds */
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animated-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+.gradient-text {
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* Pulse animation for live status */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  80%, 100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.pulse-dot {
+  position: relative;
+}
+
+.pulse-dot::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: currentColor;
+  border-radius: 50%;
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Skeleton loading animation */
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.05) 0px,
+    rgba(0, 0, 0, 0.1) 20px,
+    rgba(0, 0, 0, 0.05) 40px
+  );
+  background-size: 200px 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.1) 20px,
+    rgba(255, 255, 255, 0.05) 40px
+  );
+  background-size: 200px 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+/* Success animation */
+@keyframes success-bounce {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.success-animation {
+  animation: success-bounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Error shake animation */
+@keyframes error-shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+.error-shake {
+  animation: error-shake 0.5s ease-in-out;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Button press effect */
+.button-press {
+  transition: all 0.1s ease;
+}
+
+.button-press:active {
+  transform: scale(0.98);
+}
+
+/* Smooth hover transitions for all interactive elements */
+button, a, input, select, textarea, [role="button"] {
+  transition: all 0.2s ease;
+}
+
+/* Enhanced focus states */
+:focus-visible {
+  outline: 2px solid rgb(59, 130, 246);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Loading progress bar */
+.progress-bar {
+  height: 4px;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 50%;
+  background: linear-gradient(90deg, rgb(59, 130, 246), rgb(99, 102, 241));
+  border-radius: 2px;
+  animation: progress-slide 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+/* Smooth number transitions */
+.transition-number {
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Tab indicator animation */
+.tab-indicator {
+  position: relative;
+}
+
+.tab-indicator::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.tab-indicator.active::after {
+  transform: scaleX(1);
+}
+
+/* Ripple effect */
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s;
+}
+
+.ripple:active::before {
+  width: 100px;
+  height: 100px;
+  animation: ripple 0.6s ease-out;
+}
+
+/* Floating animation for icons */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Smooth accordion animations */
+.accordion-content {
+  overflow: hidden;
+  transition: all 0.3s ease-out;
+}
+
+.accordion-content[data-state="closed"] {
+  animation: accordion-up 0.3s ease-out;
+}
+
+.accordion-content[data-state="open"] {
+  animation: accordion-down 0.3s ease-out;
+}
+
+/* Enhanced tooltips */
+.tooltip-content {
+  animation: fadeIn 0.15s ease-out;
+}
+
 /* Custom media queries for specific breakpoints */
 @media (max-width: 375px) {
   /* iPhone SE and smaller */
@@ -320,11 +599,307 @@
     transform: translateY(-1px);
     transition: transform 0.2s;
   }
+  
+  /* Enhanced button hover */
+  .button-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Link hover underline animation */
+  .link-hover {
+    position: relative;
+  }
+  
+  .link-hover::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: currentColor;
+    transition: width 0.3s ease;
+  }
+  
+  .link-hover:hover::after {
+    width: 100%;
+  }
 }
 
 /* Ensure tap highlights are removed on mobile */
 @media (hover: none) and (pointer: coarse) {
   * {
     -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* ===== PHASE 5: Dark Mode Enhancements ===== */
+
+/* Dark mode specific card hover effects */
+.dark .card-hover:hover {
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Dark mode progress bar */
+.dark .progress-bar {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.dark .progress-bar::after {
+  background: linear-gradient(90deg, rgb(99, 102, 241), rgb(139, 92, 246));
+}
+
+/* Dark mode pulse animation */
+.dark .pulse-dot {
+  filter: brightness(1.2);
+}
+
+/* Dark mode gradient text */
+.dark .gradient-text {
+  filter: brightness(1.1);
+}
+
+/* Dark mode button effects */
+.dark .button-hover:hover {
+  box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.5);
+}
+
+/* Dark mode focus states */
+.dark :focus-visible {
+  outline-color: rgb(147, 197, 253);
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.8);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.8);
+}
+
+/* Smooth theme transition */
+body, .glass-morphism, .card-hover, button, input, select, textarea {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* ===== PHASE 2: Mobile Experience Enhancement ===== */
+
+/* Sticky calculate button on mobile */
+@media (max-width: 768px) {
+  .sticky-calculate-button {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    padding: 1rem;
+    background: linear-gradient(to top, rgba(255, 255, 255, 1) 80%, rgba(255, 255, 255, 0));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    transform: translateZ(0); /* Force GPU acceleration */
+  }
+  
+  .dark .sticky-calculate-button {
+    background: linear-gradient(to top, rgba(30, 41, 59, 1) 80%, rgba(30, 41, 59, 0));
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .sticky-calculate-button.hidden {
+    transform: translateY(100%);
+    transition: transform 0.3s ease-out;
+  }
+  
+  .sticky-calculate-button.visible {
+    transform: translateY(0);
+    transition: transform 0.3s ease-out;
+  }
+  
+  /* Add padding to content when button is sticky */
+  .content-with-sticky-button {
+    padding-bottom: 100px;
+  }
+}
+
+/* Enhanced touch interactions */
+.touch-target {
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch-target::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  z-index: -1;
+}
+
+/* Swipeable tabs */
+.swipeable-tabs {
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.swipeable-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.swipeable-tab {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+/* Mobile-optimized form layouts */
+@media (max-width: 640px) {
+  .mobile-form-stack > * + * {
+    margin-top: 1rem;
+  }
+  
+  .mobile-label-inline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  
+  .mobile-compact-input {
+    padding: 0.75rem;
+    font-size: 16px; /* Prevent zoom */
+  }
+}
+
+/* Pull to refresh indicator */
+.pull-to-refresh {
+  position: absolute;
+  top: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.pull-to-refresh.visible {
+  opacity: 1;
+}
+
+/* Bottom sheet animations */
+.bottom-sheet-enter {
+  transform: translateY(100%);
+}
+
+.bottom-sheet-enter-active {
+  transform: translateY(0);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bottom-sheet-exit {
+  transform: translateY(0);
+}
+
+.bottom-sheet-exit-active {
+  transform: translateY(100%);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* Mobile scroll momentum */
+.mobile-scroll-momentum {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Improved mobile card spacing */
+@media (max-width: 640px) {
+  .mobile-card-compact {
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .mobile-card-compact:last-child {
+    margin-bottom: 0;
+  }
+}
+
+/* Touch feedback */
+@media (hover: none) {
+  .touch-feedback {
+    transition: background-color 0.1s ease;
+  }
+  
+  .touch-feedback:active {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Gesture hints */
+.gesture-hint {
+  position: relative;
+  overflow: hidden;
+}
+
+.gesture-hint::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.3);
+  animation: gesture-pulse 2s infinite;
+}
+
+@keyframes gesture-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.3);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 0, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  }
+}
+
+/* Mobile-first responsive utilities */
+.mobile-only {
+  display: block;
+}
+
+.desktop-only {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .mobile-only {
+    display: none;
+  }
+  
+  .desktop-only {
+    display: block;
+  }
+}
+
+/* Improved mobile typography */
+@media (max-width: 640px) {
+  .mobile-text-balance {
+    text-wrap: balance;
+    word-break: break-word;
+    hyphens: auto;
   }
 }

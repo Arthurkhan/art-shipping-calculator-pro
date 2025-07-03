@@ -1,11 +1,12 @@
 import { MapPin, Globe, DollarSign, Calendar, Info } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { EnhancedInput } from "@/components/ui/enhanced-input";
+import { useState, useEffect } from "react";
 
 interface ShippingDetailsFormProps {
   country: string;
@@ -36,6 +37,51 @@ export const ShippingDetailsForm = ({
   const minDate = new Date();
   minDate.setHours(0, 0, 0, 0);
   
+  // Country suggestions
+  const [countrySuggestions, setCountrySuggestions] = useState<string[]>([]);
+  
+  // Popular destination countries
+  const popularCountries = [
+    { code: 'US', name: 'United States' },
+    { code: 'GB', name: 'United Kingdom' },
+    { code: 'FR', name: 'France' },
+    { code: 'DE', name: 'Germany' },
+    { code: 'JP', name: 'Japan' },
+    { code: 'SG', name: 'Singapore' },
+    { code: 'ID', name: 'Indonesia' },
+    { code: 'MY', name: 'Malaysia' },
+    { code: 'AU', name: 'Australia' },
+    { code: 'CN', name: 'China' }
+  ];
+  
+  // Update country suggestions
+  const handleCountryChange = (value: string) => {
+    const uppercased = value.toUpperCase();
+    onCountryChange(uppercased);
+    
+    if (uppercased.length === 1) {
+      const suggestions = popularCountries
+        .filter(c => c.code.startsWith(uppercased))
+        .map(c => `${c.code} - ${c.name}`);
+      setCountrySuggestions(suggestions);
+    } else {
+      setCountrySuggestions([]);
+    }
+  };
+  
+  // Postal code validation based on country
+  const getPostalCodeHelper = () => {
+    switch (country) {
+      case 'US': return 'ZIP code (e.g., 10001)';
+      case 'GB': return 'Postcode (e.g., SW1A 1AA)';
+      case 'CA': return 'Postal code (e.g., K1A 0B1)';
+      case 'FR': return '5-digit postal code (e.g., 75001)';
+      case 'DE': return '5-digit postal code (e.g., 10115)';
+      case 'JP': return '7-digit postal code (e.g., 100-0001)';
+      default: return 'Destination postal code';
+    }
+  };
+  
   return (
     <div className="space-y-3">
       <div className="border-b border-slate-200 pb-2">
@@ -45,40 +91,38 @@ export const ShippingDetailsForm = ({
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {/* Country Code */}
-        <div className="space-y-2">
-          <Label htmlFor="country" className="text-sm font-medium flex items-center">
-            <Globe className="w-4 h-4 mr-1" />
-            Country Code
-          </Label>
-          <Input
-            id="country"
-            placeholder="e.g., US, FR, ID"
-            value={country}
-            onChange={(e) => onCountryChange(e.target.value.toUpperCase())}
-            className="h-12 sm:h-10 text-base sm:text-sm"
-            maxLength={2}
-            inputMode="text"
-            autoCapitalize="characters"
-          />
-          <p className="text-xs text-slate-500">2-letter country code</p>
-        </div>
+        <EnhancedInput
+          id="country"
+          label="Destination Country"
+          placeholder="e.g., US, FR, ID"
+          value={country}
+          onChange={(e) => handleCountryChange(e.target.value)}
+          helperText="2-letter country code"
+          tooltip="Enter the 2-letter ISO country code for the destination"
+          showValidation={country.length === 2}
+          isValid={country.length === 2}
+          suggestions={countrySuggestions}
+          onSuggestionSelect={(value) => onCountryChange(value.split(' ')[0])}
+          leftIcon={<Globe className="w-4 h-4" />}
+          maxLength={2}
+          className="uppercase h-12 sm:h-10 text-base sm:text-sm"
+        />
 
         {/* Postal Code */}
-        <div className="space-y-2">
-          <Label htmlFor="postalCode" className="text-sm font-medium flex items-center">
-            <MapPin className="w-4 h-4 mr-1" />
-            Postal Code
-          </Label>
-          <Input
-            id="postalCode"
-            placeholder="e.g., 10001, 75001"
-            value={postalCode}
-            onChange={(e) => onPostalCodeChange(e.target.value)}
-            className="h-12 sm:h-10 text-base sm:text-sm"
-            inputMode="numeric"
-          />
-          <p className="text-xs text-slate-500">Destination postal code</p>
-        </div>
+        <EnhancedInput
+          id="postalCode"
+          label="Postal Code"
+          placeholder="e.g., 10001, 75001"
+          value={postalCode}
+          onChange={(e) => onPostalCodeChange(e.target.value)}
+          helperText={getPostalCodeHelper()}
+          tooltip="Enter the postal or ZIP code for the destination address"
+          showValidation={postalCode.length > 3}
+          isValid={postalCode.length > 3}
+          leftIcon={<MapPin className="w-4 h-4" />}
+          className="h-12 sm:h-10 text-base sm:text-sm"
+          inputMode={country === 'GB' ? 'text' : 'numeric'}
+        />
 
         {/* Ship Date */}
         <div className="space-y-2">

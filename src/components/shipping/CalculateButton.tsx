@@ -45,7 +45,7 @@ export const CalculateButton = ({ onClick, disabled, isLoading, fedexConfigMissi
   };
 
   const getButtonClassName = () => {
-    const baseClasses = "w-full h-12 font-medium text-lg transition-all duration-200";
+    const baseClasses = "w-full h-12 font-medium text-lg transition-all duration-200 button-press button-hover";
     
     if (fedexConfigMissing) {
       return `${baseClasses} border-orange-300 text-orange-700 hover:bg-orange-50 disabled:bg-slate-100 disabled:text-slate-400`;
@@ -55,13 +55,18 @@ export const CalculateButton = ({ onClick, disabled, isLoading, fedexConfigMissi
   };
 
   return (
-    <Button
-      onClick={onClick}
-      disabled={disabled || isLoading}
-      variant={getButtonVariant()}
-      className={getButtonClassName()}
-    >
-      {getButtonContent()}
-    </Button>
+    <div className="relative">
+      <Button
+        onClick={onClick}
+        disabled={disabled || isLoading}
+        variant={getButtonVariant()}
+        className={getButtonClassName()}
+      >
+        {getButtonContent()}
+      </Button>
+      {isLoading && (
+        <div className="absolute bottom-0 left-0 right-0 progress-bar rounded-b-md" />
+      )}
+    </div>
   );
 };

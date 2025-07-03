@@ -72,7 +72,7 @@ export const useOverrideSettings = () => {
         });
       }
     } catch (error) {
-      console.error('Error loading override settings:', error);
+      // Silently fail - use defaults
     }
   }, []);
 
@@ -81,7 +81,7 @@ export const useOverrideSettings = () => {
     try {
       localStorage.setItem(OVERRIDE_STORAGE_KEY, JSON.stringify(overrideSettings));
     } catch (error) {
-      console.error('Error saving override settings:', error);
+      // Silently fail - settings will not persist
     }
   }, [overrideSettings]);
 

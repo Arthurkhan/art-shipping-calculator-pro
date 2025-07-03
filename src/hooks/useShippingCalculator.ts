@@ -148,18 +148,6 @@ export const useShippingCalculator = () => {
         description: `Contacting FedEx API for rates in ${preferredCurrency}${usingOverride ? ' (using custom dimensions)' : ''}...`,
       });
 
-      console.log('🚀 Starting FedEx rate calculation with params:', {
-        collection: selectedCollection || 'Not required (override mode)',
-        size: selectedSize || 'Not required (override mode)',
-        origin: `${originCountry} ${originPostalCode}`,
-        destination: `${country} ${postalCode}`,
-        currency: preferredCurrency,
-        shipDate: shipDate || 'Not specified (will use tomorrow)',
-        usingOverride,
-        overrideData: overrideData || 'Not provided',
-        sessionId: effectiveSessionId ? 'Present' : 'Missing'
-      });
-
       const response = await supabase.functions.invoke('calculate-shipping', {
         body: {
           collection: selectedCollection,
@@ -175,20 +163,15 @@ export const useShippingCalculator = () => {
         },
       });
 
-      // Enhanced logging of raw response
-      console.log('📦 Raw API Response:', response);
-      console.log('📊 Response Data:', response.data);
       
       // Check if the response has an error from our edge function
       if (response.data && response.data.success === false && response.data.error) {
         // Extract the actual error message from our edge function
-        console.log('❌ Edge Function Error:', response.data.error);
         throw new Error(response.data.error);
       }
       
       // Check for Supabase-level errors
       if (response.error) {
-        console.error('❌ Supabase Error:', response.error);
         // Try to extract meaningful error from response data if available
         if (response.data && response.data.error) {
           throw new Error(response.data.error);
@@ -197,36 +180,9 @@ export const useShippingCalculator = () => {
       }
       
       if (response.data) {
-        console.log('✅ Response Success:', response.data.success);
-        console.log('📋 Response Rates:', response.data.rates);
-        console.log('🆔 Request ID:', response.data.requestId);
-        
-        // LOG RAW FEDEX RESPONSE FOR DEBUGGING
-        if (response.data._debug?.rawFedexResponse) {
-          console.log('🚨🚨🚨 RAW FEDEX API RESPONSE - COPY THIS! 🚨🚨🚨');
-          console.log(JSON.stringify(response.data._debug.rawFedexResponse, null, 2));
-          console.log('🚨🚨🚨 END OF RAW FEDEX RESPONSE 🚨🚨🚨');
-          
-          // Call the debug handler if it exists
-          if (window.__debugResponseHandler) {
-            window.__debugResponseHandler(response.data);
-          }
-        }
-        
-        // Log detailed rate information
-        if (response.data.rates && Array.isArray(response.data.rates)) {
-          response.data.rates.forEach((rate: ShippingRate, index: number) => {
-            console.log(`📍 Rate ${index + 1}:`, {
-              service: rate.service,
-              cost: rate.cost,
-              costType: typeof rate.cost,
-              currency: rate.currency,
-              transitTime: rate.transitTime,
-              rateType: rate.rateType,
-              isLastMinute: rate.isLastMinute,
-              rawData: rate
-            });
-          });
+        // Call the debug handler if it exists
+        if (response.data._debug?.rawFedexResponse && window.__debugResponseHandler) {
+          window.__debugResponseHandler(response.data);
         }
       }
 
@@ -236,25 +192,12 @@ export const useShippingCalculator = () => {
       if (calculatedRates.length === 0) {
         const noRatesMessage = "No shipping options available for this destination.";
         setError(noRatesMessage);
-        console.warn('⚠️ No rates found in response');
         toast({
           title: "No Rates Found",
           description: noRatesMessage,
           variant: "destructive",
         });
       } else {
-        // Success feedback with detailed logging
-        console.log(`✅ Successfully retrieved ${calculatedRates.length} rates`);
-        calculatedRates.forEach((rate: ShippingRate, index: number) => {
-          console.log(`💰 Final Rate ${index + 1}:`, {
-            service: rate.service,
-            displayCost: `${rate.currency} ${rate.cost}`,
-            rawCost: rate.cost,
-            transitTime: rate.transitTime,
-            rateType: rate.rateType
-          });
-        });
-        
         toast({
           title: "Rates Calculated",
           description: `Found ${calculatedRates.length} shipping options in ${preferredCurrency}${usingOverride ? ' using custom dimensions' : ''}.`,
@@ -263,8 +206,6 @@ export const useShippingCalculator = () => {
       
       return true;
     } catch (err) {
-      console.error('❌ Calculation Error:', err);
-      
       // Extract error message
       let errorMessage = '';
       if (err instanceof Error) {
@@ -272,7 +213,7 @@ export const useShippingCalculator = () => {
       } else if (typeof err === 'string') {
         errorMessage = err;
       } else if (err && typeof err === 'object' && 'message' in err) {
-        errorMessage = (err as any).message;
+        errorMessage = (err as { message: string }).message;
       } else {
         errorMessage = 'An unexpected error occurred';
       }

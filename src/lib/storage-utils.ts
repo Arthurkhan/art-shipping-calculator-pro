@@ -22,7 +22,6 @@ export const storage = {
     try {
       return localStorage.getItem(key) ?? fallback;
     } catch (error) {
-      console.warn(`Failed to get localStorage item: ${key}`, error);
       return fallback;
     }
   },
@@ -34,7 +33,7 @@ export const storage = {
     try {
       localStorage.setItem(key, value);
     } catch (error) {
-      console.warn(`Failed to set localStorage item: ${key}`, error);
+      // Silently fail
     }
   },
 
@@ -45,7 +44,7 @@ export const storage = {
     try {
       localStorage.removeItem(key);
     } catch (error) {
-      console.warn(`Failed to remove localStorage item: ${key}`, error);
+      // Silently fail
     }
   },
 
@@ -56,7 +55,7 @@ export const storage = {
     try {
       localStorage.clear();
     } catch (error) {
-      console.warn('Failed to clear localStorage', error);
+      // Silently fail
     }
   },
 };
@@ -123,37 +122,37 @@ export const secureFedexStorage = {
  */
 export const fedexStorage = {
   getAccountNumber: (): string => {
-    console.warn('DEPRECATED: fedexStorage.getAccountNumber() should not be used. Use secure session-based storage instead.');
+    // DEPRECATED: Use secure session-based storage instead
     return '';
   },
 
   setAccountNumber: (accountNumber: string): void => {
-    console.warn('DEPRECATED: fedexStorage.setAccountNumber() should not be used. Use secure session-based storage instead.');
+    // DEPRECATED: Use secure session-based storage instead
   },
 
   getClientId: (): string => {
-    console.warn('DEPRECATED: fedexStorage.getClientId() should not be used. Use secure session-based storage instead.');
+    // DEPRECATED: Use secure session-based storage instead
     return '';
   },
 
   setClientId: (clientId: string): void => {
-    console.warn('DEPRECATED: fedexStorage.setClientId() should not be used. Use secure session-based storage instead.');
+    // DEPRECATED: Use secure session-based storage instead
   },
 
   getClientSecret: (): string => {
-    console.warn('DEPRECATED: fedexStorage.getClientSecret() should not be used. Use secure session-based storage instead.');
+    // DEPRECATED: Use secure session-based storage instead
     return '';
   },
 
   setClientSecret: (clientSecret: string): void => {
-    console.warn('DEPRECATED: fedexStorage.setClientSecret() should not be used. Use secure session-based storage instead.');
+    // DEPRECATED: Use secure session-based storage instead
   },
 
   /**
    * Get complete FedEx configuration - DEPRECATED
    */
   getFedexConfig: () => {
-    console.warn('DEPRECATED: fedexStorage.getFedexConfig() should not be used. Use secure session-based storage instead.');
+    // DEPRECATED: Use secure session-based storage instead
     return {
       accountNumber: '',
       clientId: '',
@@ -165,14 +164,14 @@ export const fedexStorage = {
    * Set complete FedEx configuration - DEPRECATED
    */
   setFedexConfig: (config: { accountNumber: string; clientId: string; clientSecret: string }) => {
-    console.warn('DEPRECATED: fedexStorage.setFedexConfig() should not be used. Use secure session-based storage instead.');
+    // DEPRECATED: Use secure session-based storage instead
   },
 
   /**
    * Clear FedEx configuration - DEPRECATED
    */
   clearFedexConfig: () => {
-    console.warn('DEPRECATED: fedexStorage.clearFedexConfig() should not be used. Use secure session-based storage instead.');
+    // DEPRECATED: Use secure session-based storage instead
     // Clear any legacy data that might exist
     localStorage.removeItem('fedex_account_number');
     localStorage.removeItem('fedex_client_id');
@@ -193,7 +192,7 @@ export const migrateAndCleanupStorage = () => {
   });
   
   if (migrated) {
-    console.info('Legacy FedEx credentials removed from localStorage for security');
+    // Legacy FedEx credentials removed from localStorage for security
   }
 };
 

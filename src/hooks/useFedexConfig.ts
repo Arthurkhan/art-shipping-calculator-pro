@@ -43,7 +43,6 @@ export const useFedexConfig = () => {
         setSessionId(null);
       }
     } catch (error) {
-      console.error('Failed to check FedEx config status:', error);
       setFedexConfigStatus('missing');
       setFedexConfig(null);
     } finally {
@@ -107,7 +106,6 @@ export const useFedexConfig = () => {
         });
       }
     } catch (error) {
-      console.error('Failed to save FedEx config:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred while saving configuration.",
@@ -142,7 +140,6 @@ export const useFedexConfig = () => {
         });
       }
     } catch (error) {
-      console.error('Failed to clear FedEx config:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred while clearing configuration.",

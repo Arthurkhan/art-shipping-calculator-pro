@@ -2,6 +2,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Palette } from "lucide-react";
+import { usePrefetch } from "@/hooks/usePrefetch";
 
 interface Collection {
   id: string;
@@ -21,6 +22,8 @@ export const CollectionSelector = ({
   onCollectionChange,
   isLoading
 }: CollectionSelectorProps) => {
+  const { prefetchCollectionSizes } = usePrefetch();
+  
   return (
     <div className="space-y-1.5">
       <Label htmlFor="collection" className="text-sm text-slate-700 font-medium flex items-center">
@@ -37,6 +40,7 @@ export const CollectionSelector = ({
               key={collection.id} 
               value={collection.id}
               className="hover:bg-blue-50 focus:bg-blue-50"
+              onMouseEnter={() => prefetchCollectionSizes(collection.id)}
             >
               {collection.name}
             </SelectItem>

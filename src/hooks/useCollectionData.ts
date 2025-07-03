@@ -32,7 +32,6 @@ export const useCollectionData = () => {
       if (error) throw error;
       setCollections(data || []);
     } catch (err) {
-      console.error('Error loading collections:', err);
       toast({
         title: "Error",
         description: "Failed to load art collections. Please refresh the page.",
@@ -61,7 +60,6 @@ export const useCollectionData = () => {
       if (error) throw error;
       setSizes(data?.map(item => item.size) || []);
     } catch (err) {
-      console.error('Error loading sizes:', err);
       toast({
         title: "Error",
         description: "Failed to load sizes for selected collection.",

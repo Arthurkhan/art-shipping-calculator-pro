@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { MapPin, Mail, RotateCcw, AlertCircle, CheckCircle2, Settings } from "lucide-react";
+import { MapPin, Mail, RotateCcw, AlertCircle, CheckCircle2, Settings, Locate } from "lucide-react";
 import { cn, originAddressDefaults, validateOriginAddress, type ValidationResult } from "@/lib/utils";
+import { EnhancedInput } from "@/components/ui/enhanced-input";
+import { useGeolocation } from "@/hooks/useGeolocation";
+import { toast } from "sonner";
 
 interface OriginAddressFormProps {
   originCountry: string;
@@ -21,6 +22,10 @@ export const OriginAddressForm = ({
   const [countryValidation, setCountryValidation] = useState<ValidationResult>({ isValid: true });
   const [postalValidation, setPostalValidation] = useState<ValidationResult>({ isValid: true });
   const [isUsingDefaults, setIsUsingDefaults] = useState(false);
+  const [countrySuggestions, setCountrySuggestions] = useState<string[]>([]);
+  
+  // Geolocation hook
+  const { detectLocation, isLoading: isDetectingLocation } = useGeolocation();
 
   // Check if current values match Thailand defaults
   useEffect(() => {
@@ -62,25 +67,38 @@ export const OriginAddressForm = ({
     // Store current values as the new defaults in localStorage
     localStorage.setItem('origin_country', originCountry);
     localStorage.setItem('origin_postal_code', originPostalCode);
+    toast.success('Default origin address updated');
+  };
+  
+  const handleDetectLocation = async () => {
+    const location = await detectLocation();
+    if (location && location.country) {
+      onOriginCountryChange(location.country);
+      if (location.postalCode) {
+        onOriginPostalCodeChange(location.postalCode);
+      }
+    }
   };
 
   const handleCountryChange = (value: string) => {
     // Convert to uppercase and limit to 2 characters
-    onOriginCountryChange(value.toUpperCase());
+    const uppercased = value.toUpperCase();
+    onOriginCountryChange(uppercased);
+    
+    // Update suggestions based on input
+    if (uppercased.length === 1) {
+      const suggestions = ['TH', 'US', 'GB', 'FR', 'DE', 'JP', 'CN', 'SG', 'MY', 'ID']
+        .filter(code => code.startsWith(uppercased));
+      setCountrySuggestions(suggestions);
+    } else {
+      setCountrySuggestions([]);
+    }
   };
 
   const handlePostalCodeChange = (value: string) => {
     onOriginPostalCodeChange(value);
   };
 
-  const getFieldValidationIcon = (validation: ValidationResult, hasValue: boolean) => {
-    if (!hasValue) return null;
-    if (validation.isValid) {
-      return <CheckCircle2 className="w-4 h-4 text-green-500" />;
-    } else {
-      return <AlertCircle className="w-4 h-4 text-red-500" />;
-    }
-  };
 
   return (
     <div className="space-y-3">
@@ -91,6 +109,16 @@ export const OriginAddressForm = ({
             <p className="text-xs text-slate-600">Where are you shipping from?</p>
           </div>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDetectLocation}
+              className="text-xs px-3 py-1.5 h-auto"
+              disabled={isDetectingLocation}
+            >
+              <Locate className={cn("w-3 h-3 mr-1.5", isDetectingLocation && "animate-pulse")} />
+              {isDetectingLocation ? 'Detecting...' : 'Auto-detect'}
+            </Button>
             {!isUsingDefaults && (
               <Button
                 variant="outline"
@@ -128,70 +156,39 @@ export const OriginAddressForm = ({
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="originCountry" className="text-sm text-slate-700 font-medium flex items-center">
-            <MapPin className="w-3.5 h-3.5 mr-1.5" />
-            Origin Country Code
-          </Label>
-          <div className="relative">
-            <Input
-              id="originCountry"
-              type="text"
-              placeholder="e.g., TH, US, GB"
-              value={originCountry}
-              onChange={(e) => handleCountryChange(e.target.value)}
-              className={cn(
-                "h-10 pr-8 border-slate-300 focus:border-blue-500 focus:ring-blue-500",
-                !countryValidation.isValid && originCountry && "border-red-300 focus:border-red-500 focus:ring-red-500"
-              )}
-              maxLength={2}
-            />
-            <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-              {getFieldValidationIcon(countryValidation, !!originCountry)}
-            </div>
-          </div>
-          {!countryValidation.isValid && countryValidation.error && originCountry && (
-            <p className="text-xs text-red-600 flex items-center">
-              <AlertCircle className="w-3 h-3 mr-1" />
-              {countryValidation.error}
-            </p>
-          )}
-          <p className="text-xs text-slate-500">
-            2-letter country code (e.g., TH, US, GB)
-          </p>
-        </div>
+        <EnhancedInput
+          id="originCountry"
+          label="Origin Country Code"
+          type="text"
+          placeholder="e.g., TH, US, GB"
+          value={originCountry}
+          onChange={(e) => handleCountryChange(e.target.value)}
+          error={!countryValidation.isValid && originCountry ? countryValidation.error : undefined}
+          helperText="2-letter country code (e.g., TH, US, GB)"
+          tooltip="Enter the 2-letter ISO country code for your shipping origin"
+          showValidation={!!originCountry}
+          isValid={countryValidation.isValid}
+          suggestions={countrySuggestions}
+          onSuggestionSelect={(value) => onOriginCountryChange(value)}
+          leftIcon={<MapPin className="w-3.5 h-3.5" />}
+          maxLength={2}
+          className="uppercase"
+        />
 
-        <div className="space-y-1.5">
-          <Label htmlFor="originPostalCode" className="text-sm text-slate-700 font-medium flex items-center">
-            <Mail className="w-3.5 h-3.5 mr-1.5" />
-            Origin Postal Code
-          </Label>
-          <div className="relative">
-            <Input
-              id="originPostalCode"
-              type="text"
-              placeholder="10240"
-              value={originPostalCode}
-              onChange={(e) => handlePostalCodeChange(e.target.value)}
-              className={cn(
-                "h-10 pr-8 border-slate-300 focus:border-blue-500 focus:ring-blue-500",
-                !postalValidation.isValid && originPostalCode && "border-red-300 focus:border-red-500 focus:ring-red-500"
-              )}
-            />
-            <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-              {getFieldValidationIcon(postalValidation, !!originPostalCode)}
-            </div>
-          </div>
-          {!postalValidation.isValid && postalValidation.error && originPostalCode && (
-            <p className="text-xs text-red-600 flex items-center">
-              <AlertCircle className="w-3 h-3 mr-1" />
-              {postalValidation.error}
-            </p>
-          )}
-          <p className="text-xs text-slate-500">
-            Origin postal code
-          </p>
-        </div>
+        <EnhancedInput
+          id="originPostalCode"
+          label="Origin Postal Code"
+          type="text"
+          placeholder="10240"
+          value={originPostalCode}
+          onChange={(e) => handlePostalCodeChange(e.target.value)}
+          error={!postalValidation.isValid && originPostalCode ? postalValidation.error : undefined}
+          helperText="Origin postal code"
+          tooltip="Enter the postal or ZIP code for your shipping origin"
+          showValidation={!!originPostalCode && !!originCountry}
+          isValid={postalValidation.isValid}
+          leftIcon={<Mail className="w-3.5 h-3.5" />}
+        />
       </div>
     </div>
   );

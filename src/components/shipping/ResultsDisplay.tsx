@@ -55,7 +55,7 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
         <h3 className="text-base sm:text-lg font-semibold text-slate-800">Calculating shipping rates...</h3>
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="p-3 sm:p-4">
+            <Card key={i} className="p-3 sm:p-4 skeleton-shimmer">
               <div className="flex justify-between items-center">
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-32" />
@@ -78,7 +78,7 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
   const organizedRates = organizeRates(rates);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 fade-in">
       <h3 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center">
         <Truck className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
         Available Shipping Options
@@ -97,7 +97,7 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
           const discountPercent = hasDiscount ? Math.round((discountAmount / list.cost) * 100) : 0;
           
           return (
-            <Card key={service} className="p-3 sm:p-4 hover:shadow-md transition-shadow border-slate-200">
+            <Card key={service} className="p-3 sm:p-4 hover:shadow-md transition-shadow border-slate-200 card-hover success-animation mobile-card-compact touch-feedback" style={{animationDelay: `${Array.from(organizedRates.keys()).indexOf(service) * 0.1}s`}}>
               <div className="space-y-3">
                 {/* Service Name and Badge */}
                 <div className="space-y-2">

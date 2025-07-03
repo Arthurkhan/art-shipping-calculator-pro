@@ -27,8 +27,8 @@ export const ServiceAvailabilityAlert: React.FC<ServiceAvailabilityAlertProps> =
   };
 
   return (
-    <div className="space-y-4">
-      <Alert className="border-orange-200 bg-orange-50">
+    <div className="space-y-4 fade-in">
+      <Alert className="border-orange-200 bg-orange-50 error-shake">
         <AlertTriangle className="h-5 w-5 text-orange-600" />
         <AlertTitle className="text-orange-900 text-lg">
           Service Not Available
@@ -54,7 +54,7 @@ export const ServiceAvailabilityAlert: React.FC<ServiceAvailabilityAlertProps> =
 
       {/* Suggestions */}
       {suggestions.length > 0 && (
-        <Card className="border-blue-200 bg-blue-50">
+        <Card className="border-blue-200 bg-blue-50 fade-in" style={{animationDelay: '0.3s'}}>
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
               <HelpCircle className="h-5 w-5 text-blue-600 mt-0.5" />

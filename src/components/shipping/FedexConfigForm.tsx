@@ -65,7 +65,6 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
         description: "Your FedEx credentials have been securely saved and validated.",
       });
     } catch (error) {
-      console.error("Failed to save FedEx config:", error);
       toast({
         title: "Save Failed",
         description: "Failed to save configuration. Please try again.",

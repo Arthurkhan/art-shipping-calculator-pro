@@ -76,7 +76,6 @@ export const ParameterPreview = ({
           if (error) throw error;
           setCollectionName(data?.name || 'Unknown Collection');
         } catch (err) {
-          console.error('Error loading collection name:', err);
           setCollectionName('Unknown Collection');
         }
       };
@@ -102,7 +101,6 @@ export const ParameterPreview = ({
 
           setSizeData(data);
         } catch (err) {
-          console.error('Error loading size data:', err);
           setError('Failed to load size data');
           setSizeData(null);
         } finally {
@@ -125,7 +123,6 @@ export const ParameterPreview = ({
           if (error) throw error;
           setCollectionName(data?.name || 'Unknown Collection');
         } catch (err) {
-          console.error('Error loading collection name:', err);
           setCollectionName('Unknown Collection');
         }
       };

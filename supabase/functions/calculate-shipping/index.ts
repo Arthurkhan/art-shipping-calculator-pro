@@ -61,14 +61,14 @@ class Logger {
   static setRequestId(id: string) {
     this.requestId = id;
   }
-  static info(message: string, data?: any) {
-    console.log(`[INFO][${this.requestId}] ${message}`, data ? JSON.stringify(data) : '');
+  static info(message: string, data?: unknown) {
+    // Logging disabled
   }
-  static error(message: string, data?: any) {
-    console.error(`[ERROR][${this.requestId}] ${message}`, data ? JSON.stringify(data) : '');
+  static error(message: string, data?: unknown) {
+    // Logging disabled
   }
-  static warn(message: string, data?: any) {
-    console.warn(`[WARN][${this.requestId}] ${message}`, data ? JSON.stringify(data) : '');
+  static warn(message: string, data?: unknown) {
+    // Logging disabled
   }
 }
 
@@ -397,7 +397,7 @@ class FedexAuthService {
 // FEDEX RATES SERVICE (WITH ENHANCED ERROR HANDLING)
 // ============================================
 class FedexRatesService {
-  static lastRawResponse: any = null;
+  static lastRawResponse: unknown = null;
   
   static getLastRawResponse() {
     return this.lastRawResponse;
@@ -671,26 +671,42 @@ class FedexRatesService {
 // ============================================
 // MAIN HANDLER
 // ============================================
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400'
+const allowedOrigins = [
+  'http://localhost:8080',
+  'http://localhost:8083',
+  'http://localhost:5173',
+  'https://arthurkhan.github.io'
+];
+
+const corsHeaders = (origin: string | null) => {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-session-id',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Max-Age': '86400'
+  };
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  
+  return headers;
 };
 
 serve(async (req) => {
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   Logger.setRequestId(requestId);
+  const origin = req.headers.get('origin');
   Logger.info('New shipping calculation request received', {
     method: req.method,
     url: req.url,
+    origin,
     requestId
   });
   
   if (req.method === 'OPTIONS') {
     Logger.info('Handling OPTIONS preflight request');
     return new Response('ok', {
-      headers: corsHeaders,
+      headers: corsHeaders(origin),
       status: 200
     });
   }
@@ -813,7 +829,7 @@ serve(async (req) => {
       }
     }), {
       headers: {
-        ...corsHeaders,
+        ...corsHeaders(origin),
         'Content-Type': 'application/json'
       }
     });
@@ -830,7 +846,7 @@ serve(async (req) => {
     }), {
       status: 500,
       headers: {
-        ...corsHeaders,
+        ...corsHeaders(origin),
         'Content-Type': 'application/json'
       }
     });

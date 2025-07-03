@@ -12,8 +12,8 @@ const isSquarespaceEnvironment = () => {
     window.location.hostname.includes('sqsp.net') ||
     document.querySelector('[data-squarespace-site]') ||
     document.querySelector('.sqs-layout') ||
-    (window as any).Static?.SQUARESPACE_CONTEXT ||
-    (window as any).Y?.Squarespace
+    (window as Window & { Static?: { SQUARESPACE_CONTEXT?: unknown } })?.Static?.SQUARESPACE_CONTEXT ||
+    (window as Window & { Y?: { Squarespace?: unknown } })?.Y?.Squarespace
   );
 };
 
@@ -55,10 +55,19 @@ const NativeSelect = React.forwardRef<
 NativeSelect.displayName = "NativeSelect";
 
 // Wrapper components for Squarespace mode
-const SquarespaceSelectRoot = ({ children, ...props }: any) => {
+interface SquarespaceSelectProps {
+  children: React.ReactNode;
+  [key: string]: unknown;
+}
+
+const SquarespaceSelectRoot = ({ children, ...props }: SquarespaceSelectProps) => {
   const childArray = React.Children.toArray(children);
-  const trigger = childArray.find((child: any) => child?.type?.displayName === 'SelectTrigger');
-  const content = childArray.find((child: any) => child?.type?.displayName === 'SelectContent');
+  const trigger = childArray.find((child): child is React.ReactElement => 
+    React.isValidElement(child) && (child.type as React.ComponentType).displayName === 'SelectTrigger'
+  );
+  const content = childArray.find((child): child is React.ReactElement => 
+    React.isValidElement(child) && (child.type as React.ComponentType).displayName === 'SelectContent'
+  );
   
   if (!trigger || !content) return <>{children}</>;
   
@@ -67,14 +76,16 @@ const SquarespaceSelectRoot = ({ children, ...props }: any) => {
   
   // Extract SelectValue placeholder
   const selectValue = React.Children.toArray(triggerProps.children).find(
-    (child: any) => child?.type === SelectValue
+    (child): child is React.ReactElement => React.isValidElement(child) && child.type === SelectValue
   );
   const placeholder = selectValue?.props?.placeholder || "Select...";
   
   // Convert SelectItem components to option elements
   const options = contentChildren
-    .filter((child: any) => child?.type?.displayName === 'SelectItem')
-    .map((item: any) => (
+    .filter((child): child is React.ReactElement => 
+      React.isValidElement(child) && (child.type as React.ComponentType).displayName === 'SelectItem'
+    )
+    .map((item: React.ReactElement) => (
       <option key={item.props.value} value={item.props.value}>
         {item.props.children}
       </option>

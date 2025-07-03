@@ -41,7 +41,6 @@ class SecureFedexService {
       });
 
       if (error) {
-        console.error('Failed to save FedEx configuration:', error);
         return { success: false, error: error.message };
       }
 
@@ -55,7 +54,6 @@ class SecureFedexService {
 
       return { success: false, error: response.message || 'Failed to save configuration' };
     } catch (error) {
-      console.error('Error saving FedEx config:', error);
       return { success: false, error: 'An unexpected error occurred' };
     }
   }
@@ -79,7 +77,6 @@ class SecureFedexService {
       });
 
       if (error) {
-        console.error('Failed to check FedEx configuration:', error);
         return { hasConfig: false };
       }
 
@@ -89,7 +86,6 @@ class SecureFedexService {
         sessionId: response.hasConfig ? sessionId : undefined 
       };
     } catch (error) {
-      console.error('Error checking FedEx config:', error);
       return { hasConfig: false };
     }
   }
@@ -114,7 +110,6 @@ class SecureFedexService {
       });
 
       if (error) {
-        console.error('Failed to validate FedEx configuration:', error);
         return { isValid: false, message: error.message };
       }
 
@@ -124,7 +119,6 @@ class SecureFedexService {
         message: response.message 
       };
     } catch (error) {
-      console.error('Error validating FedEx config:', error);
       return { isValid: false, message: 'Validation failed' };
     }
   }
@@ -149,7 +143,6 @@ class SecureFedexService {
       });
 
       if (error) {
-        console.error('Failed to delete FedEx configuration:', error);
         return { success: false, error: error.message };
       }
 
@@ -163,7 +156,6 @@ class SecureFedexService {
 
       return { success: false, error: response.message || 'Failed to delete configuration' };
     } catch (error) {
-      console.error('Error deleting FedEx config:', error);
       return { success: false, error: 'An unexpected error occurred' };
     }
   }

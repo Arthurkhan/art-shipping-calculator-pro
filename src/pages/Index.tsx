@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { CollectionSelector } from "@/components/shipping/CollectionSelector";
 import { SizeSelector } from "@/components/shipping/SizeSelector";
 import { ShippingDetailsForm } from "@/components/shipping/ShippingDetailsForm";
 import { OriginAddressForm } from "@/components/shipping/OriginAddressForm";
 import { CalculateButton } from "@/components/shipping/CalculateButton";
 import { ResultsDisplay } from "@/components/shipping/ResultsDisplay";
+import { EnhancedResultsDisplay } from "@/components/shipping/EnhancedResultsDisplay";
 import { FedexConfigForm } from "@/components/shipping/FedexConfigForm";
 import { ParameterPreview } from "@/components/shipping/ParameterPreview";
 import { OverrideToggleButton } from "@/components/shipping/OverrideToggleButton";
@@ -15,6 +16,9 @@ import { Truck, Package, Settings, Calculator, AlertTriangle, CheckCircle, Bug }
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { BottomSheet, useIsMobile } from "@/components/ui/bottom-sheet";
+import { FormProgress } from "@/components/ui/form-progress";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 // Phase 2 refactored hooks
 import { useOriginAddress } from "@/hooks/useOriginAddress";
@@ -24,12 +28,20 @@ import { useCollectionData } from "@/hooks/useCollectionData";
 import { useShippingValidation } from "@/hooks/useShippingValidation";
 import { useShippingCalculator } from "@/hooks/useShippingCalculator";
 import { useOverrideSettings } from "@/hooks/useOverrideSettings";
+import { usePrefetch } from "@/hooks/usePrefetch";
 
 const Index = () => {
   // UI state
   const [country, setCountry] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [activeTab, setActiveTab] = useState<'calculator' | 'config'>('calculator');
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+  const [showStickyButton, setShowStickyButton] = useState(false);
+  
+  // Mobile detection
+  const isMobile = useIsMobile();
+  const calculateButtonRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
   
   // Shipping date state - default to today
   const [shipDate, setShipDate] = useState<Date | undefined>(() => {
@@ -45,6 +57,15 @@ const Index = () => {
   const collectionData = useCollectionData();
   const shippingCalculator = useShippingCalculator();
   const overrideSettings = useOverrideSettings();
+  
+  // Performance optimization - prefetching
+  const { prefetchCollections, prefetchFedexStatus } = usePrefetch();
+  
+  // Prefetch data on component mount
+  useEffect(() => {
+    prefetchCollections();
+    prefetchFedexStatus();
+  }, [prefetchCollections, prefetchFedexStatus]);
 
   // Form validation using extracted hook
   const validation = useShippingValidation({
@@ -116,7 +137,121 @@ const Index = () => {
     }
   };
 
-  console.log('🔍 Enhanced Debug - Button Analysis:', debugInfo);
+  // Mobile enhancements - Phase 2
+  useEffect(() => {
+    if (!isMobile) return;
+
+    // Sticky button scroll behavior
+    const handleScroll = () => {
+      if (!calculateButtonRef.current) return;
+      
+      const buttonRect = calculateButtonRef.current.getBoundingClientRect();
+      const isButtonVisible = buttonRect.top < window.innerHeight && buttonRect.bottom > 0;
+      
+      setShowStickyButton(!isButtonVisible && validation.hasRequiredFields);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isMobile, validation.hasRequiredFields]);
+
+  // Swipe gesture for tabs
+  useEffect(() => {
+    if (!isMobile || !tabsRef.current) return;
+
+    let startX = 0;
+    let currentX = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      currentX = e.touches[0].clientX;
+    };
+
+    const handleTouchEnd = () => {
+      const diffX = currentX - startX;
+      const threshold = 50; // minimum swipe distance
+
+      if (Math.abs(diffX) > threshold) {
+        if (diffX > 0 && activeTab === 'config') {
+          // Swipe right to calculator
+          setActiveTab('calculator');
+        } else if (diffX < 0 && activeTab === 'calculator') {
+          // Swipe left to config
+          setActiveTab('config');
+        }
+      }
+    };
+
+    const tabsElement = tabsRef.current;
+    tabsElement.addEventListener('touchstart', handleTouchStart);
+    tabsElement.addEventListener('touchmove', handleTouchMove);
+    tabsElement.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      tabsElement.removeEventListener('touchstart', handleTouchStart);
+      tabsElement.removeEventListener('touchmove', handleTouchMove);
+      tabsElement.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isMobile, activeTab]);
+
+  // Handle calculation with mobile bottom sheet
+  const handleCalculateRatesWithMobile = async () => {
+    await handleCalculateRates();
+    
+    // Open bottom sheet on mobile after successful calculation
+    if (isMobile && shippingCalculator.rates.length > 0) {
+      setIsBottomSheetOpen(true);
+    }
+  };
+
+  // Form progress steps
+  const getFormProgressSteps = () => {
+    const steps = [
+      {
+        id: 'origin',
+        label: 'Origin Address',
+        isComplete: !!originAddress.originCountry && !!originAddress.originPostalCode,
+        isCurrent: !originAddress.originCountry || !originAddress.originPostalCode
+      },
+      {
+        id: 'collection',
+        label: overrideSettings.isOverrideEnabled ? 'Custom Dimensions' : 'Art Collection',
+        isComplete: overrideSettings.isOverrideEnabled 
+          ? overrideSettings.hasValidOverrideValues 
+          : (!!collectionData.selectedCollection && !!collectionData.selectedSize),
+        isCurrent: (!!originAddress.originCountry && !!originAddress.originPostalCode) &&
+          (overrideSettings.isOverrideEnabled 
+            ? !overrideSettings.hasValidOverrideValues
+            : (!collectionData.selectedCollection || !collectionData.selectedSize))
+      },
+      {
+        id: 'destination',
+        label: 'Destination',
+        isComplete: !!country && !!postalCode,
+        isCurrent: (!!originAddress.originCountry && !!originAddress.originPostalCode) &&
+          (overrideSettings.isOverrideEnabled 
+            ? overrideSettings.hasValidOverrideValues 
+            : (!!collectionData.selectedCollection && !!collectionData.selectedSize)) &&
+          (!country || !postalCode)
+      },
+      {
+        id: 'shipping',
+        label: 'Shipping Details',
+        isComplete: !!shipDate && !!currencySelector.preferredCurrency,
+        isCurrent: (!!originAddress.originCountry && !!originAddress.originPostalCode) &&
+          (overrideSettings.isOverrideEnabled 
+            ? overrideSettings.hasValidOverrideValues 
+            : (!!collectionData.selectedCollection && !!collectionData.selectedSize)) &&
+          (!!country && !!postalCode) &&
+          (!shipDate || !currencySelector.preferredCurrency)
+      }
+    ];
+
+    return steps;
+  };
 
   // Get missing validation details
   const getMissingValidationDetails = () => {
@@ -148,18 +283,11 @@ const Index = () => {
 
     // Check override validation if enabled
     if (overrideSettings.isOverrideEnabled && !overrideSettings.hasValidOverrideValues) {
-      console.warn('⚠️ Override validation failed:', {
-        errors: overrideSettings.validateOverrideValues().errors
-      });
       return;
     }
 
     // Use validation hook to check form
     if (!validation.isReadyForSubmission) {
-      console.warn('⚠️ Form validation failed:', {
-        missingFields: getMissingValidationDetails(),
-        validationErrors: validation.errors
-      });
       return;
     }
 
@@ -237,23 +365,28 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950 animated-gradient transition-colors duration-300">
       <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        {/* Theme Toggle - Fixed Position */}
+        <div className="fixed top-4 right-4 z-50">
+          <ThemeToggle />
+        </div>
+        
         <div className="max-w-full sm:max-w-2xl mx-auto">
           {/* Header */}
           <div className="text-center mb-4 sm:mb-6">
             <div className="flex items-center justify-center mb-3 sm:mb-4">
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-2 sm:p-3 rounded-xl mr-2 sm:mr-3 shadow-lg">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-2 sm:p-3 rounded-xl mr-2 sm:mr-3 shadow-lg float-animation" style={{animationDelay: '0s'}}>
                 <Truck className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <div className="bg-gradient-to-r from-slate-600 to-slate-700 p-2 sm:p-3 rounded-xl shadow-lg">
+              <div className="bg-gradient-to-r from-slate-600 to-slate-700 p-2 sm:p-3 rounded-xl shadow-lg float-animation" style={{animationDelay: '0.5s'}}>
                 <Package className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-slate-800 to-blue-800 bg-clip-text text-transparent mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-slate-800 to-blue-800 dark:from-slate-100 dark:to-blue-200 bg-clip-text text-transparent mb-2 gradient-text">
               Art Collection Shipping Calculator
             </h1>
-            <p className="text-sm sm:text-base text-slate-600 px-4">
+            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 px-4">
               Get instant FedEx shipping rates for your art collections worldwide
             </p>
           </div>
@@ -343,9 +476,9 @@ const Index = () => {
           )}
 
           {/* Main Card */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200/50 overflow-hidden">
+          <div className="glass-morphism rounded-2xl shadow-xl overflow-hidden fade-in">
             {/* Tab Navigation - responsive */}
-            <div className="flex border-b border-slate-200/70">
+            <div ref={tabsRef} className="flex border-b border-slate-200/70 touch-target gesture-hint">
               <button
                 onClick={() => setActiveTab('calculator')}
                 className={`flex-1 px-3 sm:px-6 py-3 text-xs sm:text-sm font-semibold transition-all duration-200 ${
@@ -376,9 +509,18 @@ const Index = () => {
             </div>
 
             {/* Tab Content */}
-            <div className="p-3 sm:p-6">
+            <div className={`p-3 sm:p-6 ${isMobile && showStickyButton ? 'content-with-sticky-button' : ''}`}>
               {activeTab === 'calculator' ? (
                 <div className="space-y-4 sm:space-y-5">
+                  {/* Form Progress Indicator */}
+                  <div className="mb-6">
+                    <FormProgress 
+                      steps={getFormProgressSteps()} 
+                      variant={isMobile ? "circular" : "linear"}
+                      className={isMobile ? "mx-auto" : ""}
+                    />
+                  </div>
+
                   {/* Origin Address Form */}
                   <OriginAddressForm
                     originCountry={originAddress.originCountry}
@@ -482,9 +624,9 @@ const Index = () => {
                   )}
 
                   {/* Calculate Button */}
-                  <div className="pt-3">
+                  <div ref={calculateButtonRef} className="pt-3">
                     <CalculateButton
-                      onClick={handleCalculateRates}
+                      onClick={handleCalculateRatesWithMobile}
                       disabled={debugInfo.buttonDisabled}
                       isLoading={shippingCalculator.isCalculating}
                       fedexConfigMissing={!fedexConfig.hasCompleteConfig}
@@ -509,11 +651,26 @@ const Index = () => {
                     </Alert>
                   )}
 
-                  {/* Results */}
-                  <ResultsDisplay 
-                    rates={shippingCalculator.rates} 
-                    isLoading={shippingCalculator.isCalculating} 
-                  />
+                  {/* Results - Desktop only */}
+                  {!isMobile && (
+                    <EnhancedResultsDisplay 
+                      rates={shippingCalculator.rates} 
+                      isLoading={shippingCalculator.isCalculating}
+                      originAddress={{
+                        country: originAddress.originCountry,
+                        postalCode: originAddress.originPostalCode
+                      }}
+                      destinationAddress={{
+                        country: country,
+                        postalCode: postalCode
+                      }}
+                      shipDate={shipDate}
+                      packageDetails={overrideSettings.isOverrideEnabled && overrideSettings.overrideSettings.boxes.length > 0 ? {
+                        weight: overrideSettings.overrideSettings.boxes[0].weight,
+                        dimensions: overrideSettings.overrideSettings.boxes[0].dimensions
+                      } : undefined}
+                    />
+                  )}
                 </div>
               ) : (
                 <FedexConfigForm onConfigSave={fedexConfig.handleConfigSave} />
@@ -524,7 +681,7 @@ const Index = () => {
           {/* Footer */}
           <div className="text-center mt-4 sm:mt-6 space-y-2">
             <div className="flex items-center justify-center text-slate-500 text-xs sm:text-sm">
-              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 pulse-dot"></span>
               Powered by FedEx Shipping API • Rates updated in real-time
             </div>
             {fedexConfig.hasCompleteConfig && (
@@ -543,6 +700,47 @@ const Index = () => {
           rates={shippingCalculator.rates}
           isCalculating={shippingCalculator.isCalculating}
         />
+      )}
+
+      {/* Mobile Sticky Calculate Button */}
+      {isMobile && showStickyButton && (
+        <div className={`sticky-calculate-button ${showStickyButton ? 'visible' : 'hidden'}`}>
+          <CalculateButton
+            onClick={handleCalculateRatesWithMobile}
+            disabled={debugInfo.buttonDisabled}
+            isLoading={shippingCalculator.isCalculating}
+            fedexConfigMissing={!fedexConfig.hasCompleteConfig}
+          />
+        </div>
+      )}
+
+      {/* Mobile Bottom Sheet for Results */}
+      {isMobile && (
+        <BottomSheet
+          isOpen={isBottomSheetOpen}
+          onClose={() => setIsBottomSheetOpen(false)}
+          title="Shipping Rates"
+          snapPoints={[0.5, 0.9]}
+          defaultSnapPoint={0}
+        >
+          <EnhancedResultsDisplay 
+            rates={shippingCalculator.rates} 
+            isLoading={shippingCalculator.isCalculating}
+            originAddress={{
+              country: originAddress.originCountry,
+              postalCode: originAddress.originPostalCode
+            }}
+            destinationAddress={{
+              country: country,
+              postalCode: postalCode
+            }}
+            shipDate={shipDate}
+            packageDetails={overrideSettings.isOverrideEnabled && overrideSettings.overrideSettings.boxes.length > 0 ? {
+              weight: overrideSettings.overrideSettings.boxes[0].weight,
+              dimensions: overrideSettings.overrideSettings.boxes[0].dimensions
+            } : undefined}
+          />
+        </BottomSheet>
       )}
     </div>
   );
