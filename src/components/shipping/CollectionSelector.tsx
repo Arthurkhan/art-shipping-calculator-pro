@@ -34,12 +34,12 @@ export const CollectionSelector = ({
         <SelectTrigger id="collection" className="w-full h-10 border-slate-300 focus:border-blue-500 focus:ring-blue-500">
           <SelectValue placeholder={isLoading ? "Loading collections..." : "Select an art collection..."} />
         </SelectTrigger>
-        <SelectContent className="bg-white border-slate-200 shadow-lg">
+        <SelectContent className="bg-white dark:bg-gray-900 border-slate-200 shadow-lg">
           {collections.map((collection) => (
             <SelectItem 
               key={collection.id} 
               value={collection.id}
-              className="hover:bg-blue-50 focus:bg-blue-50"
+              className="hover:bg-blue-50 dark:hover:bg-blue-900/50 focus:bg-blue-50 dark:focus:bg-blue-900/50"
               onMouseEnter={() => prefetchCollectionSizes(collection.id)}
             >
               {collection.name}

@@ -113,7 +113,7 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
                   </div>
                   
                   {/* Transit Time */}
-                  <div className="flex items-start text-xs sm:text-sm text-slate-600">
+                  <div className="flex items-start text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                     <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0 mt-0.5" />
                     <span className="break-words">
                       {primaryRate.transitTime}
@@ -131,7 +131,7 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
                   {hasDiscount ? (
                     <div className="space-y-2">
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-xs sm:text-sm line-through text-slate-500">
+                        <span className="text-xs sm:text-sm line-through text-slate-500 dark:text-slate-400">
                           {list.currency} {formatPrice(list.cost)}
                         </span>
                         <Badge variant="outline" className="badge-responsive border-green-600 text-green-700">
@@ -156,7 +156,7 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
                         <div className="text-lg sm:text-xl font-bold text-slate-800">
                           {primaryRate.currency} {formatPrice(primaryRate.cost)}
                         </div>
-                        <div className="text-xs sm:text-sm text-slate-500">
+                        <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                           {primaryRate.currency === 'THB' ? 'Thai Baht' : 
                            primaryRate.currency === 'USD' ? 'US Dollar' : 
                            primaryRate.currency === 'SGD' ? 'Singapore Dollar' : 

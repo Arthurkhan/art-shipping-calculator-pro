@@ -100,7 +100,7 @@ const BoxRow = ({
   const billedWeight = getBilledWeight(box);
 
   return (
-    <div className="space-y-3 bg-slate-50 rounded-lg p-3 sm:p-4">
+    <div className="space-y-3 bg-slate-50 dark:bg-slate-800 rounded-lg p-3 sm:p-4">
       {/* Box header - collapsible on mobile */}
       <div className="flex items-center justify-between">
         <button
@@ -301,19 +301,19 @@ const BoxRow = ({
 
         {/* Weight calculations - responsive layout */}
         {isEnabled && (
-          <div className="bg-white rounded-md p-2 sm:p-3 space-y-1">
-            <div className="text-xs sm:text-sm text-slate-600">
+          <div className="bg-white dark:bg-gray-800 rounded-md p-2 sm:p-3 space-y-1">
+            <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-2">
                 <div>
-                  <span className="text-slate-500">Actual:</span>{' '}
+                  <span className="text-slate-500 dark:text-slate-400">Actual:</span>{' '}
                   <span className="font-medium">{box.weight} kg</span>
                 </div>
                 <div>
-                  <span className="text-slate-500">Dimensional:</span>{' '}
+                  <span className="text-slate-500 dark:text-slate-400">Dimensional:</span>{' '}
                   <span className="font-medium">{dimensionalWeight.toFixed(2)} kg</span>
                 </div>
                 <div>
-                  <span className="text-slate-500">Billed:</span>{' '}
+                  <span className="text-slate-500 dark:text-slate-400">Billed:</span>{' '}
                   <span className="font-semibold text-purple-700">
                     {billedWeight.toFixed(2)} kg
                   </span>
@@ -358,7 +358,7 @@ export const OverrideForm = ({
   };
 
   return (
-    <Card className={`border-purple-200 ${isEnabled ? 'bg-purple-50/50' : 'bg-slate-50/50'}`}>
+    <Card className={`border-purple-200 ${isEnabled ? 'bg-purple-50/50 dark:bg-slate-800/50' : 'bg-slate-50/50 dark:bg-slate-800/50'}`}>
       <CardHeader className="pb-3 sm:pb-4">
         <CardTitle className="text-base sm:text-lg flex items-center text-purple-900">
           <Package className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
@@ -401,26 +401,26 @@ export const OverrideForm = ({
 
         {/* Shipment Summary - responsive grid */}
         {isEnabled && shipmentStats && overrideSettings.boxes.length > 0 && (
-          <div className="bg-white rounded-lg p-3 sm:p-4 space-y-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-4 space-y-2">
             <div className="text-sm font-medium text-slate-700">Shipment Summary</div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="space-y-2">
                 <div>
-                  <span className="text-slate-600">Total Boxes:</span>{" "}
+                  <span className="text-slate-600 dark:text-slate-400">Total Boxes:</span>{" "}
                   <span className="font-medium">{shipmentStats.totalBoxes}</span>
                 </div>
                 <div>
-                  <span className="text-slate-600">Configurations:</span>{" "}
+                  <span className="text-slate-600 dark:text-slate-400">Configurations:</span>{" "}
                   <span className="font-medium">{shipmentStats.boxConfigurations}</span>
                 </div>
               </div>
               <div className="space-y-2">
                 <div>
-                  <span className="text-slate-600">Total Weight:</span>{" "}
+                  <span className="text-slate-600 dark:text-slate-400">Total Weight:</span>{" "}
                   <span className="font-medium">{shipmentStats.totalWeight.toFixed(2)} kg</span>
                 </div>
                 <div>
-                  <span className="text-slate-600">Billed Weight:</span>{" "}
+                  <span className="text-slate-600 dark:text-slate-400">Billed Weight:</span>{" "}
                   <Badge variant="outline" className="ml-1 bg-purple-100 text-purple-800 text-xs">
                     {shipmentStats.totalBilledWeight.toFixed(2)} kg
                   </Badge>

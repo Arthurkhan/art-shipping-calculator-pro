@@ -86,7 +86,7 @@ export const ShippingDetailsForm = ({
     <div className="space-y-3">
       <div className="border-b border-slate-200 pb-2">
         <h3 className="text-sm sm:text-base font-semibold text-slate-800">Shipping Details</h3>
-        <p className="text-xs text-slate-600">Destination and shipping date information</p>
+        <p className="text-xs text-slate-600 dark:text-slate-400">Destination and shipping date information</p>
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -156,7 +156,7 @@ export const ShippingDetailsForm = ({
               />
             </PopoverContent>
           </Popover>
-          <p className="text-xs text-slate-500">Earliest ship date is today</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Earliest ship date is today</p>
         </div>
 
         {/* Currency Selection */}
@@ -164,7 +164,7 @@ export const ShippingDetailsForm = ({
           <Label htmlFor="currency" className="text-sm font-medium flex items-center">
             <DollarSign className="w-4 h-4 mr-1" />
             Preferred Currency 
-            <span className="text-xs text-slate-500 ml-1">(optional)</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 ml-1">(optional)</span>
           </Label>
           <Select value={preferredCurrency} onValueChange={onPreferredCurrencyChange}>
             <SelectTrigger id="currency" className="h-12 sm:h-10 text-base sm:text-sm">
@@ -193,7 +193,7 @@ export const ShippingDetailsForm = ({
             </SelectContent>
           </Select>
           <div className="space-y-1">
-            <p className="text-xs text-slate-500">Defaults to EUR if not selected</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Defaults to EUR if not selected</p>
           </div>
         </div>
       </div>

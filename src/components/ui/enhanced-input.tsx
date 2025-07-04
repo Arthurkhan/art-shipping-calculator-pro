@@ -105,7 +105,7 @@ export const EnhancedInput: React.FC<EnhancedInputProps> = ({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <HelpCircle className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-help transition-colors" />
+                  <HelpCircle className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 cursor-help transition-colors" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="max-w-xs text-sm">{tooltip}</p>
@@ -118,7 +118,7 @@ export const EnhancedInput: React.FC<EnhancedInputProps> = ({
       
       <div className="relative">
         {leftIcon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-300">
             {leftIcon}
           </div>
         )}
@@ -147,14 +147,14 @@ export const EnhancedInput: React.FC<EnhancedInputProps> = ({
         
         {/* Suggestions dropdown */}
         {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto fade-in">
+          <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-60 overflow-auto fade-in">
             {suggestions.map((suggestion, index) => (
               <button
                 key={index}
                 type="button"
                 className={cn(
-                  "w-full px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors",
-                  highlightedIndex === index && "bg-blue-50 text-blue-700"
+                  "w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors",
+                  highlightedIndex === index && "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                 )}
                 onClick={() => handleSuggestionClick(suggestion)}
               >
@@ -168,7 +168,7 @@ export const EnhancedInput: React.FC<EnhancedInputProps> = ({
       {(helperText || error) && (
         <p className={cn(
           "text-sm transition-all duration-200",
-          error ? "text-red-500" : "text-gray-600"
+          error ? "text-red-500" : "text-gray-600 dark:text-gray-300"
         )}>
           {error || helperText}
         </p>

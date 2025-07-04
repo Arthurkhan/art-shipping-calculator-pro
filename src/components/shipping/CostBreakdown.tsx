@@ -168,19 +168,19 @@ ${savingsAmount > 0 ? `You Save: ${currency} ${formatPrice(savingsAmount)} (${sa
       
       <CardContent className="space-y-4">
         {/* Summary */}
-        <div className="flex items-end justify-between p-4 bg-gray-50 rounded-lg">
+        <div className="flex items-end justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <div>
-            <p className="text-sm text-gray-600 mb-1">Total Shipping Cost</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">Total Shipping Cost</p>
             <p className="text-2xl font-bold">
               {currency} {formatPrice(totalCost)}
             </p>
             {savingsAmount > 0 && (
               <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline" className="bg-green-50 border-green-300 text-green-700">
+                <Badge variant="outline" className="bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300">
                   <TrendingDown className="w-3 h-3 mr-1" />
                   You save {savingsPercent}%
                 </Badge>
-                <span className="text-sm text-green-600">
+                <span className="text-sm text-green-600 dark:text-green-400">
                   {currency} {formatPrice(savingsAmount)}
                 </span>
               </div>
@@ -223,7 +223,7 @@ ${savingsAmount > 0 ? `You Save: ${currency} ${formatPrice(savingsAmount)} (${sa
                     <Package className="w-5 h-5 text-blue-600 mt-0.5" />
                     <div>
                       <p className="font-medium">Base Rate</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
                         The standard rate for {service} based on package weight and dimensions.
                       </p>
                     </div>
@@ -232,7 +232,7 @@ ${savingsAmount > 0 ? `You Save: ${currency} ${formatPrice(savingsAmount)} (${sa
                     <Fuel className="w-5 h-5 text-orange-600 mt-0.5" />
                     <div>
                       <p className="font-medium">Fuel Surcharge</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
                         A variable fee that adjusts weekly based on fuel prices. Currently at market rate.
                       </p>
                     </div>
@@ -241,7 +241,7 @@ ${savingsAmount > 0 ? `You Save: ${currency} ${formatPrice(savingsAmount)} (${sa
                     <Shield className="w-5 h-5 text-green-600 mt-0.5" />
                     <div>
                       <p className="font-medium">Insurance</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
                         Optional coverage for your shipment's declared value. Recommended for artwork.
                       </p>
                     </div>
@@ -250,7 +250,7 @@ ${savingsAmount > 0 ? `You Save: ${currency} ${formatPrice(savingsAmount)} (${sa
                     <TrendingDown className="w-5 h-5 text-purple-600 mt-0.5" />
                     <div>
                       <p className="font-medium">Account Discount</p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
                         Your negotiated discount based on shipping volume and account type.
                       </p>
                     </div>
@@ -266,8 +266,8 @@ ${savingsAmount > 0 ? `You Save: ${currency} ${formatPrice(savingsAmount)} (${sa
           <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
             {listPrice && listPrice !== totalCost && (
               <div className="flex justify-between items-center py-2 text-sm">
-                <span className="text-gray-500">List Price</span>
-                <span className="line-through text-gray-500">
+                <span className="text-gray-500 dark:text-gray-400">List Price</span>
+                <span className="line-through text-gray-500 dark:text-gray-400">
                   {currency} {formatPrice(listPrice)}
                 </span>
               </div>
@@ -277,7 +277,7 @@ ${savingsAmount > 0 ? `You Save: ${currency} ${formatPrice(savingsAmount)} (${sa
               <div 
                 key={index}
                 className={cn(
-                  "flex justify-between items-center py-2 border-b border-gray-100 last:border-0",
+                  "flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700 last:border-0",
                   item.isDiscount && "text-green-600"
                 )}
               >
@@ -287,7 +287,7 @@ ${savingsAmount > 0 ? `You Save: ${currency} ${formatPrice(savingsAmount)} (${sa
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                          <Info className="w-3 h-3 text-gray-400" />
+                          <Info className="w-3 h-3 text-gray-400 dark:text-gray-500" />
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="max-w-sm">
@@ -306,7 +306,7 @@ ${savingsAmount > 0 ? `You Save: ${currency} ${formatPrice(savingsAmount)} (${sa
               </div>
             ))}
             
-            <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+            <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700">
               <span className="font-semibold">Total Cost</span>
               <span className="text-lg font-bold">
                 {currency} {formatPrice(totalCost)}
@@ -315,12 +315,12 @@ ${savingsAmount > 0 ? `You Save: ${currency} ${formatPrice(savingsAmount)} (${sa
 
             {/* Shipment Details */}
             {shipmentDetails && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <h4 className="text-sm font-medium text-blue-900 mb-2 flex items-center gap-2">
+              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
                   <FileText className="w-4 h-4" />
                   Shipment Details
                 </h4>
-                <div className="grid grid-cols-2 gap-2 text-xs text-blue-800">
+                <div className="grid grid-cols-2 gap-2 text-xs text-blue-800 dark:text-blue-200">
                   <div>
                     <span className="font-medium">Origin:</span> {shipmentDetails.origin}
                   </div>

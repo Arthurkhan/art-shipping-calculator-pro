@@ -145,7 +145,7 @@ export const EnhancedResultsDisplay: React.FC<EnhancedResultsDisplayProps> = ({
   return (
     <div className={cn(
       "space-y-4 transition-all duration-300",
-      isExpanded && "fixed inset-0 z-50 bg-white p-4 overflow-auto"
+      isExpanded && "fixed inset-0 z-50 bg-background p-4 overflow-auto"
     )}>
       {/* Header Actions */}
       <div className="flex justify-between items-center">

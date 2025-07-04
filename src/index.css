@@ -64,20 +64,20 @@
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 217.2 32.6% 25%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 217.2 32.6% 20%;
+    --muted-foreground: 215 20.2% 70%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 217.2 32.6% 25%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 217.2 32.6% 25%;
+    --input: 217.2 32.6% 25%;
     --ring: 212.7 26.8% 83.9%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
@@ -87,6 +87,24 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Enhanced Dark Mode Color System */
+  .dark {
+    /* Surface Levels for better depth perception */
+    --surface-base: 222.2 84% 4.9%;       /* Main background */
+    --surface-card: 220 28% 12%;         /* Card backgrounds */
+    --surface-elevated: 220 26% 16%;     /* Elevated elements like modals */
+    
+    /* Status Colors with proper dark mode contrast */
+    --success-bg: 142 70% 15%;           /* Dark green background */
+    --success-fg: 142 70% 85%;           /* Light green text */
+    --info-bg: 208 80% 15%;              /* Dark blue background */
+    --info-fg: 208 80% 85%;              /* Light blue text */
+    --warning-bg: 38 80% 15%;            /* Dark orange background */
+    --warning-fg: 38 80% 85%;            /* Light orange text */
+    --error-bg: 0 70% 15%;               /* Dark red background */
+    --error-fg: 0 70% 85%;               /* Light red text */
   }
 }
 

@@ -48,10 +48,10 @@ export const CalculateButton = ({ onClick, disabled, isLoading, fedexConfigMissi
     const baseClasses = "w-full h-12 font-medium text-lg transition-all duration-200 button-press button-hover";
     
     if (fedexConfigMissing) {
-      return `${baseClasses} border-orange-300 text-orange-700 hover:bg-orange-50 disabled:bg-slate-100 disabled:text-slate-400`;
+      return `${baseClasses} border-orange-300 text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600`;
     }
     
-    return `${baseClasses} bg-blue-600 hover:bg-blue-700 text-white disabled:bg-slate-300 disabled:text-slate-500`;
+    return `${baseClasses} bg-blue-600 hover:bg-blue-700 text-white disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 dark:disabled:text-slate-400`;
   };
 
   return (

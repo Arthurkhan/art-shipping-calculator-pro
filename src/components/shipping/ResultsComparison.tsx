@@ -214,21 +214,21 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
       </div>
 
       {/* Results Summary */}
-      <Card className="p-4 bg-blue-50 border-blue-200">
+      <Card className="p-4 bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
         <div className="space-y-2">
-          <h4 className="font-semibold text-blue-900">Shipping Summary</h4>
+          <h4 className="font-semibold text-blue-900 dark:text-blue-100">Shipping Summary</h4>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
             <div>
-              <span className="text-blue-700">From:</span> {originAddress}
+              <span className="text-blue-700 dark:text-blue-300">From:</span> {originAddress}
             </div>
             <div>
-              <span className="text-blue-700">To:</span> {destinationAddress}
+              <span className="text-blue-700 dark:text-blue-300">To:</span> {destinationAddress}
             </div>
             <div>
-              <span className="text-blue-700">Ship Date:</span> {shipDate ? format(shipDate, 'MMM d, yyyy') : 'Today'}
+              <span className="text-blue-700 dark:text-blue-300">Ship Date:</span> {shipDate ? format(shipDate, 'MMM d, yyyy') : 'Today'}
             </div>
           </div>
-          <div className="text-sm text-blue-800">
+          <div className="text-sm text-blue-800 dark:text-blue-200">
             Found {sortedRates.length} shipping option{sortedRates.length !== 1 ? 's' : ''}
           </div>
         </div>
@@ -253,13 +253,13 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
                     <h4 className="font-semibold text-base">{rate.service}</h4>
                     <div className="flex gap-2">
                       {rate.cost === bestPrice && (
-                        <Badge variant="outline" className="bg-green-50 border-green-500 text-green-700">
+                        <Badge variant="outline" className="bg-green-50 dark:bg-green-950/30 border-green-500 dark:border-green-700 text-green-700 dark:text-green-300">
                           <DollarSign className="w-3 h-3 mr-1" />
                           Best Price
                         </Badge>
                       )}
                       {rate === bestTime && (
-                        <Badge variant="outline" className="bg-blue-50 border-blue-500 text-blue-700">
+                        <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/30 border-blue-500 dark:border-blue-700 text-blue-700 dark:text-blue-300">
                           <Clock className="w-3 h-3 mr-1" />
                           Fastest
                         </Badge>
@@ -267,7 +267,7 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
                     </div>
                   </div>
                   
-                  <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                  <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-300">
                     <div className="flex items-center">
                       <Clock className="w-4 h-4 mr-1" />
                       {rate.transitTime}
@@ -283,7 +283,7 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
 
                 <div className="text-right space-y-1">
                   {rate.listPrice && rate.listPrice > rate.cost && (
-                    <div className="text-sm text-gray-500 line-through">
+                    <div className="text-sm text-gray-500 dark:text-gray-300 line-through">
                       {rate.currency} {formatPrice(rate.listPrice)}
                     </div>
                   )}
@@ -320,8 +320,8 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
                 <TableRow 
                   key={`${rate.service}-${index}`}
                   className={cn(
-                    rate.cost === bestPrice && "bg-green-50",
-                    rate === bestTime && "bg-blue-50"
+                    rate.cost === bestPrice && "bg-green-50 dark:bg-green-950/20",
+                    rate === bestTime && "bg-blue-50 dark:bg-blue-950/20"
                   )}
                 >
                   <TableCell className="font-medium">
@@ -339,7 +339,7 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
                   <TableCell>{rate.deliveryDate || '-'}</TableCell>
                   <TableCell className="text-right">
                     {rate.listPrice ? (
-                      <span className="line-through text-gray-500">
+                      <span className="line-through text-gray-500 dark:text-gray-300">
                         {rate.currency} {formatPrice(rate.listPrice)}
                       </span>
                     ) : '-'}

@@ -111,7 +111,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
       <div
         ref={sheetRef}
         className={cn(
-          "fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 md:hidden",
+          "fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-2xl shadow-2xl z-50 md:hidden",
           "transition-all duration-300 ease-out",
           isDragging ? "" : "transition-height",
           className
@@ -128,7 +128,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          <div className="w-12 h-1 bg-gray-300 rounded-full" />
+          <div className="w-12 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
         </div>
         
         {/* Header */}
@@ -137,7 +137,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             <h3 className="text-lg font-semibold">{title}</h3>
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>

@@ -166,7 +166,7 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
               id="showCredentials"
               checked={showCredentials}
               onChange={(e) => setShowCredentials(e.target.checked)}
-              className="rounded border-gray-300"
+              className="rounded border-gray-300 dark:border-gray-600"
             />
             <Label htmlFor="showCredentials" className="text-sm font-normal cursor-pointer">
               Show credentials

@@ -105,8 +105,8 @@ export const OriginAddressForm = ({
       <div className="border-b border-slate-200 pb-2">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-slate-800">Origin Address</h3>
-            <p className="text-xs text-slate-600">Where are you shipping from?</p>
+            <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">Origin Address</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400">Where are you shipping from?</p>
           </div>
           <div className="flex gap-2">
             <Button
@@ -144,12 +144,12 @@ export const OriginAddressForm = ({
         </div>
         
         {/* Thailand Default Notice - Updated */}
-        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-xs text-blue-700 flex items-center">
+        <div className="mt-2 p-2 bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center">
             <MapPin className="w-3 h-3 mr-1.5" />
             <strong>Default:</strong> Thailand (TH), Postal Code 10240
           </p>
-          <p className="text-xs text-blue-600 mt-1">
+          <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
             Use 2-letter country codes (TH, US, GB, etc.) for all addresses.
           </p>
         </div>

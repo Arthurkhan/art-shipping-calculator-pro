@@ -108,20 +108,20 @@ export const DeliveryTimeline: React.FC<DeliveryTimelineProps> = ({
             Delivery Timeline
           </h3>
           {isExpress && (
-            <Badge variant="outline" className="bg-orange-50 border-orange-300 text-orange-700">
+            <Badge variant="outline" className="bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300">
               Express Service
             </Badge>
           )}
         </div>
 
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600 dark:text-gray-300">
           {serviceName} • {transitDays} business day{transitDays !== 1 ? 's' : ''}
         </div>
 
         {/* Timeline */}
         <div className="relative">
           {/* Connecting line */}
-          <div className="absolute left-4 top-8 bottom-8 w-0.5 bg-gray-300" />
+          <div className="absolute left-4 top-8 bottom-8 w-0.5 bg-gray-300 dark:bg-gray-600" />
           
           <div className="space-y-6">
             {events.map((event, index) => (
@@ -130,8 +130,8 @@ export const DeliveryTimeline: React.FC<DeliveryTimelineProps> = ({
                 <div className={cn(
                   "relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-white",
                   getEventColor(event.type),
-                  index === 0 && "ring-4 ring-blue-100",
-                  index === events.length - 1 && "ring-4 ring-green-100"
+                  index === 0 && "ring-4 ring-blue-100 dark:ring-blue-800",
+                  index === events.length - 1 && "ring-4 ring-green-100 dark:ring-green-800"
                 )}>
                   {getEventIcon(event.type)}
                 </div>
@@ -147,16 +147,16 @@ export const DeliveryTimeline: React.FC<DeliveryTimelineProps> = ({
                       </Badge>
                     )}
                   </div>
-                  <div className="text-sm text-gray-600 mt-1">
+                  <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                     {format(event.date, 'EEEE, MMMM d, yyyy')}
                   </div>
                   {index === 0 && (
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-xs text-gray-500 dark:text-gray-300 mt-1">
                       Ready for pickup at end of business day
                     </div>
                   )}
                   {index === events.length - 1 && (
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-xs text-gray-500 dark:text-gray-300 mt-1">
                       By end of business day
                     </div>
                   )}
@@ -167,10 +167,10 @@ export const DeliveryTimeline: React.FC<DeliveryTimelineProps> = ({
         </div>
 
         {/* Additional Info */}
-        <div className="mt-6 p-3 bg-blue-50 rounded-lg">
+        <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
           <div className="flex items-start gap-2">
-            <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5" />
-            <div className="text-sm text-blue-800">
+            <CheckCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5" />
+            <div className="text-sm text-blue-800 dark:text-blue-200">
               <p className="font-medium">Delivery Guarantee</p>
               <p className="text-xs mt-1">
                 {isExpress 

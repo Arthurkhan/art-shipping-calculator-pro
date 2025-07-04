@@ -91,7 +91,7 @@ export const DebugPanel = ({ rates, isCalculating, lastResponse }: DebugPanelPro
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-96 max-h-[600px] bg-white rounded-lg shadow-2xl border border-gray-200 overflow-hidden">
+    <div className="fixed bottom-4 right-4 z-50 w-96 max-h-[600px] bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-3 flex items-center justify-between">
         <div className="flex items-center">
@@ -119,13 +119,13 @@ export const DebugPanel = ({ rates, isCalculating, lastResponse }: DebugPanelPro
         {/* Status */}
         <div className="p-3 border-b">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Status:</span>
+            <span className="text-gray-600 dark:text-gray-400">Status:</span>
             <span className={`font-medium ${isCalculating ? 'text-blue-600' : 'text-green-600'}`}>
               {isCalculating ? 'Calculating...' : 'Ready'}
             </span>
           </div>
           <div className="flex items-center justify-between text-sm mt-1">
-            <span className="text-gray-600">Rates Found:</span>
+            <span className="text-gray-600 dark:text-gray-400">Rates Found:</span>
             <span className="font-medium">{rates.length}</span>
           </div>
         </div>
@@ -145,13 +145,13 @@ export const DebugPanel = ({ rates, isCalculating, lastResponse }: DebugPanelPro
             </div>
             <div className="space-y-2">
               {rates.map((rate, index) => (
-                <div key={index} className="bg-gray-50 p-2 rounded text-xs">
+                <div key={index} className="bg-gray-50 dark:bg-gray-800 p-2 rounded text-xs">
                   <div className="font-medium text-gray-700">{rate.service}</div>
-                  <div className="grid grid-cols-2 gap-2 mt-1 text-gray-600">
+                  <div className="grid grid-cols-2 gap-2 mt-1 text-gray-600 dark:text-gray-400">
                     <div>Cost: {formatCurrency(rate.cost, rate.currency)}</div>
                     <div>Transit: {rate.transitTime}</div>
                     <div className="col-span-2">
-                      Raw Cost Value: <code className="bg-gray-200 px-1 rounded">{JSON.stringify(rate.cost)}</code>
+                      Raw Cost Value: <code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{JSON.stringify(rate.cost)}</code>
                     </div>
                   </div>
                 </div>
@@ -176,7 +176,7 @@ export const DebugPanel = ({ rates, isCalculating, lastResponse }: DebugPanelPro
         {isExpanded && (
           <div className="p-3">
             <h4 className="font-semibold text-sm mb-2">Raw Response Preview</h4>
-            <div className="bg-gray-100 p-2 rounded text-xs font-mono overflow-x-auto">
+            <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs font-mono overflow-x-auto">
               <pre>{JSON.stringify(rates, null, 2)}</pre>
             </div>
             <Alert className="mt-3">
@@ -188,7 +188,7 @@ export const DebugPanel = ({ rates, isCalculating, lastResponse }: DebugPanelPro
         )}
 
         {/* Quick Actions */}
-        <div className="p-3 bg-gray-50 text-xs text-gray-600">
+        <div className="p-3 bg-gray-50 dark:bg-gray-800 text-xs text-gray-600 dark:text-gray-400">
           <div className="flex items-center justify-between">
             <span>Press Ctrl+Shift+D to toggle</span>
             <span className="text-blue-600">v1.0.0</span>

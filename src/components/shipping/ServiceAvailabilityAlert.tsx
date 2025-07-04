@@ -39,12 +39,12 @@ export const ServiceAvailabilityAlert: React.FC<ServiceAvailabilityAlertProps> =
           </p>
           
           <div className="flex items-center justify-center gap-4 py-3">
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-orange-200">
+            <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-orange-200">
               <MapPin className="h-4 w-4 text-orange-600" />
               <span className="font-semibold">{origin.country} ({origin.postalCode})</span>
             </div>
             <span className="text-orange-600">→</span>
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-orange-200">
+            <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-orange-200">
               <MapPin className="h-4 w-4 text-orange-600" />
               <span className="font-semibold">{destination.country} ({destination.postalCode})</span>
             </div>
@@ -111,7 +111,7 @@ export const ServiceAvailabilityAlert: React.FC<ServiceAvailabilityAlertProps> =
       </div>
 
       {/* Additional Help Text */}
-      <div className="bg-gray-100 rounded-lg p-4 text-sm text-gray-700">
+      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 text-sm text-gray-700">
         <p className="font-medium mb-2">Why is service not available?</p>
         <ul className="space-y-1 list-disc list-inside">
           <li>FedEx may not have direct routes between certain countries</li>
