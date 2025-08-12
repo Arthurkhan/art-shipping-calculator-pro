@@ -131,6 +131,7 @@ const Index = () => {
             hasCompleteConfig={fedexConfig.hasCompleteConfig}
             isLoading={fedexConfig.isLoading}
             isMissingConfig={fedexConfig.isMissingConfig}
+            isUsingDefaults={fedexConfig.isUsingDefaults}
             onConfigureClick={() => setActiveTab('config')}
           />
 
@@ -169,7 +170,11 @@ const Index = () => {
                   formProgressSteps={formProgressSteps}
                 />
               ) : (
-                <ConfigurationTab onConfigSave={fedexConfig.handleConfigSave} />
+                <ConfigurationTab 
+                  onConfigSave={fedexConfig.handleConfigSave}
+                  isUsingDefaults={fedexConfig.isUsingDefaults}
+                  hasCompleteConfig={fedexConfig.hasCompleteConfig}
+                />
               )}
             </div>
           </div>

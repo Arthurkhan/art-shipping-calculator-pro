@@ -121,55 +121,70 @@ class EncryptionService {
 // FEDEX CONFIG RETRIEVAL
 // ============================================
 async function getFedexConfig(sessionId: string | undefined): Promise<{accountNumber: string, clientId: string, clientSecret: string} | null> {
-  if (!sessionId) {
-    Logger.warn('No session ID provided for FedEx config retrieval');
-    return null;
+  // First, try to get config from session if provided
+  if (sessionId) {
+    try {
+      const encryptionSecret = Deno.env.get('FEDEX_ENCRYPTION_SECRET');
+      if (!encryptionSecret) {
+        Logger.error('Encryption configuration missing');
+        return null;
+      }
+
+      // Get Supabase client
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      
+      if (!supabaseUrl || !supabaseServiceKey) {
+        Logger.error('Supabase configuration missing');
+        return null;
+      }
+      
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      // Retrieve session from Supabase
+      const { data: session, error } = await supabase
+        .from('fedex_sessions')
+        .select('*')
+        .eq('session_id', sessionId)
+        .single();
+
+      if (session && !error) {
+        const encryptionKey = await EncryptionService.generateKey(encryptionSecret);
+
+        const decryptedConfig = {
+          accountNumber: await EncryptionService.decrypt(session.encrypted_account_number, encryptionKey),
+          clientId: await EncryptionService.decrypt(session.encrypted_client_id, encryptionKey),
+          clientSecret: await EncryptionService.decrypt(session.encrypted_client_secret, encryptionKey)
+        };
+
+        Logger.info('FedEx config retrieved from session successfully');
+        return decryptedConfig;
+      }
+    } catch (error) {
+      Logger.warn('Failed to retrieve FedEx config from session', { error: error instanceof Error ? error.message : String(error) });
+    }
   }
 
+  // Fallback to default credentials if available
   try {
-    const encryptionSecret = Deno.env.get('FEDEX_ENCRYPTION_SECRET');
-    if (!encryptionSecret) {
-      Logger.error('Encryption configuration missing');
-      return null;
+    const defaultAccount = Deno.env.get('FEDEX_DEFAULT_ACCOUNT');
+    const defaultClientId = Deno.env.get('FEDEX_DEFAULT_CLIENT_ID');
+    const defaultClientSecret = Deno.env.get('FEDEX_DEFAULT_CLIENT_SECRET');
+
+    if (defaultAccount && defaultClientId && defaultClientSecret) {
+      Logger.info('Using default FedEx credentials');
+      return {
+        accountNumber: defaultAccount,
+        clientId: defaultClientId,
+        clientSecret: defaultClientSecret
+      };
     }
-
-    // Get Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      Logger.error('Supabase configuration missing');
-      return null;
-    }
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    // Retrieve session from Supabase
-    const { data: session, error } = await supabase
-      .from('fedex_sessions')
-      .select('*')
-      .eq('session_id', sessionId)
-      .single();
-
-    if (error || !session) {
-      Logger.warn('No FedEx config found for session', { sessionId, error: error?.message });
-      return null;
-    }
-
-    const encryptionKey = await EncryptionService.generateKey(encryptionSecret);
-
-    const decryptedConfig = {
-      accountNumber: await EncryptionService.decrypt(session.encrypted_account_number, encryptionKey),
-      clientId: await EncryptionService.decrypt(session.encrypted_client_id, encryptionKey),
-      clientSecret: await EncryptionService.decrypt(session.encrypted_client_secret, encryptionKey)
-    };
-
-    Logger.info('FedEx config retrieved successfully');
-    return decryptedConfig;
   } catch (error) {
-    Logger.error('Failed to retrieve FedEx config', { error: error instanceof Error ? error.message : String(error) });
-    return null;
+    Logger.error('Failed to retrieve default FedEx config', { error: error instanceof Error ? error.message : String(error) });
   }
+
+  Logger.warn('No FedEx configuration available (neither session nor defaults)');
+  return null;
 }
 
 // ============================================

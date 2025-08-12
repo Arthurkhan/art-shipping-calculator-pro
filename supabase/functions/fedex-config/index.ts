@@ -5,7 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // TYPES
 // ============================================
 interface FedexConfigRequest {
-  action: 'save' | 'get' | 'validate' | 'delete';
+  action: 'save' | 'get' | 'validate' | 'delete' | 'check-defaults';
   config?: {
     accountNumber?: string;
     clientId?: string;
@@ -214,31 +214,40 @@ serve(async (req) => {
         break;
 
       case 'get':
-        if (!request.sessionId) {
-          response = {
-            success: true,
-            hasConfig: false
-          };
-          break;
+        // Check session-based config first
+        if (request.sessionId) {
+          // Retrieve from Supabase
+          const { data: getSession, error: getError } = await supabase
+            .from('fedex_sessions')
+            .select('*')
+            .eq('session_id', request.sessionId)
+            .single();
+
+          if (getSession && !getError) {
+            response = {
+              success: true,
+              hasConfig: true,
+              sessionId: request.sessionId
+            };
+            break;
+          }
         }
 
-        // Retrieve from Supabase
-        const { data: getSession, error: getError } = await supabase
-          .from('fedex_sessions')
-          .select('*')
-          .eq('session_id', request.sessionId)
-          .single();
-
-        if (getError || !getSession) {
+        // Check for default credentials as fallback
+        const defaultAccountGet = Deno.env.get('FEDEX_DEFAULT_ACCOUNT');
+        const defaultClientIdGet = Deno.env.get('FEDEX_DEFAULT_CLIENT_ID');
+        const defaultClientSecretGet = Deno.env.get('FEDEX_DEFAULT_CLIENT_SECRET');
+        
+        if (defaultAccountGet && defaultClientIdGet && defaultClientSecretGet) {
           response = {
             success: true,
-            hasConfig: false
+            hasConfig: true,
+            sessionId: 'default' // Special sessionId to indicate using defaults
           };
         } else {
           response = {
             success: true,
-            hasConfig: true,
-            sessionId: request.sessionId
+            hasConfig: false
           };
         }
         break;
@@ -309,6 +318,21 @@ serve(async (req) => {
         response = {
           success: true,
           message: 'Configuration deleted'
+        };
+        break;
+
+      case 'check-defaults':
+        // Check if default credentials are available
+        const defaultAccount = Deno.env.get('FEDEX_DEFAULT_ACCOUNT');
+        const defaultClientId = Deno.env.get('FEDEX_DEFAULT_CLIENT_ID');
+        const defaultClientSecret = Deno.env.get('FEDEX_DEFAULT_CLIENT_SECRET');
+        
+        const hasDefaults = !!(defaultAccount && defaultClientId && defaultClientSecret);
+        
+        response = {
+          success: true,
+          hasConfig: hasDefaults,
+          message: hasDefaults ? 'Default FedEx credentials are configured' : 'No default credentials'
         };
         break;
 

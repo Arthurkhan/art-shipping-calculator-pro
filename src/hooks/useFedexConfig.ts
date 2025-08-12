@@ -18,6 +18,7 @@ export const useFedexConfig = () => {
   const [fedexConfigStatus, setFedexConfigStatus] = useState<ValidationStatus>('missing');
   const [isLoading, setIsLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isUsingDefaults, setIsUsingDefaults] = useState(false);
   const { toast } = useToast();
 
   // Check FedEx configuration status
@@ -31,6 +32,7 @@ export const useFedexConfig = () => {
       if (hasConfig && existingSessionId) {
         setFedexConfigStatus('complete');
         setSessionId(existingSessionId);
+        setIsUsingDefaults(existingSessionId === 'default');
         // We don't store the actual config locally for security
         setFedexConfig({ 
           accountNumber: '***', 
@@ -41,10 +43,12 @@ export const useFedexConfig = () => {
         setFedexConfigStatus('missing');
         setFedexConfig(null);
         setSessionId(null);
+        setIsUsingDefaults(false);
       }
     } catch (error) {
       setFedexConfigStatus('missing');
       setFedexConfig(null);
+      setIsUsingDefaults(false);
     } finally {
       setIsLoading(false);
     }
@@ -76,6 +80,7 @@ export const useFedexConfig = () => {
       
       if (success && newSessionId) {
         setSessionId(newSessionId);
+        setIsUsingDefaults(false); // User is now using their own config
         setFedexConfig({ 
           accountNumber: '***', 
           clientId: '***', 
@@ -124,9 +129,8 @@ export const useFedexConfig = () => {
       const { success, error } = await SecureFedexService.deleteConfig();
       
       if (success) {
-        setFedexConfig(null);
-        setFedexConfigStatus('missing');
-        setSessionId(null);
+        // After clearing, check if defaults are available
+        await checkFedexConfigStatus();
         
         toast({
           title: "Configuration Cleared",
@@ -188,6 +192,7 @@ export const useFedexConfig = () => {
     fedexConfigStatus,
     sessionId,
     isLoading,
+    isUsingDefaults,
     
     // Actions
     handleConfigSave,
