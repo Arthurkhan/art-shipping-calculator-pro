@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { EnhancedInput } from "@/components/ui/enhanced-input";
 import { useState, useEffect } from "react";
+import { 
+  countryToCode, 
+  searchCountries, 
+  formatCountryDisplay,
+  getPopularCountries 
+} from "@/lib/country-utils";
 
 interface ShippingDetailsFormProps {
   country: string;
@@ -37,34 +43,70 @@ export const ShippingDetailsForm = ({
   const minDate = new Date();
   minDate.setHours(0, 0, 0, 0);
   
-  // Country suggestions
+  // Country suggestions and input state
   const [countrySuggestions, setCountrySuggestions] = useState<string[]>([]);
+  const [countryInput, setCountryInput] = useState(country);
+  const [isValidCountry, setIsValidCountry] = useState(false);
   
-  // Popular destination countries
-  const popularCountries = [
-    { code: 'US', name: 'United States' },
-    { code: 'GB', name: 'United Kingdom' },
-    { code: 'FR', name: 'France' },
-    { code: 'DE', name: 'Germany' },
-    { code: 'JP', name: 'Japan' },
-    { code: 'SG', name: 'Singapore' },
-    { code: 'ID', name: 'Indonesia' },
-    { code: 'MY', name: 'Malaysia' },
-    { code: 'AU', name: 'Australia' },
-    { code: 'CN', name: 'China' }
-  ];
+  // Update country input display when country prop changes
+  useEffect(() => {
+    if (country && country.length === 2) {
+      setCountryInput(country);
+      setIsValidCountry(true);
+    }
+  }, [country]);
   
-  // Update country suggestions
+  // Handle country input changes
   const handleCountryChange = (value: string) => {
-    const uppercased = value.toUpperCase();
-    onCountryChange(uppercased);
+    setCountryInput(value);
     
-    if (uppercased.length === 1) {
-      const suggestions = popularCountries
-        .filter(c => c.code.startsWith(uppercased))
-        .map(c => `${c.code} - ${c.name}`);
-      setCountrySuggestions(suggestions);
+    // Try to convert to country code
+    const code = countryToCode(value);
+    
+    if (code) {
+      // Valid country found, update with code
+      onCountryChange(code);
+      setIsValidCountry(true);
+      
+      // Clear suggestions if we have a valid code
+      if (value.length === 2 && value.toUpperCase() === code) {
+        setCountrySuggestions([]);
+      }
+    } else if (value.length === 2) {
+      // If it's 2 chars but not a valid code, still update for user feedback
+      onCountryChange(value.toUpperCase());
+      setIsValidCountry(false);
     } else {
+      // Search for country suggestions
+      const matches = searchCountries(value, 8);
+      const suggestions = matches.map(c => `${c.name} (${c.code})`);
+      setCountrySuggestions(suggestions);
+      setIsValidCountry(false);
+    }
+  };
+  
+  // Handle blur event - convert country name to code
+  const handleCountryBlur = () => {
+    if (countryInput && countryInput.length > 2) {
+      const code = countryToCode(countryInput);
+      if (code) {
+        setCountryInput(code);
+        onCountryChange(code);
+        setIsValidCountry(true);
+      }
+    }
+    setCountrySuggestions([]);
+  };
+  
+  // Handle suggestion selection
+  const handleSuggestionSelect = (suggestion: string) => {
+    // Extract code from format "Country Name (CODE)"
+    const match = suggestion.match(/\(([A-Z]{2})\)$/);
+    if (match) {
+      const code = match[1];
+      setCountryInput(code);
+      onCountryChange(code);
+      setIsValidCountry(true);
       setCountrySuggestions([]);
     }
   };
@@ -94,18 +136,18 @@ export const ShippingDetailsForm = ({
         <EnhancedInput
           id="country"
           label="Destination Country"
-          placeholder="e.g., US, FR, ID"
-          value={country}
+          placeholder="e.g., United States, Thailand, ID"
+          value={countryInput}
           onChange={(e) => handleCountryChange(e.target.value)}
-          helperText="2-letter country code"
-          tooltip="Enter the 2-letter ISO country code for the destination"
-          showValidation={country.length === 2}
-          isValid={country.length === 2}
+          onBlur={handleCountryBlur}
+          helperText={isValidCountry && countryInput.length === 2 ? formatCountryDisplay(countryInput) : "Enter country name or 2-letter code"}
+          tooltip="Enter the country name or 2-letter ISO code (e.g., 'United States', 'US', 'Thailand', 'TH')"
+          showValidation={countryInput.length >= 2}
+          isValid={isValidCountry}
           suggestions={countrySuggestions}
-          onSuggestionSelect={(value) => onCountryChange(value.split(' ')[0])}
+          onSuggestionSelect={handleSuggestionSelect}
           leftIcon={<Globe className="w-4 h-4" />}
-          maxLength={2}
-          className="uppercase h-12 sm:h-10 text-base sm:text-sm"
+          className="h-12 sm:h-10 text-base sm:text-sm"
         />
 
         {/* Postal Code */}

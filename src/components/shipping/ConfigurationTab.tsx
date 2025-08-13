@@ -16,7 +16,7 @@ export const ConfigurationTab: FC<ConfigurationTabProps> = ({
 }) => {
   return (
     <div className="space-y-4">
-      <FedexConfigForm onConfigSave={onConfigSave} />
+      <FedexConfigForm onConfigSave={onConfigSave} isUsingDefaults={isUsingDefaults} />
     </div>
   );
 };

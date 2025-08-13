@@ -5,6 +5,11 @@ import { cn, originAddressDefaults, validateOriginAddress, type ValidationResult
 import { EnhancedInput } from "@/components/ui/enhanced-input";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { toast } from "sonner";
+import { 
+  countryToCode, 
+  searchCountries, 
+  formatCountryDisplay 
+} from "@/lib/country-utils";
 
 interface OriginAddressFormProps {
   originCountry: string;
@@ -23,6 +28,8 @@ export const OriginAddressForm = ({
   const [postalValidation, setPostalValidation] = useState<ValidationResult>({ isValid: true });
   const [isUsingDefaults, setIsUsingDefaults] = useState(false);
   const [countrySuggestions, setCountrySuggestions] = useState<string[]>([]);
+  const [countryInput, setCountryInput] = useState(originCountry);
+  const [isValidCountry, setIsValidCountry] = useState(false);
   
   // Geolocation hook
   const { detectLocation, isLoading: isDetectingLocation } = useGeolocation();
@@ -80,17 +87,64 @@ export const OriginAddressForm = ({
     }
   };
 
+  // Update country input display when country prop changes  
+  useEffect(() => {
+    if (originCountry && originCountry.length === 2) {
+      setCountryInput(originCountry);
+      setIsValidCountry(true);
+    }
+  }, [originCountry]);
+
   const handleCountryChange = (value: string) => {
-    // Convert to uppercase and limit to 2 characters
-    const uppercased = value.toUpperCase();
-    onOriginCountryChange(uppercased);
+    setCountryInput(value);
     
-    // Update suggestions based on input
-    if (uppercased.length === 1) {
-      const suggestions = ['TH', 'US', 'GB', 'FR', 'DE', 'JP', 'CN', 'SG', 'MY', 'ID']
-        .filter(code => code.startsWith(uppercased));
-      setCountrySuggestions(suggestions);
+    // Try to convert to country code
+    const code = countryToCode(value);
+    
+    if (code) {
+      // Valid country found, update with code
+      onOriginCountryChange(code);
+      setIsValidCountry(true);
+      
+      // Clear suggestions if we have a valid code
+      if (value.length === 2 && value.toUpperCase() === code) {
+        setCountrySuggestions([]);
+      }
+    } else if (value.length === 2) {
+      // If it's 2 chars but not a valid code, still update for user feedback
+      onOriginCountryChange(value.toUpperCase());
+      setIsValidCountry(false);
     } else {
+      // Search for country suggestions
+      const matches = searchCountries(value, 8);
+      const suggestions = matches.map(c => `${c.name} (${c.code})`);
+      setCountrySuggestions(suggestions);
+      setIsValidCountry(false);
+    }
+  };
+  
+  // Handle blur event - convert country name to code
+  const handleCountryBlur = () => {
+    if (countryInput && countryInput.length > 2) {
+      const code = countryToCode(countryInput);
+      if (code) {
+        setCountryInput(code);
+        onOriginCountryChange(code);
+        setIsValidCountry(true);
+      }
+    }
+    setCountrySuggestions([]);
+  };
+  
+  // Handle suggestion selection
+  const handleSuggestionSelect = (suggestion: string) => {
+    // Extract code from format "Country Name (CODE)"
+    const match = suggestion.match(/\(([A-Z]{2})\)$/);
+    if (match) {
+      const code = match[1];
+      setCountryInput(code);
+      onOriginCountryChange(code);
+      setIsValidCountry(true);
       setCountrySuggestions([]);
     }
   };
@@ -150,7 +204,7 @@ export const OriginAddressForm = ({
             <strong>Default:</strong> Thailand (TH), Postal Code 10240
           </p>
           <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
-            Use 2-letter country codes (TH, US, GB, etc.) for all addresses.
+            You can enter country names (e.g., "Thailand", "United States") or 2-letter codes (TH, US).
           </p>
         </div>
       </div>
@@ -158,21 +212,21 @@ export const OriginAddressForm = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <EnhancedInput
           id="originCountry"
-          label="Origin Country Code"
+          label="Origin Country"
           type="text"
-          placeholder="e.g., TH, US, GB"
-          value={originCountry}
+          placeholder="e.g., Thailand, United States, TH"
+          value={countryInput}
           onChange={(e) => handleCountryChange(e.target.value)}
-          error={!countryValidation.isValid && originCountry ? countryValidation.error : undefined}
-          helperText="2-letter country code (e.g., TH, US, GB)"
-          tooltip="Enter the 2-letter ISO country code for your shipping origin"
-          showValidation={!!originCountry}
-          isValid={countryValidation.isValid}
+          onBlur={handleCountryBlur}
+          error={!isValidCountry && countryInput.length >= 2 ? "Invalid country" : undefined}
+          helperText={isValidCountry && countryInput.length === 2 ? formatCountryDisplay(countryInput) : "Enter country name or 2-letter code"}
+          tooltip="Enter the country name or 2-letter ISO code (e.g., 'Thailand', 'TH', 'United States', 'US')"
+          showValidation={countryInput.length >= 2}
+          isValid={isValidCountry}
           suggestions={countrySuggestions}
-          onSuggestionSelect={(value) => onOriginCountryChange(value)}
+          onSuggestionSelect={handleSuggestionSelect}
           leftIcon={<MapPin className="w-3.5 h-3.5" />}
-          maxLength={2}
-          className="uppercase"
+          className=""
         />
 
         <EnhancedInput

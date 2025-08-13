@@ -12,6 +12,7 @@ import { sanitizeInput } from "@/lib/input-sanitizer";
 
 interface FedexConfigFormProps {
   onConfigSave: (config: { accountNumber: string; clientId: string; clientSecret: string }) => void;
+  isUsingDefaults?: boolean;
 }
 
 /**
@@ -19,7 +20,7 @@ interface FedexConfigFormProps {
  * Updated 2025-06-25: Use secure server-side storage instead of localStorage
  * Credentials are never stored client-side for security
  */
-export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
+export const FedexConfigForm = ({ onConfigSave, isUsingDefaults }: FedexConfigFormProps) => {
   const [accountNumber, setAccountNumber] = useState("");
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
@@ -84,6 +85,15 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Status indicator */}
+      <div className="text-sm text-muted-foreground">
+        {isUsingDefaults ? (
+          <span>Currently using: Default credentials</span>
+        ) : (
+          <span>Currently using: Custom credentials</span>
+        )}
+      </div>
+      
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -164,19 +174,6 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
           </div>
 
           <Separator />
-
-          <Alert className="border-amber-200 bg-amber-50">
-            <Lock className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-amber-800">Security Best Practices</AlertTitle>
-            <AlertDescription className="text-amber-700 space-y-2 mt-2">
-              <ul className="list-disc list-inside text-sm space-y-1">
-                <li>Never share your API credentials with anyone</li>
-                <li>Rotate your client secret regularly</li>
-                <li>Use test credentials for development</li>
-                <li>Monitor your API usage in the FedEx portal</li>
-              </ul>
-            </AlertDescription>
-          </Alert>
 
           <div className="flex gap-3">
             <Button 
