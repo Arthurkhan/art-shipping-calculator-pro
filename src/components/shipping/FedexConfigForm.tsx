@@ -84,16 +84,6 @@ export const FedexConfigForm = ({ onConfigSave }: FedexConfigFormProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Security Notice */}
-      <Alert className="border-blue-200 bg-blue-50">
-        <Shield className="h-4 w-4 text-blue-600" />
-        <AlertTitle className="text-blue-800">Secure Configuration</AlertTitle>
-        <AlertDescription className="text-blue-700">
-          Your FedEx credentials are encrypted and stored securely on our servers. 
-          They are never stored in your browser or exposed in the application code.
-        </AlertDescription>
-      </Alert>
-
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
