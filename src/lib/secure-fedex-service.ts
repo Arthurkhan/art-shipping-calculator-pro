@@ -65,14 +65,11 @@ class SecureFedexService {
     try {
       const sessionId = secureFedexStorage.getSessionId();
       
-      if (!sessionId) {
-        return { hasConfig: false };
-      }
-
+      // Always call backend to check for session OR default credentials
       const { data, error } = await supabase.functions.invoke(this.FEDEX_CONFIG_FUNCTION, {
         body: {
           action: 'get',
-          sessionId
+          sessionId: sessionId || undefined
         }
       });
 
@@ -81,9 +78,29 @@ class SecureFedexService {
       }
 
       const response = data as FedexConfigResponse;
+      
+      // Handle default credentials response
+      if (response.hasConfig && response.sessionId === 'default') {
+        // Don't store 'default' in localStorage, but return it for state management
+        return { 
+          hasConfig: true, 
+          sessionId: 'default'
+        };
+      }
+      
+      // Handle regular session-based config
+      if (response.hasConfig && response.sessionId && response.sessionId !== 'default') {
+        // Store the session ID if it's a real session
+        secureFedexStorage.setSessionId(response.sessionId);
+        return { 
+          hasConfig: true, 
+          sessionId: response.sessionId
+        };
+      }
+      
       return { 
         hasConfig: response.hasConfig || false, 
-        sessionId: response.hasConfig ? sessionId : undefined 
+        sessionId: response.sessionId
       };
     } catch (error) {
       return { hasConfig: false };
@@ -165,6 +182,8 @@ class SecureFedexService {
    */
   static getSessionId(): string | null {
     const sessionId = secureFedexStorage.getSessionId();
+    // Return null for default credentials (backend will use defaults)
+    // or return the actual session ID for user credentials
     return sessionId || null;
   }
 }

@@ -91,8 +91,10 @@ export const useShippingCalculator = () => {
     // Get session ID from secure storage if not provided
     const effectiveSessionId = sessionId || secureFedexStorage.getSessionId();
     
-    // Validation - FedEx session must exist
-    if (!effectiveSessionId) {
+    // Note: effectiveSessionId can be undefined when using default credentials
+    // The backend will use default credentials in that case
+    // Only show error if explicitly told config is missing
+    if (sessionId === 'missing') {
       const errorMsg = "FedEx configuration is required to calculate rates";
       const error = createShippingError(
         ErrorType.CONFIGURATION_ERROR,
