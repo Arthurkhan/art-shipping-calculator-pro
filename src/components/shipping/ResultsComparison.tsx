@@ -138,97 +138,119 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
   return (
     <div className="space-y-4">
       {/* Controls Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="flex flex-wrap gap-2 items-center">
-          {/* View Mode Toggle */}
-          <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as ViewMode)}>
-            <ToggleGroupItem value="cards" aria-label="Card view" className="h-8">
-              <Grid className="w-4 h-4 mr-1" />
-              Cards
-            </ToggleGroupItem>
-            <ToggleGroupItem value="table" aria-label="Table view" className="h-8">
-              <List className="w-4 h-4 mr-1" />
-              Table
-            </ToggleGroupItem>
-          </ToggleGroup>
+      <div className="flex flex-col gap-3">
+        {/* Primary Controls Row */}
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch">
+          {/* Left Group: View and Sort */}
+          <div className="flex flex-1 gap-2 items-center">
+            {/* View Mode Toggle */}
+            <ToggleGroup 
+              type="single" 
+              value={viewMode} 
+              onValueChange={(v) => v && setViewMode(v as ViewMode)}
+              className="border rounded-md p-1"
+            >
+              <ToggleGroupItem value="cards" aria-label="Card view" className="h-8 px-3">
+                <Grid className="w-4 h-4 mr-2" />
+                Cards
+              </ToggleGroupItem>
+              <ToggleGroupItem value="table" aria-label="Table view" className="h-8 px-3">
+                <List className="w-4 h-4 mr-2" />
+                Table
+              </ToggleGroupItem>
+            </ToggleGroup>
 
-          {/* Sort Selector */}
-          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
-            <SelectTrigger className="w-[140px] h-8">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="price">Price</SelectItem>
-              <SelectItem value="time">Transit Time</SelectItem>
-              <SelectItem value="savings">Savings</SelectItem>
-            </SelectContent>
-          </Select>
+            {/* Divider */}
+            <div className="hidden sm:block w-px h-8 bg-border" />
 
-          {/* Sort Direction */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSortAsc(!sortAsc)}
-            className="h-8"
-          >
-            <ArrowUpDown className="w-4 h-4" />
-            {sortAsc ? 'Asc' : 'Desc'}
-          </Button>
+            {/* Sort Controls Group */}
+            <div className="flex gap-1 items-center">
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
+                <SelectTrigger className="w-[120px] h-9">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="price">Price</SelectItem>
+                  <SelectItem value="time">Transit Time</SelectItem>
+                  <SelectItem value="savings">Savings</SelectItem>
+                </SelectContent>
+              </Select>
 
-          {/* Filter */}
-          <Select value={filterBy} onValueChange={(v) => setFilterBy(v as FilterBy)}>
-            <SelectTrigger className="w-[140px] h-8">
-              <Filter className="w-4 h-4 mr-1" />
-              <SelectValue placeholder="Filter" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Services</SelectItem>
-              <SelectItem value="express">Express</SelectItem>
-              <SelectItem value="economy">Economy</SelectItem>
-              <SelectItem value="priority">Priority</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSortAsc(!sortAsc)}
+                className="h-9 px-3"
+              >
+                <ArrowUpDown className="w-4 h-4 mr-1" />
+                {sortAsc ? 'Asc' : 'Desc'}
+              </Button>
+            </div>
+          </div>
 
-        {/* Export Actions */}
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport('pdf')}
-            className="h-8"
-          >
-            <Download className="w-4 h-4 mr-1" />
-            PDF
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExport('email')}
-            className="h-8"
-          >
-            <Mail className="w-4 h-4 mr-1" />
-            Email
-          </Button>
+          {/* Right Group: Filter and Export */}
+          <div className="flex gap-2 items-center">
+            {/* Filter Dropdown */}
+            <Select value={filterBy} onValueChange={(v) => setFilterBy(v as FilterBy)}>
+              <SelectTrigger className="w-[150px] h-9">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Services</SelectItem>
+                <SelectItem value="express">Express</SelectItem>
+                <SelectItem value="economy">Economy</SelectItem>
+                <SelectItem value="priority">Priority</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Divider */}
+            <div className="hidden sm:block w-px h-8 bg-border" />
+
+            {/* Export Actions */}
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport('pdf')}
+                className="h-9 px-3"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                PDF
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleExport('email')}
+                className="h-9 px-3"
+              >
+                <Mail className="w-4 h-4 mr-1" />
+                Email
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Results Summary */}
-      <Card className="p-4 bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
-        <div className="space-y-2">
+      <Card className="p-4 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
+        <div className="space-y-3">
           <h4 className="font-semibold text-blue-900 dark:text-blue-100">Shipping Summary</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-            <div>
-              <span className="text-blue-700 dark:text-blue-300">From:</span> {originAddress}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-blue-600 dark:text-blue-400 font-medium">From:</span> 
+              <span className="text-gray-700 dark:text-gray-300">{originAddress}</span>
             </div>
-            <div>
-              <span className="text-blue-700 dark:text-blue-300">To:</span> {destinationAddress}
+            <div className="flex items-center gap-2">
+              <span className="text-blue-600 dark:text-blue-400 font-medium">To:</span> 
+              <span className="text-gray-700 dark:text-gray-300">{destinationAddress}</span>
             </div>
-            <div>
-              <span className="text-blue-700 dark:text-blue-300">Ship Date:</span> {shipDate ? format(shipDate, 'MMM d, yyyy') : 'Today'}
+            <div className="flex items-center gap-2">
+              <span className="text-blue-600 dark:text-blue-400 font-medium">Ship Date:</span> 
+              <span className="text-gray-700 dark:text-gray-300">{shipDate ? format(shipDate, 'MMM d, yyyy') : 'Today'}</span>
             </div>
           </div>
-          <div className="text-sm text-blue-800 dark:text-blue-200">
+          <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">
             Found {sortedRates.length} shipping option{sortedRates.length !== 1 ? 's' : ''}
           </div>
         </div>
