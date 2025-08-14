@@ -101,11 +101,6 @@ self.addEventListener('fetch', (event) => {
         });
       })
   );
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      // Your caching strategy
-    })
-  );
 });
 
 // Background sync for offline rate calculations

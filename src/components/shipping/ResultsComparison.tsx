@@ -241,15 +241,15 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
             <Card 
               key={`${rate.service}-${index}`}
               className={cn(
-                "p-4 hover:shadow-md transition-all duration-200",
+                "p-3 sm:p-4 hover:shadow-md transition-all duration-200",
                 rate.cost === bestPrice && "ring-2 ring-green-500",
                 rate === bestTime && "ring-2 ring-blue-500"
               )}
             >
-              <div className="flex flex-col sm:flex-row justify-between gap-4">
-                <div className="space-y-2 flex-1">
+              <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4">
+                <div className="space-y-1 sm:space-y-2 flex-1">
                   <div className="flex items-start justify-between">
-                    <h4 className="font-semibold text-base">{rate.service}</h4>
+                    <h4 className="font-semibold text-sm sm:text-base">{rate.service}</h4>
                     <div className="flex gap-2">
                       {rate.cost === bestPrice && (
                         <Badge variant="outline" className="bg-green-50 dark:bg-green-950/30 border-green-500 dark:border-green-700 text-green-700 dark:text-green-300">
@@ -266,42 +266,42 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
                     </div>
                   </div>
                   
-                  <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-300">
+                  <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                     <div className="flex items-center">
-                      <Clock className="w-4 h-4 mr-1" />
+                      <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
                       {rate.transitTime}
                     </div>
                     {rate.deliveryDate && (
                       <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-1" />
+                        <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
                         {rate.deliveryDate}
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="text-right space-y-2">
+                <div className="text-right space-y-1 sm:space-y-2">
                   {rate.listPrice && rate.listPrice > rate.cost && (
-                    <div className="text-sm text-gray-400 dark:text-gray-500 line-through">
+                    <div className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 line-through">
                       THB {formatPrice(rate.listPrice)}
                     </div>
                   )}
                   <div className="text-right">
-                    <div className="text-2xl font-bold">
-                      <span className="text-base font-normal text-gray-500 dark:text-gray-400">THB</span> {Math.round(rate.cost).toLocaleString()}
+                    <div className="text-xl sm:text-2xl font-bold">
+                      <span className="text-sm sm:text-base font-normal text-gray-500 dark:text-gray-400">THB</span> {Math.round(rate.cost).toLocaleString()}
                     </div>
                     {convertAmount && toCurrency && toCurrency !== 'THB' && (() => {
                       const converted = convertAmount(rate.cost);
                       return converted !== null ? (
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                           {toCurrency} {Math.round(converted).toLocaleString()}
                         </div>
                       ) : null;
                     })()}
                   </div>
                   {rate.savings && rate.savings > 0 && (
-                    <div className="text-base font-medium text-green-600 flex items-center justify-end">
-                      <TrendingDown className="w-4 h-4 mr-1" />
+                    <div className="text-sm sm:text-base font-medium text-green-600 flex items-center justify-end">
+                      <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
                       Save {rate.savingsPercent}%
                     </div>
                   )}

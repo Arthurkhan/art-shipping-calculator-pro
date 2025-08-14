@@ -35,6 +35,7 @@ interface MobileUIProps {
       height_cm: number;
     };
   };
+  preferredCurrency?: string;
 }
 
 export const MobileUI: FC<MobileUIProps> = ({
@@ -51,6 +52,7 @@ export const MobileUI: FC<MobileUIProps> = ({
   destinationAddress,
   shipDate,
   packageDetails,
+  preferredCurrency,
 }) => {
   if (!isMobile) return null;
 
@@ -83,6 +85,7 @@ export const MobileUI: FC<MobileUIProps> = ({
           destinationAddress={destinationAddress}
           shipDate={shipDate}
           packageDetails={packageDetails}
+          preferredCurrency={preferredCurrency}
         />
       </BottomSheet>
     </>

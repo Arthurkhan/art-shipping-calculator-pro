@@ -207,6 +207,7 @@ const Index = () => {
           weight: overrideSettings.overrideSettings.boxes[0].weight,
           dimensions: overrideSettings.overrideSettings.boxes[0].dimensions
         } : undefined}
+        preferredCurrency={currencySelector.preferredCurrency}
       />
 
       {/* Debug Panel - Hidden in production */}
