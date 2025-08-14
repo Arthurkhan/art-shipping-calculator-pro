@@ -19,14 +19,13 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  // GitHub Pages configuration
-  base: process.env.BASE_URL || '/art-shipping-calculator-pro/',
+  // CORRECTED: Set the base path for Netlify
+  base: '/',
   build: {
     outDir: 'dist',
-    sourcemap: false, // Disable sourcemaps in production for security
+    sourcemap: false,
     rollupOptions: {
       output: {
-        // Optimize chunks for better caching
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
           'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-toast'],
@@ -35,11 +34,10 @@ export default defineConfig(({ mode }) => ({
         },
       },
     },
-    // Minimize for production
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true, // Remove console logs in production
+        drop_console: true,
         drop_debugger: true,
       },
     },
