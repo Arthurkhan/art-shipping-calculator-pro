@@ -50,6 +50,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  if (!event.request.url.startsWith('http')) {
+    return;
+  }
+
   // API requests - network first, cache fallback
   if (url.pathname.includes('/functions/v1/') || url.pathname.includes('/rest/v1/')) {
     event.respondWith(
