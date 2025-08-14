@@ -1,7 +1,9 @@
 import { Card } from "@/components/ui/card";
-import { Clock, Truck, Tag } from "lucide-react";
+import { Clock, Truck, Tag, RefreshCw, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useCurrencyConversion } from "@/hooks/useCurrencyConversion";
 
 interface ShippingRate {
   service: string;
@@ -17,11 +19,12 @@ interface ShippingRate {
 interface ResultsDisplayProps {
   rates: ShippingRate[];
   isLoading: boolean;
+  preferredCurrency?: string;
 }
 
 // Utility function to format numbers with comma separators
 const formatPrice = (price: number): string => {
-  return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return Math.round(price).toLocaleString();
 };
 
 // Group rates by service type and organize LIST/ACCOUNT pairs
@@ -48,7 +51,18 @@ const organizeRates = (rates: ShippingRate[]): Map<string, { list?: ShippingRate
   return organized;
 };
 
-export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
+export const ResultsDisplay = ({ rates, isLoading, preferredCurrency }: ResultsDisplayProps) => {
+  // Currency conversion hook
+  const {
+    formatDualCurrency,
+    convertAmount,
+    fromCurrency,
+    toCurrency,
+    getExchangeRateDisplay,
+    refreshRate,
+    isLoading: isLoadingRate,
+    error: rateError
+  } = useCurrencyConversion(preferredCurrency || 'THB', 'THB');
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -79,10 +93,27 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
 
   return (
     <div className="space-y-4 fade-in">
-      <h3 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center">
-        <Truck className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-        Available Shipping Options
-      </h3>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <h3 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center">
+          <Truck className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+          Available Shipping Options
+        </h3>
+        {preferredCurrency && preferredCurrency !== 'THB' && (
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+            <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span>{getExchangeRateDisplay()}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={refreshRate}
+              disabled={isLoadingRate}
+              className="h-6 px-2"
+            >
+              <RefreshCw className={`w-3 h-3 ${isLoadingRate ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        )}
+      </div>
       <div className="space-y-3 sm:space-y-4">
         {Array.from(organizedRates.entries()).map(([service, serviceRates]) => {
           const { list, account } = serviceRates;
@@ -132,7 +163,7 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
                     <div className="space-y-2">
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="text-xs sm:text-sm line-through text-slate-500 dark:text-slate-400">
-                          {list.currency} {formatPrice(list.cost)}
+                          THB {formatPrice(list.cost)}
                         </span>
                         <Badge variant="outline" className="badge-responsive border-green-600 text-green-700">
                           <Tag className="w-3 h-3 mr-1" />
@@ -141,11 +172,21 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
                       </div>
                       <div className="flex items-end justify-between">
                         <div>
-                          <div className="text-lg sm:text-xl font-bold text-slate-800">
-                            {account.currency} {formatPrice(account.cost)}
+                          <div>
+                            <div className="text-lg sm:text-xl font-bold text-slate-800">
+                              <span className="text-sm font-normal text-gray-500">THB</span> {Math.round(account.cost).toLocaleString()}
+                            </div>
+                            {convertAmount && toCurrency && toCurrency !== 'THB' && (() => {
+                              const converted = convertAmount(account.cost);
+                              return converted !== null ? (
+                                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                                  {toCurrency} {Math.round(converted).toLocaleString()}
+                                </div>
+                              ) : null;
+                            })()}
                           </div>
                           <div className="text-xs sm:text-sm text-green-600">
-                            Save {account.currency} {formatPrice(discountAmount)}
+                            Save THB {formatPrice(discountAmount)}
                           </div>
                         </div>
                       </div>
@@ -153,14 +194,18 @@ export const ResultsDisplay = ({ rates, isLoading }: ResultsDisplayProps) => {
                   ) : (
                     <div className="flex items-end justify-between">
                       <div>
-                        <div className="text-lg sm:text-xl font-bold text-slate-800">
-                          {primaryRate.currency} {formatPrice(primaryRate.cost)}
-                        </div>
-                        <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                          {primaryRate.currency === 'THB' ? 'Thai Baht' : 
-                           primaryRate.currency === 'USD' ? 'US Dollar' : 
-                           primaryRate.currency === 'SGD' ? 'Singapore Dollar' : 
-                           primaryRate.currency}
+                        <div>
+                          <div className="text-lg sm:text-xl font-bold text-slate-800">
+                            <span className="text-sm font-normal text-gray-500">THB</span> {Math.round(primaryRate.cost).toLocaleString()}
+                          </div>
+                          {convertAmount && toCurrency && toCurrency !== 'THB' && (() => {
+                            const converted = convertAmount(primaryRate.cost);
+                            return converted !== null ? (
+                              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                                {toCurrency} {Math.round(converted).toLocaleString()}
+                              </div>
+                            ) : null;
+                          })()}
                         </div>
                       </div>
                     </div>

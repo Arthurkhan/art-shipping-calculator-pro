@@ -1,7 +1,8 @@
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { AlertTriangle, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
 import { FormProgress } from '@/components/ui/form-progress';
 import { CollectionSelector } from './CollectionSelector';
 import { SizeSelector } from './SizeSelector';
@@ -113,6 +114,7 @@ export const CalculatorTab: FC<CalculatorTabProps> = ({
   onShipDateChange,
   formProgressSteps,
 }) => {
+  const [isParameterPreviewOpen, setIsParameterPreviewOpen] = useState(false);
   const shouldShowParameterPreview = validation.hasRequiredFields || overrideSettings.isOverrideEnabled;
   
   const debugInfo = {
@@ -216,19 +218,52 @@ export const CalculatorTab: FC<CalculatorTabProps> = ({
       {shouldShowParameterPreview && (
         <div className="space-y-4">
           <Separator className="my-4" />
-          <ParameterPreview
-            collection={collectionData.selectedCollection}
-            size={collectionData.selectedSize}
-            country={country}
-            postalCode={postalCode}
-            originCountry={originAddress.originCountry}
-            originPostalCode={originAddress.originPostalCode}
-            preferredCurrency={currencySelector.preferredCurrency}
-            isVisible={true}
-            shipDate={shipDate}
-            overrideData={overrideSettings.getOverrideData()}
-            isOverrideEnabled={overrideSettings.isOverrideEnabled}
-          />
+          
+          {/* Toggle Button */}
+          <button
+            onClick={() => setIsParameterPreviewOpen(!isParameterPreviewOpen)}
+            className="w-full p-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-100/50 dark:hover:bg-blue-900/30 transition-all duration-200 flex items-center justify-between group"
+          >
+            <div className="flex items-center gap-2">
+              {isParameterPreviewOpen ? (
+                <EyeOff className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              ) : (
+                <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              )}
+              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                {isParameterPreviewOpen ? 'Hide' : 'Show'} Shipping Parameters
+              </span>
+              {!isParameterPreviewOpen && (
+                <Badge variant="outline" className="ml-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-700 text-xs">
+                  {overrideSettings.isOverrideEnabled ? 'Custom' : collectionData.selectedSize || 'Not selected'}
+                </Badge>
+              )}
+            </div>
+            {isParameterPreviewOpen ? (
+              <ChevronUp className="w-4 h-4 text-blue-600 dark:text-blue-400 group-hover:translate-y--0.5 transition-transform" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-blue-600 dark:text-blue-400 group-hover:translate-y-0.5 transition-transform" />
+            )}
+          </button>
+          
+          {/* Collapsible Preview */}
+          {isParameterPreviewOpen && (
+            <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+              <ParameterPreview
+                collection={collectionData.selectedCollection}
+                size={collectionData.selectedSize}
+                country={country}
+                postalCode={postalCode}
+                originCountry={originAddress.originCountry}
+                originPostalCode={originAddress.originPostalCode}
+                preferredCurrency={currencySelector.preferredCurrency}
+                isVisible={true}
+                shipDate={shipDate}
+                overrideData={overrideSettings.getOverrideData()}
+                isOverrideEnabled={overrideSettings.isOverrideEnabled}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -278,6 +313,7 @@ export const CalculatorTab: FC<CalculatorTabProps> = ({
             weight: overrideSettings.overrideSettings.boxes[0].weight,
             dimensions: overrideSettings.overrideSettings.boxes[0].dimensions
           } : undefined}
+          preferredCurrency={currencySelector.preferredCurrency}
         />
       )}
     </div>

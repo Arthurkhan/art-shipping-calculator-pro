@@ -30,13 +30,12 @@ import {
   Filter,
   Grid,
   List,
-  Download,
-  Mail,
   Check,
   Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useCurrencyConversion } from '@/hooks/useCurrencyConversion';
 
 interface ShippingRate {
   service: string;
@@ -55,6 +54,7 @@ interface ResultsComparisonProps {
   originAddress: string;
   destinationAddress: string;
   shipDate?: Date;
+  preferredCurrency?: string;
 }
 
 type ViewMode = 'cards' | 'table';
@@ -65,12 +65,16 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
   rates,
   originAddress,
   destinationAddress,
-  shipDate
+  shipDate,
+  preferredCurrency
 }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [sortBy, setSortBy] = useState<SortBy>('price');
   const [filterBy, setFilterBy] = useState<FilterBy>('all');
   const [sortAsc, setSortAsc] = useState(true);
+  
+  // Currency conversion hook
+  const { formatDualCurrency, convertAmount, fromCurrency, toCurrency } = useCurrencyConversion(preferredCurrency || 'THB', 'THB');
 
   // Filter rates based on service type
   const filteredRates = useMemo(() => {
@@ -127,12 +131,9 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
     return days < bestDays ? rate : best;
   }, rates[0]);
 
-  const handleExport = (format: 'pdf' | 'email') => {
-    // TODO: Implement export functionality
-  };
 
   const formatPrice = (price: number): string => {
-    return price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return Math.round(price).toLocaleString();
   };
 
   return (
@@ -204,30 +205,6 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
               </SelectContent>
             </Select>
 
-            {/* Divider */}
-            <div className="hidden sm:block w-px h-8 bg-border" />
-
-            {/* Export Actions */}
-            <div className="flex gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleExport('pdf')}
-                className="h-9 px-3"
-              >
-                <Download className="w-4 h-4 mr-1" />
-                PDF
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleExport('email')}
-                className="h-9 px-3"
-              >
-                <Mail className="w-4 h-4 mr-1" />
-                Email
-              </Button>
-            </div>
           </div>
         </div>
       </div>
@@ -303,17 +280,27 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
                   </div>
                 </div>
 
-                <div className="text-right space-y-1">
+                <div className="text-right space-y-2">
                   {rate.listPrice && rate.listPrice > rate.cost && (
-                    <div className="text-sm text-gray-500 dark:text-gray-300 line-through">
-                      {rate.currency} {formatPrice(rate.listPrice)}
+                    <div className="text-sm text-gray-400 dark:text-gray-500 line-through">
+                      THB {formatPrice(rate.listPrice)}
                     </div>
                   )}
-                  <div className="text-xl font-bold">
-                    {rate.currency} {formatPrice(rate.cost)}
+                  <div className="text-right">
+                    <div className="text-2xl font-bold">
+                      <span className="text-base font-normal text-gray-500 dark:text-gray-400">THB</span> {Math.round(rate.cost).toLocaleString()}
+                    </div>
+                    {convertAmount && toCurrency && toCurrency !== 'THB' && (() => {
+                      const converted = convertAmount(rate.cost);
+                      return converted !== null ? (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {toCurrency} {Math.round(converted).toLocaleString()}
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                   {rate.savings && rate.savings > 0 && (
-                    <div className="text-sm text-green-600 flex items-center justify-end">
+                    <div className="text-base font-medium text-green-600 flex items-center justify-end">
                       <TrendingDown className="w-4 h-4 mr-1" />
                       Save {rate.savingsPercent}%
                     </div>
@@ -362,12 +349,24 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
                   <TableCell className="text-right">
                     {rate.listPrice ? (
                       <span className="line-through text-gray-500 dark:text-gray-300">
-                        {rate.currency} {formatPrice(rate.listPrice)}
+                        THB {formatPrice(rate.listPrice)}
                       </span>
                     ) : '-'}
                   </TableCell>
-                  <TableCell className="text-right font-semibold">
-                    {rate.currency} {formatPrice(rate.cost)}
+                  <TableCell className="text-right">
+                    <div>
+                      <div className="font-semibold">
+                        <span className="text-xs font-normal text-gray-500 dark:text-gray-400">THB</span> {Math.round(rate.cost).toLocaleString()}
+                      </div>
+                      {convertAmount && toCurrency && toCurrency !== 'THB' && (() => {
+                        const converted = convertAmount(rate.cost);
+                        return converted !== null ? (
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {toCurrency} {Math.round(converted).toLocaleString()}
+                          </div>
+                        ) : null;
+                      })()}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     {rate.savings && rate.savings > 0 ? (
