@@ -1,15 +1,13 @@
 // Service Worker for Art Shipping Calculator Pro
-// Version: 1.0.1
+// Version: 1.0.2
 
-const CACHE_NAME = 'art-shipping-v1.0.1';
-const API_CACHE_NAME = 'art-shipping-api-v1.0.1';
+const CACHE_NAME = 'art-shipping-v1.0.2';
+const API_CACHE_NAME = 'art-shipping-api-v1.0.2';
 
 // Assets to cache immediately
 const urlsToCache = [
   '/',
   '/index.html',
-  '/assets/index.css',
-  '/assets/index.js',
 ];
 
 // Install event - cache essential assets
