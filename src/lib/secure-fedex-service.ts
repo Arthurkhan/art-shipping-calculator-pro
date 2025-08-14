@@ -66,10 +66,11 @@ class SecureFedexService {
       const sessionId = secureFedexStorage.getSessionId();
       
       // Always call backend to check for session OR default credentials
+      // Only send sessionId if it exists, otherwise let backend check defaults first
       const { data, error } = await supabase.functions.invoke(this.FEDEX_CONFIG_FUNCTION, {
         body: {
           action: 'get',
-          sessionId: sessionId || undefined
+          sessionId: sessionId ? sessionId : undefined
         }
       });
 
@@ -81,6 +82,8 @@ class SecureFedexService {
       
       // Handle default credentials response
       if (response.hasConfig && response.sessionId === 'default') {
+        // Clear any invalid sessionId from localStorage when using defaults
+        secureFedexStorage.clearSessionId();
         // Don't store 'default' in localStorage, but return it for state management
         return { 
           hasConfig: true, 
@@ -96,6 +99,11 @@ class SecureFedexService {
           hasConfig: true, 
           sessionId: response.sessionId
         };
+      }
+      
+      // If no config found and we had a sessionId, clear it as it's invalid
+      if (sessionId && !response.hasConfig) {
+        secureFedexStorage.clearSessionId();
       }
       
       return { 
@@ -175,6 +183,13 @@ class SecureFedexService {
     } catch (error) {
       return { success: false, error: 'An unexpected error occurred' };
     }
+  }
+
+  /**
+   * Clear stored session to force using defaults
+   */
+  static clearStoredSession(): void {
+    secureFedexStorage.clearSessionId();
   }
 
   /**

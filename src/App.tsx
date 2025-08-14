@@ -40,7 +40,7 @@ const AppContent = () => {
   useIframeResize();
 
   return (
-    <BrowserRouter basename="/art-shipping-calculator-pro">
+    <BrowserRouter>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Index />} />

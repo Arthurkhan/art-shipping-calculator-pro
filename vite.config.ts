@@ -4,23 +4,30 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [
-    react(),
-    mode === 'development' &&
-    componentTagger(),
-  ].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+export default defineConfig(({ mode }) => {
+  // Determine base URL based on build target
+  const isSquarespaceBuild = process.env.BUILD_TARGET === 'squarespace';
+  const baseUrl = isSquarespaceBuild 
+    ? 'https://art-shipping-calculator-pro.netlify.app/' // Your Netlify URL
+    : '/';
+  
+  return {
+    server: {
+      host: "::",
+      port: 8080,
     },
-  },
-  // CORRECTED: Set the base path for Netlify
-  base: '/',
+    plugins: [
+      react(),
+      mode === 'development' &&
+      componentTagger(),
+    ].filter(Boolean),
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+    // Use dynamic base URL for different deployment targets
+    base: baseUrl,
   build: {
     outDir: 'dist',
     sourcemap: false,
@@ -37,9 +44,10 @@ export default defineConfig(({ mode }) => ({
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true,
+        drop_console: false, // Keep console logs to debug production issues
         drop_debugger: true,
       },
     },
   },
-}));
+  };
+});
