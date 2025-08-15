@@ -75,6 +75,31 @@ To prevent this issue in the future:
 3. Test deployments in incognito mode first
 4. Monitor browser console for configuration warnings
 
+## Service Worker Issue (FIXED)
+
+### The Problem
+The old service worker was caching API responses with the wrong Supabase URL, causing persistent errors even after fixing the configuration.
+
+### The Solution (Already Applied)
+1. **Removed service worker entirely** - Deleted sw.js from the project
+2. **Added automatic unregistration** - main.tsx now unregisters any existing service workers
+3. **Created cache clear page** - Visit `/clear-cache.html` to force clear everything
+
+### If You Still See Errors
+
+Visit the cache clear page directly:
+```
+https://arthurkhan.github.io/art-shipping-calculator-pro/clear-cache.html
+```
+
+This page will:
+- Unregister all service workers
+- Clear all caches
+- Remove all stored data
+- Fix the connection issues
+
+After clearing, the app should work normally.
+
 ## Troubleshooting
 
 If the issue persists after following these steps:
