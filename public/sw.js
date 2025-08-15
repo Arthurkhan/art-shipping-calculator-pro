@@ -1,8 +1,8 @@
 // Service Worker for Art Shipping Calculator Pro
-// Version: 1.0.2
+// Version: 1.0.3 - Fixed Supabase URL caching issue
 
-const CACHE_NAME = 'art-shipping-v1.0.2';
-const API_CACHE_NAME = 'art-shipping-api-v1.0.2';
+const CACHE_NAME = 'art-shipping-v1.0.3';
+const API_CACHE_NAME = 'art-shipping-api-v1.0.3';
 
 // Assets to cache immediately
 const urlsToCache = [

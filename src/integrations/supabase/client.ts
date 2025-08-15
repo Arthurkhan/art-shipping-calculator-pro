@@ -16,6 +16,19 @@ if (!SUPABASE_PUBLISHABLE_KEY) {
   throw new Error('Missing VITE_SUPABASE_ANON_KEY environment variable. Check your .env.local file.');
 }
 
+// Log configuration for debugging (only in development or when debug is enabled)
+if (import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEBUG === 'true') {
+  console.log('[Supabase Config] URL:', SUPABASE_URL);
+  console.log('[Supabase Config] Using project ID:', SUPABASE_URL.split('.')[0].split('//')[1]);
+  
+  // Validate correct project ID
+  if (!SUPABASE_URL.includes('lkqekrhbxtbowaswvvqs')) {
+    console.error('[Supabase Config] WARNING: Unexpected Supabase project ID detected!');
+    console.error('[Supabase Config] Expected: lkqekrhbxtbowaswvvqs');
+    console.error('[Supabase Config] Got:', SUPABASE_URL);
+  }
+}
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
