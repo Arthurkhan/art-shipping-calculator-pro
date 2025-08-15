@@ -690,7 +690,9 @@ const allowedOrigins = [
   'http://localhost:8080',
   'http://localhost:8083',
   'http://localhost:5173',
-  'https://arthurkhan.github.io'
+  'http://localhost:4173',
+  'https://arthurkhan.github.io',
+  'https://art-shipping-calculator-pro.netlify.app'
 ];
 
 const corsHeaders = (origin: string | null) => {

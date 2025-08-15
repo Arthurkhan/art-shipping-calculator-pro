@@ -19,6 +19,7 @@ export const useFedexConfig = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isUsingDefaults, setIsUsingDefaults] = useState(false);
+  const [preferDefaults, setPreferDefaults] = useState(false);
   const { toast } = useToast();
 
   // Check FedEx configuration status
@@ -56,6 +57,8 @@ export const useFedexConfig = () => {
 
   // Initialize config check on mount
   useEffect(() => {
+    // Load preference
+    setPreferDefaults(SecureFedexService.isUsingDefaults());
     checkFedexConfigStatus();
   }, []);
 
@@ -183,6 +186,22 @@ export const useFedexConfig = () => {
     };
   };
 
+  // Toggle between default and custom credentials
+  const toggleDefaultCredentials = async (useDefaults: boolean) => {
+    setPreferDefaults(useDefaults);
+    SecureFedexService.setUseDefaults(useDefaults);
+    
+    // Recheck config with new preference
+    await checkFedexConfigStatus();
+    
+    toast({
+      title: useDefaults ? "Using Default Credentials" : "Using Custom Credentials",
+      description: useDefaults 
+        ? "Switched to default FedEx credentials" 
+        : "Switched to your custom FedEx credentials",
+    });
+  };
+
   // Check if config is ready for API calls
   const isConfigReady = fedexConfigStatus === 'complete' && sessionId !== null;
 
@@ -193,11 +212,13 @@ export const useFedexConfig = () => {
     sessionId,
     isLoading,
     isUsingDefaults,
+    preferDefaults,
     
     // Actions
     handleConfigSave,
     clearConfig,
     checkFedexConfigStatus,
+    toggleDefaultCredentials,
     
     // Utilities
     validateCurrentConfig,

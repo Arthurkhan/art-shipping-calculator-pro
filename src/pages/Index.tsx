@@ -174,6 +174,10 @@ const Index = () => {
                   onConfigSave={fedexConfig.handleConfigSave}
                   isUsingDefaults={fedexConfig.isUsingDefaults}
                   hasCompleteConfig={fedexConfig.hasCompleteConfig}
+                  preferDefaults={fedexConfig.preferDefaults}
+                  onToggleDefaults={fedexConfig.toggleDefaultCredentials}
+                  hasDefaults={true}
+                  hasCustomConfig={fedexConfig.sessionId !== null && fedexConfig.sessionId !== 'default'}
                 />
               )}
             </div>

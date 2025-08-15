@@ -63,14 +63,17 @@ class SecureFedexService {
    */
   static async checkConfig(): Promise<{ hasConfig: boolean; sessionId?: string }> {
     try {
+      const useDefaults = secureFedexStorage.getUseDefaultsPreference();
       const sessionId = secureFedexStorage.getSessionId();
       
-      // Always call backend to check for session OR default credentials
-      // Only send sessionId if it exists, otherwise let backend check defaults first
+      // If user prefers defaults, don't send sessionId
+      // Otherwise send sessionId if it exists
+      const effectiveSessionId = useDefaults ? undefined : (sessionId || undefined);
+      
       const { data, error } = await supabase.functions.invoke(this.FEDEX_CONFIG_FUNCTION, {
         body: {
           action: 'get',
-          sessionId: sessionId ? sessionId : undefined
+          sessionId: effectiveSessionId
         }
       });
 
@@ -82,9 +85,8 @@ class SecureFedexService {
       
       // Handle default credentials response
       if (response.hasConfig && response.sessionId === 'default') {
-        // Clear any invalid sessionId from localStorage when using defaults
-        secureFedexStorage.clearSessionId();
         // Don't store 'default' in localStorage, but return it for state management
+        // Don't clear sessionId - user might want to switch back
         return { 
           hasConfig: true, 
           sessionId: 'default'
@@ -196,10 +198,29 @@ class SecureFedexService {
    * Get session ID for API calls
    */
   static getSessionId(): string | null {
+    // Check if user prefers defaults
+    if (secureFedexStorage.getUseDefaultsPreference()) {
+      return null; // Return null to use defaults
+    }
+    
     const sessionId = secureFedexStorage.getSessionId();
     // Return null for default credentials (backend will use defaults)
     // or return the actual session ID for user credentials
     return sessionId || null;
+  }
+  
+  /**
+   * Toggle between default and custom credentials
+   */
+  static setUseDefaults(useDefaults: boolean): void {
+    secureFedexStorage.setUseDefaultsPreference(useDefaults);
+  }
+  
+  /**
+   * Check if using defaults
+   */
+  static isUsingDefaults(): boolean {
+    return secureFedexStorage.getUseDefaultsPreference();
   }
 }
 

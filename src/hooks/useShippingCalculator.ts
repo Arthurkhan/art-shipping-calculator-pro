@@ -89,7 +89,8 @@ export const useShippingCalculator = () => {
     setServiceAvailabilityError(null);
 
     // Get session ID from secure storage if not provided
-    const effectiveSessionId = sessionId || secureFedexStorage.getSessionId();
+    // If sessionId is 'default', treat it as undefined to use default credentials
+    const effectiveSessionId = sessionId === 'default' ? undefined : (sessionId || secureFedexStorage.getSessionId());
     
     // Note: effectiveSessionId can be undefined when using default credentials
     // The backend will use default credentials in that case
@@ -160,7 +161,7 @@ export const useShippingCalculator = () => {
           originPostalCode,
           preferredCurrency: preferredCurrency || 'EUR', // Default to EUR if empty
           shipDate, // Pass ship date to backend
-          sessionId: effectiveSessionId, // Pass session ID instead of config
+          sessionId: effectiveSessionId === 'default' ? undefined : effectiveSessionId, // Pass undefined for default credentials
           overrideData, // Pass override data to backend
         },
       });

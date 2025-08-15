@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   ORIGIN_COUNTRY: 'origin_country',
   ORIGIN_POSTAL_CODE: 'origin_postal_code',
   FEDEX_SESSION_ID: 'fedex_session_id', // Only store session ID, not credentials
+  USE_DEFAULT_CREDENTIALS: 'use_default_credentials', // Toggle preference for default vs custom
 } as const;
 
 /**
@@ -112,6 +113,20 @@ export const secureFedexStorage = {
    */
   hasSession: (): boolean => {
     return !!secureFedexStorage.getSessionId();
+  },
+
+  /**
+   * Get preference for using default credentials
+   */
+  getUseDefaultsPreference: (): boolean => {
+    return storage.getItem(STORAGE_KEYS.USE_DEFAULT_CREDENTIALS) === 'true';
+  },
+
+  /**
+   * Set preference for using default credentials
+   */
+  setUseDefaultsPreference: (useDefaults: boolean): void => {
+    storage.setItem(STORAGE_KEYS.USE_DEFAULT_CREDENTIALS, String(useDefaults));
   },
 };
 
