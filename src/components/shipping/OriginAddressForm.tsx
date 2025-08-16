@@ -121,7 +121,6 @@ export const OriginAddressForm = ({
       <div className="border-b border-slate-200 pb-2">
         <div>
           <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">Origin Address</h3>
-          <p className="text-xs text-slate-600 dark:text-slate-400">Where are you shipping from?</p>
         </div>
         
         {/* Thailand Default Notice - Simplified */}
@@ -129,9 +128,6 @@ export const OriginAddressForm = ({
           <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center">
             <MapPin className="w-3 h-3 mr-1.5" />
             <strong>Default:</strong> Thailand (TH), Postal Code 10240
-          </p>
-          <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
-            You can enter country names (e.g., "Thailand", "United States") or 2-letter codes (TH, US).
           </p>
         </div>
       </div>

@@ -152,12 +152,10 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
               className="border rounded-md p-1"
             >
               <ToggleGroupItem value="cards" aria-label="Card view" className="h-8 px-3">
-                <Grid className="w-4 h-4 mr-2" />
-                Cards
+                <Grid className="w-4 h-4" />
               </ToggleGroupItem>
               <ToggleGroupItem value="table" aria-label="Table view" className="h-8 px-3">
-                <List className="w-4 h-4 mr-2" />
-                Table
+                <List className="w-4 h-4" />
               </ToggleGroupItem>
             </ToggleGroup>
 
@@ -182,9 +180,9 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
                 size="sm"
                 onClick={() => setSortAsc(!sortAsc)}
                 className="h-9 px-3"
+                aria-label={sortAsc ? "Sort ascending" : "Sort descending"}
               >
-                <ArrowUpDown className="w-4 h-4 mr-1" />
-                {sortAsc ? 'Asc' : 'Desc'}
+                <ArrowUpDown className="w-4 h-4" />
               </Button>
             </div>
           </div>
@@ -193,9 +191,9 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
           <div className="flex gap-2 items-center">
             {/* Filter Dropdown */}
             <Select value={filterBy} onValueChange={(v) => setFilterBy(v as FilterBy)}>
-              <SelectTrigger className="w-[150px] h-9">
+              <SelectTrigger className="w-[150px] h-9" aria-label="Filter services">
                 <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Filter" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Services</SelectItem>
@@ -248,9 +246,11 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
             >
               <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4">
                 <div className="space-y-1 sm:space-y-2 flex-1">
+                  {/* Service Name - Desktop: with badges, Mobile: without */}
                   <div className="flex items-start justify-between">
                     <h4 className="font-semibold text-sm sm:text-base">{rate.service}</h4>
-                    <div className="flex gap-2">
+                    {/* Show badges here only on desktop */}
+                    <div className="hidden sm:flex gap-2">
                       {rate.cost === bestPrice && (
                         <Badge variant="outline" className="bg-green-50 dark:bg-green-950/30 border-green-500 dark:border-green-700 text-green-700 dark:text-green-300">
                           <DollarSign className="w-3 h-3 mr-1" />
@@ -266,6 +266,7 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
                     </div>
                   </div>
                   
+                  {/* Transit Time and Delivery Date */}
                   <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                     <div className="flex items-center">
                       <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
@@ -276,6 +277,22 @@ export const ResultsComparison: React.FC<ResultsComparisonProps> = ({
                         <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
                         {rate.deliveryDate}
                       </div>
+                    )}
+                  </div>
+
+                  {/* Badges on mobile - shown below time estimation */}
+                  <div className="flex gap-2 sm:hidden">
+                    {rate.cost === bestPrice && (
+                      <Badge variant="outline" className="bg-green-50 dark:bg-green-950/30 border-green-500 dark:border-green-700 text-green-700 dark:text-green-300 text-xs">
+                        <DollarSign className="w-3 h-3 mr-1" />
+                        Best Price
+                      </Badge>
+                    )}
+                    {rate === bestTime && (
+                      <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/30 border-blue-500 dark:border-blue-700 text-blue-700 dark:text-blue-300 text-xs">
+                        <Clock className="w-3 h-3 mr-1" />
+                        Fastest
+                      </Badge>
                     )}
                   </div>
                 </div>

@@ -48,6 +48,9 @@ const Index = () => {
     prefetchFedexStatus();
   }, [prefetchCollections, prefetchFedexStatus]);
 
+  // Track when a calculation has been initiated for mobile bottom sheet
+  const [hasCalculated, setHasCalculated] = useState(false);
+
   // Form validation
   const validation = useShippingValidation({
     selectedCollection: overrideSettings.isOverrideEnabled ? 'custom' : collectionData.selectedCollection,
@@ -72,6 +75,14 @@ const Index = () => {
     preferredCurrency: currencySelector.preferredCurrency,
   });
 
+  // Open bottom sheet on mobile when rates are available after calculation
+  useEffect(() => {
+    if (hasCalculated && mobileFeatures.isMobile && shippingCalculator.rates.length > 0) {
+      mobileFeatures.setIsBottomSheetOpen(true);
+      setHasCalculated(false); // Reset flag
+    }
+  }, [hasCalculated, mobileFeatures.isMobile, shippingCalculator.rates.length, mobileFeatures.setIsBottomSheetOpen]);
+
   // Handle rate calculation
   const handleCalculateRates = async () => {
     // Check FedEx configuration first
@@ -93,6 +104,11 @@ const Index = () => {
       return;
     }
 
+    // Set flag to indicate calculation has been initiated (for mobile)
+    if (mobileFeatures.isMobile) {
+      setHasCalculated(true);
+    }
+
     // Execute calculation using the hook with session ID
     const success = await shippingCalculator.calculateRates({
       selectedCollection: collectionData.selectedCollection,
@@ -107,10 +123,7 @@ const Index = () => {
       overrideData: overrideSettings.getOverrideData(),
     });
 
-    // Open bottom sheet on mobile after successful calculation
-    if (success && mobileFeatures.isMobile && shippingCalculator.rates.length > 0) {
-      mobileFeatures.setIsBottomSheetOpen(true);
-    }
+    // The bottom sheet will now open via the useEffect when rates are populated
   };
 
   // Handle retry from service availability alert

@@ -149,9 +149,6 @@ export const CalculatorTab: FC<CalculatorTabProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200 pb-2">
           <div>
             <h3 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200">Art Collection Selection</h3>
-            {!overrideSettings.isOverrideEnabled && (
-              <p className="text-xs text-slate-600 dark:text-slate-400">Choose the artwork you want to ship</p>
-            )}
           </div>
           {/* Override Toggle Button */}
           <OverrideToggleButton

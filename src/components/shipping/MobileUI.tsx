@@ -1,5 +1,7 @@
 import { FC } from 'react';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { Button } from '@/components/ui/button';
+import { Eye } from 'lucide-react';
 import { CalculateButton } from './CalculateButton';
 import { EnhancedResultsDisplay } from './EnhancedResultsDisplay';
 
@@ -67,6 +69,20 @@ export const MobileUI: FC<MobileUIProps> = ({
             isLoading={isCalculating}
             fedexConfigMissing={fedexConfigMissing}
           />
+        </div>
+      )}
+
+      {/* View Results Button - Shows when there are rates but bottom sheet is closed */}
+      {rates.length > 0 && !isBottomSheetOpen && (
+        <div className="fixed bottom-4 left-4 right-4 z-40">
+          <Button
+            onClick={() => setIsBottomSheetOpen(true)}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg"
+            size="lg"
+          >
+            <Eye className="w-5 h-5 mr-2" />
+            View Results ({rates.length} rates)
+          </Button>
         </div>
       )}
 

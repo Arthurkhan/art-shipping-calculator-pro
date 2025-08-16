@@ -143,18 +143,18 @@ export const EnhancedResultsDisplay: React.FC<EnhancedResultsDisplayProps> = ({
             size="sm"
             onClick={handleExportAll}
             className="h-8"
+            aria-label="Export All"
           >
-            <Download className="w-4 h-4 mr-1" />
-            Export All
+            <Download className="w-4 h-4" />
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleShare}
             className="h-8"
+            aria-label="Share"
           >
-            <Share2 className="w-4 h-4 mr-1" />
-            Share
+            <Share2 className="w-4 h-4" />
           </Button>
           <Button
             variant="outline"

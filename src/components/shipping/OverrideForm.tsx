@@ -105,7 +105,7 @@ const BoxRow = ({
       <div className="flex items-center justify-between">
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center gap-2 text-sm font-medium text-slate-700 sm:cursor-default"
+          className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 sm:cursor-default"
           disabled={!showRemove}
         >
           {showRemove && (
@@ -402,7 +402,7 @@ export const OverrideForm = ({
         {/* Shipment Summary - responsive grid */}
         {isEnabled && shipmentStats && overrideSettings.boxes.length > 0 && (
           <div className="bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-4 space-y-2">
-            <div className="text-sm font-medium text-slate-700">Shipment Summary</div>
+            <div className="text-sm font-medium text-slate-700 dark:text-slate-300">Shipment Summary</div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="space-y-2">
                 <div>

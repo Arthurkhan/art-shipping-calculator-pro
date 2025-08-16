@@ -128,7 +128,6 @@ export const ShippingDetailsForm = ({
     <div className="space-y-3">
       <div className="border-b border-slate-200 pb-2">
         <h3 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200">Shipping Details</h3>
-        <p className="text-xs text-slate-600 dark:text-slate-400">Destination and shipping date information</p>
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

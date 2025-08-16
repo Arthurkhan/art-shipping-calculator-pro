@@ -26,7 +26,7 @@ export const CollectionSelector = ({
   
   return (
     <div className="space-y-1.5">
-      <Label htmlFor="collection" className="text-sm text-slate-700 font-medium flex items-center">
+      <Label htmlFor="collection" className="text-sm text-slate-700 dark:text-slate-300 font-medium flex items-center">
         <Palette className="w-3.5 h-3.5 mr-1.5" />
         Art Collection
       </Label>

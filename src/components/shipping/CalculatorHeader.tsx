@@ -23,9 +23,6 @@ export const CalculatorHeader: FC = memo(() => {
         <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-slate-800 to-blue-800 dark:from-slate-100 dark:to-blue-200 bg-clip-text text-transparent mb-2 gradient-text">
           Art Collection Shipping Calculator
         </h1>
-        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 px-4">
-          Get instant FedEx shipping rates for your art collections worldwide
-        </p>
       </div>
     </>
   );
