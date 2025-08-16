@@ -170,14 +170,15 @@
                     <div class="success status">
                         <strong>✅ Success!</strong><br>
                         All caches and service workers have been cleared.<br><br>
-                        <strong>Next steps:</strong>
-                        <ol>
-                            <li>Close this tab</li>
-                            <li>Open a new tab</li>
-                            <li>Visit the app again: <a href="/">Go to App</a></li>
-                        </ol>
+                        Redirecting you to the app in 3 seconds...<br><br>
+                        <a href="/art-shipping-calculator-pro/?cachebust=${Date.now()}">Click here if not redirected</a>
                     </div>
                 `;
+                
+                // Auto-redirect after 3 seconds with cache busting
+                setTimeout(() => {
+                    window.location.href = `/art-shipping-calculator-pro/?cachebust=${Date.now()}`;
+                }, 3000);
                 
             } catch (error) {
                 log(`Error: ${error.message}`, 'error');
