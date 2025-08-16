@@ -118,8 +118,10 @@ export const secureFedexStorage = {
   /**
    * Get preference for using default credentials
    */
-  getUseDefaultsPreference: (): boolean => {
-    return storage.getItem(STORAGE_KEYS.USE_DEFAULT_CREDENTIALS) === 'true';
+  getUseDefaultsPreference: (): boolean | null => {
+    const value = storage.getItem(STORAGE_KEYS.USE_DEFAULT_CREDENTIALS);
+    if (value === null) return null;
+    return value === 'true';
   },
 
   /**

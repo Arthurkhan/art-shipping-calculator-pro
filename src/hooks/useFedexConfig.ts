@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import SecureFedexService from '@/lib/secure-fedex-service';
 import { validateFedexConfig, ValidationStatus } from '@/lib/form-validation';
 import { useToast } from '@/hooks/use-toast';
+import { secureFedexStorage } from '@/lib/storage-utils';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface FedexConfig {
   accountNumber: string;
@@ -57,8 +59,24 @@ export const useFedexConfig = () => {
 
   // Initialize config check on mount
   useEffect(() => {
-    // Load preference
-    setPreferDefaults(SecureFedexService.isUsingDefaults());
+    // Load preference - check if user wants to use defaults
+    const wantsDefaults = SecureFedexService.isUsingDefaults();
+    setPreferDefaults(wantsDefaults);
+    
+    // If no preference set yet, default to using defaults if available
+    if (secureFedexStorage.getUseDefaultsPreference() === null) {
+      // Check if defaults are available
+      supabase.functions.invoke('fedex-config', {
+        body: { action: 'get', sessionId: undefined }
+      }).then(({ data }) => {
+        if (data?.hasConfig && data?.sessionId === 'default') {
+          // Defaults are available, use them by default
+          SecureFedexService.setUseDefaults(true);
+          setPreferDefaults(true);
+        }
+      });
+    }
+    
     checkFedexConfigStatus();
   }, []);
 

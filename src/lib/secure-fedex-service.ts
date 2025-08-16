@@ -30,7 +30,7 @@ class SecureFedexService {
   static async saveConfig(config: FedexConfig): Promise<{ success: boolean; sessionId?: string; error?: string }> {
     try {
       // Get or create session ID
-      let sessionId = secureFedexStorage.getSessionId();
+      const sessionId = secureFedexStorage.getSessionId();
       
       const { data, error } = await supabase.functions.invoke(this.FEDEX_CONFIG_FUNCTION, {
         body: {
@@ -66,52 +66,82 @@ class SecureFedexService {
       const useDefaults = secureFedexStorage.getUseDefaultsPreference();
       const sessionId = secureFedexStorage.getSessionId();
       
-      // If user prefers defaults, don't send sessionId
-      // Otherwise send sessionId if it exists
-      const effectiveSessionId = useDefaults ? undefined : (sessionId || undefined);
+      // If user prefers defaults, explicitly check for defaults first
+      if (useDefaults) {
+        const { data, error } = await supabase.functions.invoke(this.FEDEX_CONFIG_FUNCTION, {
+          body: {
+            action: 'get',
+            sessionId: undefined // Explicitly pass undefined to trigger default check
+          }
+        });
+
+        if (!error && data) {
+          const response = data as FedexConfigResponse;
+          if (response.hasConfig && response.sessionId === 'default') {
+            return { 
+              hasConfig: true, 
+              sessionId: 'default'
+            };
+          }
+        }
+        // If defaults not available, fall through to check user session
+      }
       
+      // Check for user session if we have one
+      if (sessionId) {
+        const { data, error } = await supabase.functions.invoke(this.FEDEX_CONFIG_FUNCTION, {
+          body: {
+            action: 'get',
+            sessionId: sessionId
+          }
+        });
+
+        if (!error && data) {
+          const response = data as FedexConfigResponse;
+          
+          if (response.hasConfig && response.sessionId && response.sessionId !== 'default') {
+            // Store the session ID if it's a real session
+            secureFedexStorage.setSessionId(response.sessionId);
+            return { 
+              hasConfig: true, 
+              sessionId: response.sessionId
+            };
+          }
+          
+          // If session not found but defaults available
+          if (!response.hasConfig || response.sessionId === 'default') {
+            // Clear invalid session
+            secureFedexStorage.clearSessionId();
+            
+            if (response.sessionId === 'default') {
+              return { 
+                hasConfig: true, 
+                sessionId: 'default'
+              };
+            }
+          }
+        }
+      }
+      
+      // No session, check if defaults are available
       const { data, error } = await supabase.functions.invoke(this.FEDEX_CONFIG_FUNCTION, {
         body: {
           action: 'get',
-          sessionId: effectiveSessionId
+          sessionId: undefined
         }
       });
 
-      if (error) {
-        return { hasConfig: false };
-      }
-
-      const response = data as FedexConfigResponse;
-      
-      // Handle default credentials response
-      if (response.hasConfig && response.sessionId === 'default') {
-        // Don't store 'default' in localStorage, but return it for state management
-        // Don't clear sessionId - user might want to switch back
-        return { 
-          hasConfig: true, 
-          sessionId: 'default'
-        };
+      if (!error && data) {
+        const response = data as FedexConfigResponse;
+        if (response.hasConfig && response.sessionId === 'default') {
+          return { 
+            hasConfig: true, 
+            sessionId: 'default'
+          };
+        }
       }
       
-      // Handle regular session-based config
-      if (response.hasConfig && response.sessionId && response.sessionId !== 'default') {
-        // Store the session ID if it's a real session
-        secureFedexStorage.setSessionId(response.sessionId);
-        return { 
-          hasConfig: true, 
-          sessionId: response.sessionId
-        };
-      }
-      
-      // If no config found and we had a sessionId, clear it as it's invalid
-      if (sessionId && !response.hasConfig) {
-        secureFedexStorage.clearSessionId();
-      }
-      
-      return { 
-        hasConfig: response.hasConfig || false, 
-        sessionId: response.sessionId
-      };
+      return { hasConfig: false };
     } catch (error) {
       return { hasConfig: false };
     }
@@ -199,7 +229,8 @@ class SecureFedexService {
    */
   static getSessionId(): string | null {
     // Check if user prefers defaults
-    if (secureFedexStorage.getUseDefaultsPreference()) {
+    const pref = secureFedexStorage.getUseDefaultsPreference();
+    if (pref === true) {
       return null; // Return null to use defaults
     }
     
@@ -220,7 +251,8 @@ class SecureFedexService {
    * Check if using defaults
    */
   static isUsingDefaults(): boolean {
-    return secureFedexStorage.getUseDefaultsPreference();
+    const pref = secureFedexStorage.getUseDefaultsPreference();
+    return pref === true; // Handle null case by defaulting to false
   }
 }
 

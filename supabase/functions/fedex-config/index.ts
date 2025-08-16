@@ -216,41 +216,58 @@ serve(async (req) => {
         break;
 
       case 'get':
-        // Check session-based config first
-        if (request.sessionId) {
-          // Retrieve from Supabase
-          const { data: getSession, error: getError } = await supabase
-            .from('fedex_sessions')
-            .select('*')
-            .eq('session_id', request.sessionId)
-            .single();
-
-          if (getSession && !getError) {
+        // If no sessionId provided, check for default credentials first
+        if (!request.sessionId) {
+          const defaultAccountGet = Deno.env.get('FEDEX_DEFAULT_ACCOUNT');
+          const defaultClientIdGet = Deno.env.get('FEDEX_DEFAULT_CLIENT_ID');
+          const defaultClientSecretGet = Deno.env.get('FEDEX_DEFAULT_CLIENT_SECRET');
+          
+          if (defaultAccountGet && defaultClientIdGet && defaultClientSecretGet) {
             response = {
               success: true,
               hasConfig: true,
-              sessionId: request.sessionId
+              sessionId: 'default' // Special sessionId to indicate using defaults
             };
-            break;
+          } else {
+            response = {
+              success: true,
+              hasConfig: false
+            };
           }
+          break;
         }
 
-        // Check for default credentials as fallback
-        const defaultAccountGet = Deno.env.get('FEDEX_DEFAULT_ACCOUNT');
-        const defaultClientIdGet = Deno.env.get('FEDEX_DEFAULT_CLIENT_ID');
-        const defaultClientSecretGet = Deno.env.get('FEDEX_DEFAULT_CLIENT_SECRET');
-        
-        if (defaultAccountGet && defaultClientIdGet && defaultClientSecretGet) {
+        // Check session-based config if sessionId provided
+        const { data: getSession, error: getError } = await supabase
+          .from('fedex_sessions')
+          .select('*')
+          .eq('session_id', request.sessionId)
+          .single();
+
+        if (getSession && !getError) {
           response = {
             success: true,
             hasConfig: true,
-            sessionId: 'default' // Special sessionId to indicate using defaults
+            sessionId: request.sessionId
           };
         } else {
-          response = {
-            success: true,
-            hasConfig: false
-          };
+          // Session not found, check if defaults are available as fallback
+          const defaultAccountFallback = Deno.env.get('FEDEX_DEFAULT_ACCOUNT');
+          const defaultClientIdFallback = Deno.env.get('FEDEX_DEFAULT_CLIENT_ID');
+          const defaultClientSecretFallback = Deno.env.get('FEDEX_DEFAULT_CLIENT_SECRET');
+          
+          if (defaultAccountFallback && defaultClientIdFallback && defaultClientSecretFallback) {
+            response = {
+              success: true,
+              hasConfig: true,
+              sessionId: 'default'
+            };
+          } else {
+            response = {
+              success: true,
+              hasConfig: false
+            };
+          }
         }
         break;
 
