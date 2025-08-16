@@ -45,25 +45,6 @@ export const updateOriginPostalCode = (postalCode: string): void => {
 };
 
 /**
- * Reset origin address to Thailand defaults
- */
-export const resetToDefaultOrigin = (): void => {
-  originStorage.setOriginCountry(originAddressDefaults.countryName);
-  originStorage.setOriginPostalCode(originAddressDefaults.postalCode);
-};
-
-/**
- * Check if current origin address is the default Thailand address
- */
-export const isDefaultOriginAddress = (): boolean => {
-  const current = getOriginAddress();
-  return (
-    current.country === originAddressDefaults.countryName &&
-    current.postalCode === originAddressDefaults.postalCode
-  );
-};
-
-/**
  * Origin address management interface
  */
 export interface OriginAddressState {
@@ -78,7 +59,6 @@ export interface OriginAddressState {
 export interface OriginAddressActions {
   updateCountry: (country: string) => void;
   updatePostalCode: (postalCode: string) => void;
-  reset: () => void;
   initialize: () => void;
 }
 
@@ -94,7 +74,6 @@ export const createOriginAddressManager = (): {
   const actions: OriginAddressActions = {
     updateCountry: updateOriginCountry,
     updatePostalCode: updateOriginPostalCode,
-    reset: resetToDefaultOrigin,
     initialize: initializeOriginDefaults,
   };
 

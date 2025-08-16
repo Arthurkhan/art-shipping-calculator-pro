@@ -7,18 +7,11 @@ import { initializeOriginDefaults, getOriginAddress, updateOriginCountry, update
  * Custom hook for managing origin address with Thailand defaults
  * Extracted from Index.tsx for Phase 2 refactoring
  * Updated: Now uses 2-letter country codes only
- * Fixed: Properly reads custom defaults from localStorage
  */
 export const useOriginAddress = () => {
-  // Initialize origin address - check for custom defaults first
+  // Initialize origin address with saved values or Thailand defaults
   const [originCountry, setOriginCountry] = useState(() => {
-    // First check if user has set a custom default
-    const customDefault = localStorage.getItem('origin_country');
-    if (customDefault) {
-      return customDefault;
-    }
-    
-    // Then check for saved value from previous session
+    // Check for saved value from previous session
     const savedCountry = originStorage.getOriginCountry('');
     // Ensure we use 2-letter code, convert if necessary
     if (savedCountry === 'Thailand') {
@@ -28,13 +21,7 @@ export const useOriginAddress = () => {
   });
   
   const [originPostalCode, setOriginPostalCode] = useState(() => {
-    // First check if user has set a custom default
-    const customDefault = localStorage.getItem('origin_postal_code');
-    if (customDefault) {
-      return customDefault;
-    }
-    
-    // Then check for saved value from previous session
+    // Check for saved value from previous session
     const savedPostalCode = originStorage.getOriginPostalCode('');
     return savedPostalCode || originAddressDefaults.postalCode;
   });
@@ -62,14 +49,6 @@ export const useOriginAddress = () => {
     return validateOriginAddress(originCountry, originPostalCode);
   };
 
-  // Reset to defaults (using 2-letter code)
-  const resetToDefaults = () => {
-    setOriginCountry(originAddressDefaults.country); // "TH"
-    setOriginPostalCode(originAddressDefaults.postalCode);
-    updateOriginCountry(originAddressDefaults.country); // "TH"
-    updateOriginPostalCode(originAddressDefaults.postalCode);
-  };
-
   // Get current origin address
   const getCurrentOriginAddress = () => {
     return {
@@ -87,7 +66,6 @@ export const useOriginAddress = () => {
     // Actions
     handleOriginCountryChange,
     handleOriginPostalCodeChange,
-    resetToDefaults,
     
     // Utilities
     validateOrigin,

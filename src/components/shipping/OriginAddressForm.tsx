@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { MapPin, Mail, RotateCcw, AlertCircle, CheckCircle2, Settings, Locate } from "lucide-react";
-import { cn, originAddressDefaults, validateOriginAddress, type ValidationResult } from "@/lib/utils";
+import { MapPin, Mail } from "lucide-react";
+import { originAddressDefaults, validateOriginAddress, type ValidationResult } from "@/lib/utils";
 import { EnhancedInput } from "@/components/ui/enhanced-input";
-import { useGeolocation } from "@/hooks/useGeolocation";
-import { toast } from "sonner";
 import { 
   countryToCode, 
   searchCountries, 
@@ -26,22 +23,9 @@ export const OriginAddressForm = ({
 }: OriginAddressFormProps) => {
   const [countryValidation, setCountryValidation] = useState<ValidationResult>({ isValid: true });
   const [postalValidation, setPostalValidation] = useState<ValidationResult>({ isValid: true });
-  const [isUsingDefaults, setIsUsingDefaults] = useState(false);
   const [countrySuggestions, setCountrySuggestions] = useState<string[]>([]);
   const [countryInput, setCountryInput] = useState(originCountry);
   const [isValidCountry, setIsValidCountry] = useState(false);
-  
-  // Geolocation hook
-  const { detectLocation, isLoading: isDetectingLocation } = useGeolocation();
-
-  // Check if current values match Thailand defaults
-  useEffect(() => {
-    const matchesDefaults = (
-      originCountry === originAddressDefaults.country &&
-      originPostalCode === originAddressDefaults.postalCode
-    );
-    setIsUsingDefaults(matchesDefaults);
-  }, [originCountry, originPostalCode]);
 
   // Validate on value changes
   useEffect(() => {
@@ -64,28 +48,6 @@ export const OriginAddressForm = ({
       setPostalValidation({ isValid: true });
     }
   }, [originPostalCode, originCountry]);
-
-  const handleSetToDefaults = () => {
-    onOriginCountryChange(originAddressDefaults.country);
-    onOriginPostalCodeChange(originAddressDefaults.postalCode);
-  };
-
-  const handleSetCurrentAsDefault = () => {
-    // Store current values as the new defaults in localStorage
-    localStorage.setItem('origin_country', originCountry);
-    localStorage.setItem('origin_postal_code', originPostalCode);
-    toast.success('Default origin address updated');
-  };
-  
-  const handleDetectLocation = async () => {
-    const location = await detectLocation();
-    if (location && location.country) {
-      onOriginCountryChange(location.country);
-      if (location.postalCode) {
-        onOriginPostalCodeChange(location.postalCode);
-      }
-    }
-  };
 
   // Update country input display when country prop changes  
   useEffect(() => {
@@ -157,47 +119,12 @@ export const OriginAddressForm = ({
   return (
     <div className="space-y-3">
       <div className="border-b border-slate-200 pb-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">Origin Address</h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400">Where are you shipping from?</p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDetectLocation}
-              className="text-xs px-3 py-1.5 h-auto"
-              disabled={isDetectingLocation}
-            >
-              <Locate className={cn("w-3 h-3 mr-1.5", isDetectingLocation && "animate-pulse")} />
-              {isDetectingLocation ? 'Detecting...' : 'Auto-detect'}
-            </Button>
-            {!isUsingDefaults && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSetToDefaults}
-                className="text-xs px-3 py-1.5 h-auto"
-              >
-                <RotateCcw className="w-3 h-3 mr-1.5" />
-                Use Thailand Default
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSetCurrentAsDefault}
-              className="text-xs px-3 py-1.5 h-auto"
-              disabled={!originCountry.trim() || !originPostalCode.trim()}
-            >
-              <Settings className="w-3 h-3 mr-1.5" />
-              Set as Default
-            </Button>
-          </div>
+        <div>
+          <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">Origin Address</h3>
+          <p className="text-xs text-slate-600 dark:text-slate-400">Where are you shipping from?</p>
         </div>
         
-        {/* Thailand Default Notice - Updated */}
+        {/* Thailand Default Notice - Simplified */}
         <div className="mt-2 p-2 bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
           <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center">
             <MapPin className="w-3 h-3 mr-1.5" />
