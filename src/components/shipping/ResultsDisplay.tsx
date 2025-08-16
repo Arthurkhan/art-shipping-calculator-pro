@@ -66,7 +66,7 @@ export const ResultsDisplay = ({ rates, isLoading, preferredCurrency }: ResultsD
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <h3 className="text-base sm:text-lg font-semibold text-slate-800">Calculating shipping rates...</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-slate-800 dark:text-slate-200">Calculating shipping rates...</h3>
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="p-3 sm:p-4 skeleton-shimmer">
@@ -94,7 +94,7 @@ export const ResultsDisplay = ({ rates, isLoading, preferredCurrency }: ResultsD
   return (
     <div className="space-y-4 fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <h3 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center">
+        <h3 className="text-base sm:text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center">
           <Truck className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           Available Shipping Options
         </h3>
@@ -133,7 +133,7 @@ export const ResultsDisplay = ({ rates, isLoading, preferredCurrency }: ResultsD
                 {/* Service Name and Badge */}
                 <div className="space-y-2">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <h4 className="font-medium text-slate-800 text-sm sm:text-base break-words">
+                    <h4 className="font-medium text-slate-800 dark:text-slate-200 text-sm sm:text-base break-words">
                       {primaryRate.service}
                     </h4>
                     <Badge variant="secondary" className="badge-responsive w-fit">
@@ -173,7 +173,7 @@ export const ResultsDisplay = ({ rates, isLoading, preferredCurrency }: ResultsD
                       <div className="flex items-end justify-between">
                         <div>
                           <div>
-                            <div className="text-lg sm:text-xl font-bold text-slate-800">
+                            <div className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-200">
                               <span className="text-sm font-normal text-gray-500">THB</span> {Math.round(account.cost).toLocaleString()}
                             </div>
                             {convertAmount && toCurrency && toCurrency !== 'THB' && (() => {
