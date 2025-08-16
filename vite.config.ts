@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   // Determine base URL based on build target
   const isSquarespaceBuild = process.env.BUILD_TARGET === 'squarespace';
   const baseUrl = isSquarespaceBuild 
-    ? 'https://art-shipping-calculator-pro.netlify.app/' // Your Netlify URL
+    ? 'https://fedexcalculator.netlify.app/' // Your Netlify URL
     : '/';
   
   return {

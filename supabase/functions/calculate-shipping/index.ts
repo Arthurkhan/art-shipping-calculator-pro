@@ -692,7 +692,7 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:4173',
   'https://arthurkhan.github.io',
-  'https://art-shipping-calculator-pro.netlify.app'
+  'https://fedexcalculator.netlify.app'
 ];
 
 const corsHeaders = (origin: string | null) => {
